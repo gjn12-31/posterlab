@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-23",
+        "2025年9月23日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-23"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座介绍面向机器人灵巧操作的原子技能方法，探讨如何让机器人获得更丰富的操作能力。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "Haozhi Qi"
+    },
+    "time": {
+      "allowed_forms": [
+        "16:00-17:30",
+        "16:00–17:30"
+      ],
+      "match": "allowed_forms",
+      "value": "16:00-17:30"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "The Atomic Skill Approach to Robotic Dexterity"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "Seminar Room 2, 19th Floor, Tower C, TusPark (#腾讯会议：398-077-2882 密码：095015)"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e003-standard"
+}

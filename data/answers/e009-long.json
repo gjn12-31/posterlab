@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-08-13",
+        "2025年8月13日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-08-13"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论视觉推理从简单任务向困难任务的泛化，关注视觉语言模型中的模态不平衡问题。报告以视觉推理任务为背景，分析模型的泛化表现，并探讨缓解不同模态之间不平衡的研究方向。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "程韵"
+    },
+    "time": {
+      "allowed_forms": [
+        "11:00-12:00",
+        "11:00–12:00"
+      ],
+      "match": "allowed_forms",
+      "value": "11:00-12:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e009-long"
+}

@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-25",
+        "2025年9月25日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-25"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论如何将人工智能与光学原理结合，从已有测量数据中发现隐藏结构，并介绍其在生物医学成像与系外行星探测中的应用。报告将以散射生物组织后的结构恢复，以及恒星强光背景中的微弱行星信号探测为例，介绍计算方法如何拓展既有成像设备的能力。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "冯昱善"
+    },
+    "time": {
+      "allowed_forms": [
+        "16:30-18:00",
+        "16:30–18:00"
+      ],
+      "match": "allowed_forms",
+      "value": "16:30-18:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "AI as a Lens: Expanding Vision for Scientific Discovery"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e001-long"
+}

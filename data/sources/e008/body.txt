@@ -1,0 +1,14 @@
+On some methodological aspects of generative flow networks
+演讲人：
+Sergey Samsonov
+[HSE University]
+时间：
+11:00-12:00, Aug 25, 2025 (Mon)
+地点：
+RM 1-222, FIT Building
+内容：
+GFlowNets are a family of generative models that learn to sample objects from a given probability distribution, potentially known only up to a normalizing constant. The key concept behind GFlowNets is the use of two stochastic policies: a forward policy, which incrementally constructs compositional objects, and a backward policy, which sequentially deconstructs them. During inference, GFlowNets sample trajectories in an appropriately constructed directed acyclic graph environment.
+In this talk, we address the challenges and limitations of training GFlowNets. Specifically, we discuss the merits of optimizing the backward policy in GFlowNets, introduce a theory that relaxes the acyclicity assumption, and present a simpler theoretical framework for non-acyclic GFlowNets in discrete environments. If time permits, we will also discuss continuous-time generalizations of our approach to the setting of diffusion samplers.
+个人简介:
+Sergey Samsonov is currently the head of the International Laboratory of Stochastic Algorithms and High-Dimensional Inference and an assistant professor at the Department of Computer Science, HSE University, Moscow, Russia. He obtained his PhD degree in mathematics from HSE University in 2024. Sergey's research interests are mainly related to stochastic approximation, sampling methods, and generative modeling. His primary research focus is probabilistic inference for stochastic approximation algorithms and the development of novel sampling techniques, especially those related to diffusion sampling.
+Sergey Samsonov has authored more than 20 papers in leading journals and conferences in the field, including COLT, ICML, NeurIPS, ICLR, AISTATS, the Journal of Machine Learning Research, and Mathematics of Operations Research.

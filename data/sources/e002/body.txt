@@ -1,0 +1,12 @@
+Advancing Deep Learning for Multi-Agent Al:Incentives and Scalability
+演讲人：
+Tonghan Wang
+[Harvard University]
+时间：
+15:00-16:00, Sep 25, 2025 (Thu)
+地点：
+RM 1-222, FIT Building
+内容：
+The ecosystem of Al agents and humans will shape the future. For the success of thisecosystem, we need to build agents and agent systems that can scale to real-worlccomplexity while providing alignment guarantees. This goal necessitates new progressin multi-agent Al, This talk presents advances in deep learning that enable the learnincof two complementary structures to achieve this goal. The incentive structure makesaligned behavior, such as truthful reporting, the rational choice of agents. The interac-tion structure simplifies multi-agent dynamics and improves the learning efficiency oaaents, odether these structures otera principed pathway towaro alaneo ano scalable earning in systems of independentagents, as wel as in a single embodied robotwhose actuators are coordinated as a muti-agent system.
+个人简介:
+Tonghan Wang is a computer science Ph.D. student working with Professor David CParkes and Professor Milind Tambe in the EconCS Group and the Teamcore Group at Har-vard University. Before joining Harvard, he completed his M.E. in Machine Intelligence atthe Institute for Interdisciplinary Information Sciences (lllS) at Tsinghua University. His research focuses on designing principled deep learning methods to build aligned and scal-able multi-agent systems. His work has been recognized at premier Al and computation-al economics conferences, including the 2024 ACM EC best paper award in the Al trackSpotlight Papers at NeurlPS 2025, ICLR 2022, NeurlPS 2022, ICLR 2020, and NeurlPs2020；and an AAAl 2025 Oral Presentation.

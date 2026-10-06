@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-25",
+        "2025年9月25日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-25"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座围绕多智能体人工智能的激励机制与可扩展性，讨论如何构建能够面对现实复杂性、并满足对齐要求的智能体系统。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "Tonghan Wang"
+    },
+    "time": {
+      "allowed_forms": [
+        "15:00-16:00",
+        "15:00–16:00"
+      ],
+      "match": "allowed_forms",
+      "value": "15:00-16:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "Advancing Deep Learning for Multi-Agent Al:Incentives and Scalability"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e002-standard"
+}

@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2811.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：On some methodological aspects of generative flow networks
+speaker：Sergey Samsonov
+date：2025-08-25
+time：11:00-12:00
+venue：RM 1-222, FIT Building
+description：本讲座讨论生成流网络的方法论问题，关注这一生成建模框架的研究思路及其关键方法。

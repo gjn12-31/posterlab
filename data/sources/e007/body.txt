@@ -1,0 +1,12 @@
+Unbounded Sharing of Nonlocality Using Qubit Projective Measurements
+演讲人：
+Souradeep Sasmal
+[University of Electronic Science and Technology of China]
+时间：
+15:00-17:00, Sep 8, 2025 (Mon)
+地点：
+RM S327, MMW Building (#腾讯会议：435-802-209)
+内容：
+The prevailing consensus is that the sequential sharing of nonlocality in a Bell experiment requires generalised unsharp measurements, since a sharp measurement inevitably destroys the entanglement of the shared state. In contrast, we introduce a qubit projective measurement-based protocol, aided by local randomness, that enables the sharing of nonlocality by an arbitrary number of sequential observers (Bobs) with a single spatially separated observer (Alice). We achieve this by identifying a crucial interplay between the degrees of measurement incompatibility of Alice and Bob, thereby demonstrating the unbounded sharing of nonlocality. Our findings not only offer a new paradigm for understanding the fundamental role of measurement incompatibility in quantum nonlocality, but also pave the way for various information-processing tasks based on local randomness-assisted projective measurements.
+个人简介:
+Souradeep Sasmal is a postdoctoral researcher at the IFFS, University of Electronic Science and Technology of China, Chengdu. His primary research interests lie in quantum foundations and quantum information, with a focus on quantum nonlocality, steering, cryptography, and randomness certification. In recent years, his work has concentrated on the self-testing of quantum devices and exploring the role of measurement incompatibility and sequential quantum correlations in precision metrology.

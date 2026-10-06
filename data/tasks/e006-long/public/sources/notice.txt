@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2823.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：Quantum information in precision measurements using spin squeezing and light squeezing
+speaker：肖艳红
+date：2025-09-11
+time：16:30-18:00
+venue：RM 1-222, FIT Building
+description：本讲座讨论自旋压缩与光压缩在精密测量中的量子信息应用，关注相干原子与光相互作用系统的测量灵敏度。报告以自旋投影噪声和光子散粒噪声等经典限制为背景，探讨利用量子资源改进测量的研究方向。

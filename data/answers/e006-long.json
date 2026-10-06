@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-11",
+        "2025年9月11日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-11"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论自旋压缩与光压缩在精密测量中的量子信息应用，关注相干原子与光相互作用系统的测量灵敏度。报告以自旋投影噪声和光子散粒噪声等经典限制为背景，探讨利用量子资源改进测量的研究方向。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "肖艳红"
+    },
+    "time": {
+      "allowed_forms": [
+        "16:30-18:00",
+        "16:30–18:00"
+      ],
+      "match": "allowed_forms",
+      "value": "16:30-18:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "Quantum information in precision measurements using spin squeezing and light squeezing"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e006-long"
+}

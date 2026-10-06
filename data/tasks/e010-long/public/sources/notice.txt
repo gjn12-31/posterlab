@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2809.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：On the Power of Context-Enhanced Learning in LLMs
+speaker：朱星宇
+date：2025-08-11
+time：11:00-12:00
+venue：RM 1-222, FIT Building (https://meeting.tencent.com/dm/O15OBOE6VLfC #腾讯会议：490-402-711)
+description：本讲座讨论大语言模型中上下文增强学习的作用，关注上下文信息如何影响模型的学习过程。报告围绕上下文增强学习展开，介绍相关研究问题与方法，讨论这一方向对理解大语言模型的意义。

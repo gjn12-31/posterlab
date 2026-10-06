@@ -1,0 +1,6 @@
+Noto Sans CJK SC Regular / Bold
+Upstream: https://github.com/notofonts/noto-cjk/tree/main/Sans/OTF/SimplifiedChinese
+Downloaded via official repository's jsDelivr CDN mirror on 2026-10-05.
+License: SIL Open Font License 1.1, see LICENSE.txt.
+Files locally renamed PosterSans-Regular.otf / PosterSans-Bold.otf; embedded names unchanged.
+Hashes are recorded by posterlab doctor and in every run snapshot.

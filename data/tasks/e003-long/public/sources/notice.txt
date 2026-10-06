@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2828.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：The Atomic Skill Approach to Robotic Dexterity
+speaker：Haozhi Qi
+date：2025-09-23
+time：16:00-17:30
+venue：Seminar Room 2, 19th Floor, Tower C, TusPark (#腾讯会议：398-077-2882 密码：095015)
+description：本讲座介绍面向机器人灵巧操作的原子技能方法，探讨如何让机器人获得更丰富的操作能力。报告以人手感知和操纵物理世界的能力为背景，讨论机器人灵巧操作的挑战及相应研究思路。

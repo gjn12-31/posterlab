@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2830.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：Genuine quantum scars in many-body spin systems
+speaker：Andrea Pizzi
+date：2025-09-17
+time：10:00-11:00
+venue：RM 1-222, FIT Building
+description：本讲座关注多体自旋系统中的量子疤痕现象，讨论混沌系统热化与更复杂量子信息之间的关系。

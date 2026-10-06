@@ -1,0 +1,34 @@
+{
+  "asset_manifest": "assets.json",
+  "brief_file": "brief.md",
+  "canvas": {
+    "height": 1440,
+    "width": 1080
+  },
+  "minimum_font_px": {
+    "body": 24,
+    "title": 48
+  },
+  "output_contract_version": "html-v1",
+  "required_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "schema_version": "1.0",
+  "source_files": [
+    "sources/notice.txt"
+  ],
+  "style_requirements": [
+    "蓝白配色",
+    "学术风格",
+    "信息清晰"
+  ],
+  "task_id": "e006-long",
+  "verbatim_fields": [
+    "description"
+  ]
+}

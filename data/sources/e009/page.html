@@ -1,0 +1,767 @@
+﻿<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+<title>Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?-Institute for Interdisciplinary Information Sciences (IIIS)</title><META Name="keywords" Content="Institute for Interdisciplinary Information Sciences (IIIS),Institute Seminars,Generalizing,from,SIMPLE,to,HARD,Visual,Reasoning,Can,We,Mitigate,Modality,Imbalance,in,VLMs" />
+<META Name="description" Content="演讲人： 程韵 [普林斯顿大学] 时间： 11:00-12:00, Aug 13, 2025 (Wed)地点：RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)内容：While Vision Language Models (VLMs) are impressive in tasks such as visual question answering (VQA) and image captioning, their ability to apply multi-step reasoning to images has lagged, giving rise to perceptions of modality ..." />
+
+<meta charset="utf-8" />
+<meta name="renderer" content="webkit" />
+
+<meta name="description" content="" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<meta name="format-detection" content="telephone=no,email=no,adress=no,date=no" />
+<link rel="apple-touch-icon-precomposed" href="../../images/favicon.png" />
+<link rel="icon" sizes="72*72" href="../../images/favicon.png" />
+<link rel="stylesheet" type="text/css" href="../../css/public.css" />
+<link rel="stylesheet" type="text/css" href="../../css/body.css" />
+<link rel="stylesheet" type="text/css" href="../../css/ny.css" />
+<script type="text/javascript" src="../../js/jq.js"></script>
+<!--[if lte IE 9]>
+  <script type="text/javascript" src="../../js/jquery.js"></script>
+<![endif]-->
+<script src="../../js/script.js"></script>
+<!--Announced by Visual SiteBuilder 9-->
+<link rel="stylesheet" type="text/css" href="../../_sitegray/_sitegray_d.css" />
+<script language="javascript" src="../../_sitegray/_sitegray.js"></script>
+<!-- CustomerNO:77656262657232307e78475c5356574200000003435c -->
+<link rel="stylesheet" type="text/css" href="../../xwxq.vsb.css" />
+<script type="text/javascript" src="/system/resource/js/counter.js"></script>
+<script type="text/javascript">_jsq_(1044,'/xwxq.jsp',2810,2111136488)</script>
+</head>
+<body>
+<div id="load"></div>
+
+<div id="app">
+     <header class="header">
+        <div class="wp flexjs">
+          <div class="logo">
+            
+
+
+
+
+
+
+
+<script language="javascript" src="/system/resource/js/dynclicks.js"></script><script language="javascript" src="/system/resource/js/centerCutImg.js"></script><p>
+
+</p>
+
+
+            
+            <div class="a">
+                  <a href="../../index.htm" onclick="_addDynClicks(&#34;wbimage&#34;, 2111136488, 1019172)"><img src="../../images/logo.png" border="0" class="i1"></a>
+
+              
+<!-- 网站logo图片地址请在本组件"内容配置-网站logo"处填写 -->
+<a href="../../index.htm"><img src="../../images/logos.png" alt="" class="i2" /></a>
+            </div>
+          </div>
+
+          <div class="topr flexjs flexc">
+            <div class="toplink flex">
+              <ul class="flex">
+
+                
+                <li>    
+<a href="javascript:;" class="a" onclick="_addDynClicks(&#34;wbimage&#34;, 2111136488, 1019173)"><i class="swi-weixin0"></i>wechat</a>
+                  <div class="ewm">
+                    <img src="../../images/ewm.png" border="0">
+                  </div>
+                
+
+</li>
+                <script language="javascript" src="/system/resource/js/openlink.js"></script>
+<li>
+                  <a href="https://cqi.tsinghua.edu.cn/en/" title="" onclick="_addDynClicks(&#34;wburl&#34;, 2111136488, 108921)" class="a"><i class="swi-shouye"></i>CQI</a>
+                </li>
+    
+
+
+                  <li>
+
+
+
+
+<script language="javascript" src="../../_dwr/interface/NewsvoteDWR.js"></script><script language="javascript" src="../../_dwr/engine.js"></script><script language="javascript" src="/system/resource/js/news/newscontent.js"></script><script language="javascript" src="/system/resource/js/ajax.js"></script>              <a href="" class="a">中文</a>
+
+</li>
+                <li>
+                  <a href="javascript:;" class="showSear swi-search-outlined"></a>
+                </li>
+                
+                
+                
+                
+              </ul>
+            </div>
+            <div class="topnav flex">
+              <ul class="flex">   <li><a href="../../index.htm">Home</a></li>
+   
+
+                <li>
+                  <a href="../../About/Introduction.htm">About IIIS</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../About/Introduction.htm">Introduction</a>
+                      
+                      
+                      
+                      <a href="../../About/Message_From_Dean.htm">Message From Dean</a>
+                      
+                      
+                      
+                      <a href="../../About/Current_Leadership.htm">Current Leadership</a>
+                      
+                      
+                      
+                      <a href="../../About/History.htm">History</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../News/Latest_News.htm">News</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../News/Latest_News.htm">Latest News</a>
+                      
+                      
+                      
+                      <a href="../../News/Media_Coverage.htm">Media Coverage</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../People.htm">People</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../People.htm#sz1">Faculty</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz8">Research</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz2">Honorary Professors</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz3">Adjunct Instructors</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz4">Postdocs</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz5">Administrative Staff</a>
+                      
+                      
+                      
+                      <a href="../../People.htm#sz6">Lab Assistants</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Yao_Class/About_Yao_Class.htm">Yao Class</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Yao_Class/About_Yao_Class.htm">About Yao Class</a>
+                      
+                      
+                      
+                      <a href="../../Yao_Class/Admission.htm">Admission</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Graduate/Graduate_Programs.htm">Graduate</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Graduate/Graduate_Programs.htm">Graduate Programs</a>
+                      
+                      
+                      
+                      <a href="../../Graduate/Graduate_Admission.htm">Graduate Admission</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../CQI/Introduction.htm">CQI</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../CQI/Introduction.htm">Introduction</a>
+                      
+                      
+                      
+                      <a href="../../CQI/Introduction.htm#lzsz">Faculty</a>
+                      
+                      
+                      
+                      <a href="../../CQI/Research_Overview.htm">Research Overview</a>
+                      
+                      
+                      
+                      <a href="../../CQI/CQI_News.htm">CQI News</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Research/Organization.htm">Research</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Research/Organization.htm">Organization</a>
+                      
+                      
+                      
+                      <a href="../../Research/Research_Groups.htm">Research Groups</a>
+                      
+                      
+                      
+                      <a href="../../Research/Latest_Research.htm">Latest Research</a>
+                      
+                      
+                      
+                      <a href="../../Research/Research_Report.htm">Research Report</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Campus/Campus_Events/Women_s_Basketball_Club.htm">Campus</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Campus/Campus_Events/Women_s_Basketball_Club.htm">Campus Events</a>
+                      
+                      
+                      
+                      <a href="../../Campus/Student_Life.htm">Student Life</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Join_Us.htm">Join Us</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Join_Us/Faculty_Recruitment.htm">Faculty Recruitment</a>
+                      
+                      
+                      
+                      <a href="../../Join_Us/Postdoctoral_Recruitment.htm">Postdoctoral Recruitment</a>
+                      
+                      
+                      
+                      <a href="../../Join_Us/Staff_Recruitment.htm">Staff Recruitment</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+                <li>
+                  <a href="../../Alumni/IIIS_Alumni.htm">Alumni</a>
+                  <i class="plus swi-down-outlined"></i>
+                  <div class="sub-nav">
+                    <div class="sub-nav-h">
+                      
+                      
+                      <a href="../../Alumni/IIIS_Alumni.htm">IIIS Alumni</a>
+                      
+                      
+                      
+                      <a href="../../Alumni/Community/IIIS_Football_Club.htm">Community</a>
+                      
+                      
+                      
+                      <a href="../../Alumni/Giving.htm">Giving</a>
+                      
+                    </div>
+                  </div>
+                </li>
+
+
+                
+                
+</ul>
+
+              <div id="openBtn" class="btn rd-navbar-toggle">
+                <div class="lcbody">
+                  <div class="lcitem top">
+                    <div class="rect top"></div>
+                  </div>
+                  <div class="lcitem center hide">
+                    <div class="rect bottom"></div>
+                  </div>
+                  <div class="lcitem bottom">
+                    <div class="rect bottom"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <form action="" class="miso_form1">
+              <div class="input-group pore">
+                <input type="text" name="showkeycode" id="" class="inp" placeholder="" autocomplete="off" />
+                <button class="sub" type="submit"></button>
+              </div>
+            </form>
+          </div>
+
+          <div class="navBtnm flex">
+            <a href="javascript:;" class="navbtn">
+              <button class="menu-btn">
+                <span class="line-1"></span>
+                <span class="line-2"></span>
+                <span class="line-3"></span>
+              </button>
+            </a>
+          </div>
+        </div>
+      </header>
+
+     <div class="site-menu" data-lenis-prevent>
+        <div class="site-menu-main px-container">
+            <div class="bottom">
+                <div class="wp">
+                    <div class="hd">                        <ul class="ul flex">
+                                                       <li>
+                                <a href="../../index.htm">Home</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../index/IIIS_Headlines.htm">IIIS Headlines</a>
+                 
+                                       
+
+                      <a href="../../index/Institute_Seminars.htm">Institute Seminars</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../About/Introduction.htm">About IIIS</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../About/Introduction.htm">Introduction</a>
+                 
+                                       
+
+                      <a href="../../About/Message_From_Dean.htm">Message From Dean</a>
+                 
+                                       
+
+                      <a href="../../About/Current_Leadership.htm">Current Leadership</a>
+                 
+                                       
+
+                      <a href="../../About/History.htm">History</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../News/Latest_News.htm">News</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../News/Latest_News.htm">Latest News</a>
+                 
+                                       
+
+                      <a href="../../News/Media_Coverage.htm">Media Coverage</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../People.htm">People</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../People.htm#sz1">Faculty</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz8">Research</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz2">Honorary Professors</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz3">Adjunct Instructors</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz4">Postdocs</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz5">Administrative Staff</a>
+                 
+                                       
+
+                      <a href="../../People.htm#sz6">Lab Assistants</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Yao_Class/About_Yao_Class.htm">Yao Class</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Yao_Class/About_Yao_Class.htm">About Yao Class</a>
+                 
+                                       
+
+                      <a href="../../Yao_Class/Admission.htm">Admission</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Graduate/Graduate_Programs.htm">Graduate</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Graduate/Graduate_Programs.htm">Graduate Programs</a>
+                 
+                                       
+
+                      <a href="../../Graduate/Graduate_Admission.htm">Graduate Admission</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../CQI/Introduction.htm">CQI</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../CQI/Introduction.htm">Introduction</a>
+                 
+                                       
+
+                      <a href="../../CQI/Introduction.htm#lzsz">Faculty</a>
+                 
+                                       
+
+                      <a href="../../CQI/Research_Overview.htm">Research Overview</a>
+                 
+                                       
+
+                      <a href="../../CQI/CQI_News.htm">CQI News</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Research/Organization.htm">Research</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Research/Organization.htm">Organization</a>
+                 
+                                       
+
+                      <a href="../../Research/Research_Groups.htm">Research Groups</a>
+                 
+                                       
+
+                      <a href="../../Research/Latest_Research.htm">Latest Research</a>
+                 
+                                       
+
+                      <a href="../../Research/Research_Report.htm">Research Report</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Campus/Campus_Events/Women_s_Basketball_Club.htm">Campus</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Campus/Campus_Events/Women_s_Basketball_Club.htm">Campus Events</a>
+                 
+                                       
+
+                      <a href="../../Campus/Student_Life.htm">Student Life</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Join_Us.htm">Join Us</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Join_Us/Faculty_Recruitment.htm">Faculty Recruitment</a>
+                 
+                                       
+
+                      <a href="../../Join_Us/Postdoctoral_Recruitment.htm">Postdoctoral Recruitment</a>
+                 
+                                       
+
+                      <a href="../../Join_Us/Staff_Recruitment.htm">Staff Recruitment</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+                            <li>
+                                <a href="../../Alumni/IIIS_Alumni.htm">Alumni</a>
+                                <div class="sub-nav">
+                                    <div class="sub-nav-h">
+
+                      <a href="../../Alumni/IIIS_Alumni.htm">IIIS Alumni</a>
+                 
+                                       
+
+                      <a href="../../Alumni/Community/IIIS_Football_Club.htm">Community</a>
+                 
+                                       
+
+                      <a href="../../Alumni/Giving.htm">Giving</a>
+                 
+                                       
+                                    </div>
+                                </div>
+                            </li>
+                            
+
+
+</ul>
+</div>
+                </div>
+            </div>
+        </div>
+      </div>
+
+  <div class="n_container n_b1 details">
+  <div id="waveContainer"></div>
+    <div class="wp">
+      <div class="n_yj"><h4>
+
+
+
+<font>
+Home
+
+</font></h4></div>
+      <div class="n_ej">
+        <ul class="flex">
+          
+
+    <li><a href="../../index/IIIS_Headlines.htm" class="a">IIIS Headlines</a></li>
+
+           
+
+    <li class="on"><a href="../../index/Institute_Seminars.htm" class="a">Institute Seminars</a></li>
+
+           
+</ul>
+
+
+      </div>
+    </div>
+    <div class="fl1 n_pad1">
+      <div class="wp flexjs">
+        <div class="left nry">
+
+
+
+
+
+
+
+
+<form name="_newscontent_fromname"><script language="javascript" src="/system/resource/js/jquery/jquery-latest.min.js"></script>
+
+          <div class="arc-tit">
+            <h3>Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?</h3>
+            <h4>Release time:2025-08-13</h4>
+          </div>
+          <div class="arc-con">
+           <div id="vsb_content"><div class="v_news_content">
+<p class="vsbcontent_start" style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"><strong>演讲人：</strong> <b style="font-family: 微软雅黑;"></b><b style="font-family: 微软雅黑; text-wrap: wrap;">程韵</b><span style="font-family: 微软雅黑; text-wrap: wrap;"> [普林斯顿大学] </span><span style="font-family: 微软雅黑;"></span></span></p>
+<p style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"><strong>时间：</strong> <span style="font-family: 微软雅黑;"><span style="font-family: 微软雅黑; text-wrap: wrap;">11:00-12:00, Aug 13, 2025 (Wed)</span></span></span></p>
+<p style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"><strong>地点：</strong><span style="font-family: 微软雅黑;"><span style="font-family: 微软雅黑; text-wrap: wrap;">RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)</span></span></span></p>
+<p style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"><strong>内容：</strong></span></p>
+<p style="text-wrap: wrap; font-family: 微软雅黑; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"></span></p>
+<div id="wea_rich_text_default_font" style="text-wrap: wrap; font-family: 微软雅黑;">
+ <p style="text-align: justify;"><span style="font-size: 16px;"></span></p>
+ <p style="font-family: 微软雅黑; text-wrap: wrap; text-align: justify;">While Vision Language Models (VLMs) are impressive in tasks such as visual question answering (VQA) and image captioning, their ability to apply multi-step reasoning to images has lagged, giving rise to perceptions of modality imbalance or brittleness.</p>
+ <p style="font-family: 微软雅黑; text-wrap: wrap; text-align: justify;">Towards systematic study of such issues, we introduce a synthetic framework for assessing the ability of VLMs to perform algorithmic visual reasoning, comprising three tasks: Table Readout, Grid Navigation, and Visual Analogy. Each has two levels of difficulty, SIMPLE and HARD, and even the SIMPLE versions are difficult for frontier VLMs. We seek strategies for training on the SIMPLE version of tasks that improve performance on the corresponding HARD task, i.e., S2H generalization. This synthetic framework, where each task also has a text-only version, allows a quantification of the modality imbalance and how it is impacted by training strategy. Ablations highlight the importance of explicit image-to-text conversion in promoting S2H generalization when using auto-regressive training. We also report results of mechanistic study of this phenomenon, including a measure of gradient alignment that seems to identify training strategies that promote better S2H generalization.</p>
+</div>
+<p style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"><strong>个人简介:</strong></span></p>
+<p class="vsbcontent_end" style="text-wrap: wrap; text-align: justify;"><span style="font-family: &quot;times new roman&quot;; font-size: 16px;"></span></p>
+<div id="wea_rich_text_default_font" style="font-family: 微软雅黑; text-wrap: wrap;">
+ <p style="text-align: justify;">Yun (Catherine) Cheng is a second-year CS Ph.D. student at Princeton University, advised by Sanjeev Arora. She completed her M.S. in Machine Learning, B.S. in Computer Science, and B.S. in Mathematical Sciences from Carnegie Mellon University. Her research focuses on conceptual understanding of large language models and vision-language models, with broad interests in developing better, self-evolving AI.</p>
+</div>
+</div></div>
+          </div>
+
+          <a href="../../index/Institute_Seminars.htm" class="more3 more3s flex">RETURN</a>
+        
+
+
+<table cellspacing="0" cellpadding="3" border="0" align="center" style="border-collapse:collapse; display:none;">
+    <tr>
+    <td width="20%" style="border:1px solid gray">演讲人</td>
+    <td width="30%" style="border:1px solid gray">程韵</td>
+    
+    
+    <td width="20%" style="border:1px solid gray">时间</td>
+    <td width="30%" style="border:1px solid gray">11:00-12:00, Aug 13, 2025 (Wed)</td>
+    </tr>
+    <tr>
+    <td width="20%" style="border:1px solid gray">地点</td>
+    <td width="30%" style="border:1px solid gray">RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)</td>
+    
+    
+    <td width="20%" style="border:1px solid gray">EN</td>
+    <td width="30%" style="border:1px solid gray"></td>
+    </tr>
+</table>
+
+
+
+</form>
+</div>
+        <div class="right">
+          <div class="sticky">
+
+
+
+
+
+
+
+<ul class="ls34">
+              
+</ul>
+</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+    <div class="footer section fp-auto-height">
+          <div class="wp"><!-- 版权内容请在本组件"内容配置-版权"处填写 -->
+<p>RM 1-208, FIT Building, Tsinghua University, Haidian District, Beijing, 100084, P. R. China
+&nbsp;&nbsp;+86-010-62781693&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;FAX: +86-010-62781693-2000&nbsp; &nbsp; &nbsp;EMAIL: iiis@mail.tsinghua.edu.cn</p><p>Copyright@IIIS, Tsinghua University, All Rights Reserved.</p></div>
+        </div>
+</div>
+
+<div class="ser-layer">
+      <span class="serclose swi-close-outlined"></span>
+      <div class="serform"><script type="text/javascript">
+    function _nl_ys_check(){
+        
+        var keyword = document.getElementById('showkeycode1161960').value;
+        if(keyword==null||keyword==""){
+            alert("Please enter the content you want to search for!");
+            return false;
+        }
+        if(window.toFF==1)
+        {
+            document.getElementById("lucenenewssearchkey1161960").value = Simplized(keyword );
+        }else
+        {
+            document.getElementById("lucenenewssearchkey1161960").value = keyword;            
+        }
+        var  base64 = new Base64();
+        document.getElementById("lucenenewssearchkey1161960").value = base64.encode(document.getElementById("lucenenewssearchkey1161960").value);
+        new VsbFormFunc().disableAutoEnable(document.getElementById("showkeycode1161960"));
+        return true;
+    } 
+</script>
+<form action="../../ssjg.jsp?wbtreeid=1044" method="post" id="au13a" name="au13a" onsubmit="return _nl_ys_check()" style="display: inline">
+ <input type="hidden" id="lucenenewssearchkey1161960" name="lucenenewssearchkey" value=""><input type="hidden" id="_lucenesearchtype1161960" name="_lucenesearchtype" value="1"><input type="hidden" id="searchScope1161960" name="searchScope" value="0">
+
+     <div class="input-group pore">
+          <input type="text" name="showkeycode" id="showkeycode1161960" class="inp" placeholder="Enter keywords to search..." autocomplete="off" />
+          <button class="sub" type="submit" align="absmiddle" style="cursor: hand"></button>
+     </div>
+ 
+</form><script language="javascript" src="/system/resource/js/base64.js"></script><script language="javascript" src="/system/resource/js/formfunc.js"></script>
+</div>
+    </div>
+
+<div class="hide" id="gotop">TOP</div>
+
+<script src="../../js/public.js"></script>
+<script src="../../js/wave.js"></script>
+<style>
+.n_pad1{ overflow: visible;}
+</style>
+
+</body>
+</html>

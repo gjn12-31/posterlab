@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2810.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?
+speaker：程韵
+date：2025-08-13
+time：11:00-12:00
+venue：RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)
+description：本讲座讨论视觉推理从简单任务向困难任务的泛化，关注视觉语言模型中的模态不平衡问题。

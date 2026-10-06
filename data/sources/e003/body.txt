@@ -1,0 +1,12 @@
+The Atomic Skill Approach to Robotic Dexterity
+演讲人：
+Haozhi Qi
+[UChicago/UC Berkeley]
+时间：
+16:00-17:30, Sep 23, 2025 (Tue)
+地点：
+Seminar Room 2, 19th Floor, Tower C, TusPark (#腾讯会议：398-077-2882 密码：095015)
+内容：
+Human hands are essential for sensing and interacting with the physical world, enabling us to manipulate objects with ease. Replicating this level of dexterity in robots remains a longstanding challenge, and a key milestone toward general-purpose robotics in unstructured environments. While modern AI has made remarkable advances in vision and language, robotic dexterity remains unsolved due to the complexity of high-dimensional control, limited real-world data, and the need for rich multisensory feedback. In this talk, I present the atomic skill approach to robotic dexterity - a framework that decomposes complex manipulation tasks into reusable, generalizable low-level skills. I will show how these atomic skills can be learned in simulation and composed through high-level policies to perform sophisticated behaviors, with examples including in-hand reorientation, thread fastening, and coordinated humanoid manipulation.
+个人简介:
+Haozhi Qi is an incoming Assistant Professor in the Department of Computer Science at the University of Chicago. He received his Ph.D. in Electrical Engineering and Computer Sciences from UC Berkeley, advised by Prof. Yi Ma and Prof. Jitendra Malik. His research lies at the intersection of robot learning, computer vision, and tactile sensing, with the goal of developing physically intelligent robots for unstructured environments. His work on in-hand perception was featured as the cover article in Science Robotics. His honors include UC Berkeley’s Lotfi A. Zadeh Prize, the Outstanding Demo Award at the NeurIPS Robot Learning Workshop, and the EECS Evergreen Award for Undergraduate Researcher Mentoring. More information is available at https://haozhi.io.

@@ -1,0 +1,4 @@
+# Unknown is never zero. Configure dev.yaml after verifying account pricing.
+confirmed: false
+executor: {currency: CNY, input_per_million: null, output_per_million: null}
+judge: {currency: USD, input_per_million: null, output_per_million: null}

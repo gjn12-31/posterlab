@@ -1,0 +1,12 @@
+Genuine quantum scars in many-body spin systems
+演讲人：
+Andrea Pizzi
+[Trinity College, Cambridge]
+时间：
+10:00-11:00, Sep 17, 2025 (Wed)
+地点：
+RM 1-222, FIT Building
+内容：
+Chaos makes isolated systems of many interacting particles quickly thermalize and forget their past. While this picture applies to simple observables such as order parameters and correlators, it need not extend to more complex quantities like wavefunction amplitudes, that are becoming accessible in quantum computers and simulators and can reveal a richer structure. In this talk, I will show that although the quantum eigenstates are thermal and strongly entangled, many of them are genuinely scarred, that is, have an enlarged amplitude along underlying classical unstable periodic orbits. For a wide family of spin models, scarring produces non-Porter-Thomas amplitude statistics and makes the system more likely to revisit the orbit it was initialized on, retaining memory of its past and weakly breaking ergodicity. Some features of scarring even extend beyond periodic orbits, giving rise to “quantum trails” along generic trajectories. These findings prove structure in spite of chaos in many-body quantum systems.
+个人简介:
+Dr. Andrea Pizzi obtained his Ph.D. in Physics from the University of Cambridge. He subsequently pursued postdoctoral research at Harvard University and is now a Research Fellow at Trinity College, Cambridge. His research focuses on various aspects of non-equilibrium quantum many-body dynamics, including time crystals, quantum many-body scars, and information dynamics.

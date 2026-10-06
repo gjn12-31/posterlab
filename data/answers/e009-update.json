@@ -1,0 +1,55 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-08-20",
+        "2025年8月20日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-08-20"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论视觉推理从简单任务向困难任务的泛化，关注视觉语言模型中的模态不平衡问题。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "程韵"
+    },
+    "time": {
+      "allowed_forms": [
+        "11:00-12:00",
+        "11:00–12:00"
+      ],
+      "match": "allowed_forms",
+      "value": "11:00-12:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)"
+    }
+  },
+  "forbidden_stale_dates": [
+    "2025-08-13",
+    "2025年8月13日"
+  ],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e009-update"
+}

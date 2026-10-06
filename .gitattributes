@@ -1,0 +1,5 @@
+# Preserve collected source bytes: the manifest records their SHA-256 hashes.
+data/sources/** -text
+resources/fonts/*.otf -text
+*.png -text
+*.jpg -text

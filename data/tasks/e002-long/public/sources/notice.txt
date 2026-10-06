@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2833.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：Advancing Deep Learning for Multi-Agent Al:Incentives and Scalability
+speaker：Tonghan Wang
+date：2025-09-25
+time：15:00-16:00
+venue：RM 1-222, FIT Building
+description：本讲座围绕多智能体人工智能的激励机制与可扩展性，讨论如何构建能够面对现实复杂性、并满足对齐要求的智能体系统。报告从智能体与人类共同组成的系统出发，关注多智能体深度学习中的机制设计与规模扩展问题。

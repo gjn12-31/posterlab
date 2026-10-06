@@ -1,0 +1,13 @@
+Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?
+演讲人：
+程韵
+[普林斯顿大学]
+时间：
+11:00-12:00, Aug 13, 2025 (Wed)
+地点：
+RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)
+内容：
+While Vision Language Models (VLMs) are impressive in tasks such as visual question answering (VQA) and image captioning, their ability to apply multi-step reasoning to images has lagged, giving rise to perceptions of modality imbalance or brittleness.
+Towards systematic study of such issues, we introduce a synthetic framework for assessing the ability of VLMs to perform algorithmic visual reasoning, comprising three tasks: Table Readout, Grid Navigation, and Visual Analogy. Each has two levels of difficulty, SIMPLE and HARD, and even the SIMPLE versions are difficult for frontier VLMs. We seek strategies for training on the SIMPLE version of tasks that improve performance on the corresponding HARD task, i.e., S2H generalization. This synthetic framework, where each task also has a text-only version, allows a quantification of the modality imbalance and how it is impacted by training strategy. Ablations highlight the importance of explicit image-to-text conversion in promoting S2H generalization when using auto-regressive training. We also report results of mechanistic study of this phenomenon, including a measure of gradient alignment that seems to identify training strategies that promote better S2H generalization.
+个人简介:
+Yun (Catherine) Cheng is a second-year CS Ph.D. student at Princeton University, advised by Sanjeev Arora. She completed her M.S. in Machine Learning, B.S. in Computer Science, and B.S. in Mathematical Sciences from Carnegie Mellon University. Her research focuses on conceptual understanding of large language models and vision-language models, with broad interests in developing better, self-evolving AI.

@@ -1,0 +1,53 @@
+schema_version: '1.0'
+project:
+  root: ..
+models:
+  executor:
+    provider: dashscope_chat
+    model: ''
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api_key_env: DASHSCOPE_API_KEY
+    max_output_tokens: 8192
+    provider_options:
+      enable_thinking: false
+  judge:
+    provider: anthropic_messages
+    model: ''
+    base_url: https://api.anthropic.com/v1
+    api_key_env: ANTHROPIC_API_KEY
+    max_output_tokens: 4096
+    provider_options: {}
+http:
+  connect_timeout_seconds: 15
+  read_timeout_seconds: 180
+  write_timeout_seconds: 30
+  pool_timeout_seconds: 15
+  max_retries: 1
+render:
+  width: 1080
+  height: 1440
+  device_scale_factor: 1
+  locale: zh-CN
+  timezone_id: Asia/Shanghai
+  timeout_seconds: 30
+  font_family: PosterSans
+  regular_font: resources/fonts/PosterSans-Regular.otf
+  bold_font: resources/fonts/PosterSans-Bold.otf
+experiment:
+  max_design_calls_per_run: 2
+  judge_shuffle_seed: 20261005
+  audit_seed: 20261006
+  human_audit_fraction: 0.20
+limits:
+  max_attempts_total: 150
+  pilot_max_attempts: 4
+  money_caps: {CNY: null, USD: null}
+  prices_confirmed: false
+  # Conservative per-attempt upper bounds, only after billing review.
+  reservations: {executor: null, judge: null}
+  currency: {executor: CNY, judge: USD}
+paths:
+  manifest: data/manifest.jsonl
+  answers: data/answers
+  runs: runs
+  ledger: artifacts/ledger

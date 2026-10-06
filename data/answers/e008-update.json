@@ -1,0 +1,55 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-01",
+        "2025年9月1日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-01"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论生成流网络的方法论问题，关注这一生成建模框架的研究思路及其关键方法。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "Sergey Samsonov"
+    },
+    "time": {
+      "allowed_forms": [
+        "11:00-12:00",
+        "11:00–12:00"
+      ],
+      "match": "allowed_forms",
+      "value": "11:00-12:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "On some methodological aspects of generative flow networks"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building"
+    }
+  },
+  "forbidden_stale_dates": [
+    "2025-08-25",
+    "2025年8月25日"
+  ],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e008-update"
+}

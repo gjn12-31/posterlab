@@ -1,0 +1,55 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-08-18",
+        "2025年8月18日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-08-18"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座讨论大语言模型中上下文增强学习的作用，关注上下文信息如何影响模型的学习过程。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "朱星宇"
+    },
+    "time": {
+      "allowed_forms": [
+        "11:00-12:00",
+        "11:00–12:00"
+      ],
+      "match": "allowed_forms",
+      "value": "11:00-12:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "On the Power of Context-Enhanced Learning in LLMs"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/O15OBOE6VLfC #腾讯会议：490-402-711)"
+    }
+  },
+  "forbidden_stale_dates": [
+    "2025-08-11",
+    "2025年8月11日"
+  ],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e010-update"
+}

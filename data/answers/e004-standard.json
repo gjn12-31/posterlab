@@ -1,0 +1,52 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-17",
+        "2025年9月17日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-17"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座关注多体自旋系统中的量子疤痕现象，讨论混沌系统热化与更复杂量子信息之间的关系。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "Andrea Pizzi"
+    },
+    "time": {
+      "allowed_forms": [
+        "10:00-11:00",
+        "10:00–11:00"
+      ],
+      "match": "allowed_forms",
+      "value": "10:00-11:00"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "Genuine quantum scars in many-body spin systems"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM 1-222, FIT Building"
+    }
+  },
+  "forbidden_stale_dates": [],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e004-standard"
+}

@@ -1,0 +1,12 @@
+On the Power of Context-Enhanced Learning in LLMs
+演讲人：
+朱星宇
+[普林斯顿大学]
+时间：
+11:00-12:00, Aug 11, 2025 (Mon)
+地点：
+RM 1-222, FIT Building (https://meeting.tencent.com/dm/O15OBOE6VLfC #腾讯会议：490-402-711)
+内容：
+We formalize a new concept for LLMs, context-enhanced learning. It involves standard gradient-based learning on text except that the context is enhanced with additional data on which no auto-regressive gradients are computed. This setting is a gradient-based analog of usual in-context learning (ICL) and appears in some recent works. Using a multi-step reasoning task, we prove in a simplified setting that context-enhanced learning can be exponentially more sample-efficient than standard learning when the model is capable of ICL. At a mechanistic level, we find that the benefit of context-enhancement arises from a more accurate gradient learning signal. We also experimentally demonstrate that it appears hard to detect or recover learning materials that were used in the context during training. This may have implications for data security as well as copyright.
+个人简介:
+朱星宇，普林斯顿大学计算机科学系二年级博士生，师从Sanjeev Arora 教授。此前他在杜克大学取得数学与计算机科学双学士学位。他主要研究方向包括语言模型以及深度神经网络的优化动力学。

@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2824.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：AI as a Lens: Expanding Vision for Scientific Discovery
+speaker：冯昱善
+date：2025-09-25
+time：16:30-18:00
+venue：RM 1-222, FIT Building
+description：本讲座讨论如何将人工智能与光学原理结合，从已有测量数据中发现隐藏结构，并介绍其在生物医学成像与系外行星探测中的应用。

@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2825.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：General Approach to Error Detection of Bosonic Codes via Phase Estimation
+speaker：金缘德
+date：2025-09-12
+time：10:00-11:30
+venue：RM S527, MMW Building
+description：本讲座介绍基于相位估计的玻色编码错误检测方法，涉及旋转对称编码、平移对称编码以及高保真态制备。报告将从对称算符分解出发，介绍自适应量子相位估计在不同玻色量子纠错编码中的应用。

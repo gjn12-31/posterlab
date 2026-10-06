@@ -1,0 +1,31 @@
+{
+  "assets": [
+    {
+      "asset_id": "logo",
+      "crop_allowed": false,
+      "fit_policy": "contain",
+      "height": 256,
+      "license": "Project-created geometric artwork, CC0-1.0",
+      "mime_type": "image/png",
+      "path": "assets/logo.png",
+      "redistribution": true,
+      "required": true,
+      "role": "PosterLab 演示标识（非校方标识）",
+      "width": 256
+    },
+    {
+      "asset_id": "hero",
+      "crop_allowed": true,
+      "fit_policy": "cover_or_contain",
+      "height": 440,
+      "license": "Project-created geometric artwork, CC0-1.0",
+      "mime_type": "image/jpeg",
+      "path": "assets/hero.jpg",
+      "redistribution": true,
+      "required": true,
+      "role": "项目原创抽象主题示意图",
+      "width": 1200
+    }
+  ],
+  "schema_version": "1.0"
+}

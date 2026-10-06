@@ -1,0 +1,13 @@
+AI as a Lens: Expanding Vision for Scientific Discovery
+演讲人：
+冯昱善
+[UT Austin]
+时间：
+16:30-18:00, Sep 25, 2025 (Thu)
+地点：
+RM 1-222, FIT Building
+内容：
+Much of the current progress of AI is driven by massive datasets, unprecedented compute, and industrial-scale engineering. Yet for many of us in academia, the path forward need not be defined by scale alone. This talk explores a complementary direction: uncovering new insights by reinterpreting the data we already have.
+I will present how AI, when grounded in the physics of light rather than just statistics of labels, can serve as a computational lens that reveals hidden structure within seemingly meaningless measurements. I will share two examples where it finds applications in biomedicine and astrophysics: 1) imaging through scattering biological tissue to recover the structures behind it; 2) detecting the faint signal of an exoplanet hiding in the overwhelming glare of its host star. These are problems traditionally believed to require prohibitively expensive hardware upgrades, but they can be tackled with existing technology if we cleverly combine the right computational tools with the physics of light.
+个人简介:
+Brandon Yushan Feng 冯昱善 is a Postdoctoral Associate at MIT CSAIL, working with Prof. William T. Freeman since 2023. He is also an incoming tenure-track Assistant Professor of CS at UT Austin. His research mainly involves visual computing and vision/imaging science. His passion lies in seeing and creating visual content that no one has ever seen before. He holds a Ph.D. in CS from the University of Maryland (2019-2023), along with a B.A. in CS and a B.A./M.S. in Statistics from the University of Virginia (2015-2019).

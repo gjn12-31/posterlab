@@ -1,0 +1,162 @@
+[
+  {
+    "abstract": "Much of the current progress of AI is driven by massive datasets, unprecedented compute, and industrial-scale engineering. Yet for many of us in academia, the path forward need not be defined by scale alone. This talk explores a complementary direction: uncovering new insights by reinterpreting the data we already have. I will present how AI, when grounded in the physics of light rather than just statistics of labels, can serve as a computational lens that reveals hidden structure within seemingly meaningless measurements. I will share two examples where it finds applications in biomedicine and astrophysics: 1) imaging through scattering biological tissue to recover the structures behind it; 2) detecting the faint signal of an exoplanet hiding in the overwhelming glare of its host star. These are problems traditionally believed to require prohibitively expensive hardware upgrades, but they can be tackled with existing technology if we cleverly combine the right computational tools with the physics of light.",
+    "event_id": "e001",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:04.314521+00:00",
+      "http_status": 200,
+      "page_sha256": "cc80f2ae777e8df1643a8364dcfd9db5ed82348b861e154341a6fd3f7455d069",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2824.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2824.htm",
+    "speaker": "冯昱善 [UT Austin]",
+    "title": "AI as a Lens: Expanding Vision for Scientific Discovery",
+    "venue": "RM 1-222, FIT Building",
+    "when": "16:30-18:00, Sep 25, 2025 (Thu)"
+  },
+  {
+    "abstract": "The ecosystem of Al agents and humans will shape the future. For the success of thisecosystem, we need to build agents and agent systems that can scale to real-worlccomplexity while providing alignment guarantees. This goal necessitates new progressin multi-agent Al, This talk presents advances in deep learning that enable the learnincof two complementary structures to achieve this goal. The incentive structure makesaligned behavior, such as truthful reporting, the rational choice of agents. The interac-tion structure simplifies multi-agent dynamics and improves the learning efficiency oaaents, odether these structures otera principed pathway towaro alaneo ano scalable earning in systems of independentagents, as wel as in a single embodied robotwhose actuators are coordinated as a muti-agent system.",
+    "event_id": "e002",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:05.420266+00:00",
+      "http_status": 200,
+      "page_sha256": "9baeb1763ad09d20d0fe163e034183f7bbaf545aa1dddc0b8a4f69c10c9fe7b0",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2833.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2833.htm",
+    "speaker": "Tonghan Wang [Harvard University]",
+    "title": "Advancing Deep Learning for Multi-Agent Al:Incentives and Scalability",
+    "venue": "RM 1-222, FIT Building",
+    "when": "15:00-16:00, Sep 25, 2025 (Thu)"
+  },
+  {
+    "abstract": "Human hands are essential for sensing and interacting with the physical world, enabling us to manipulate objects with ease. Replicating this level of dexterity in robots remains a longstanding challenge, and a key milestone toward general-purpose robotics in unstructured environments. While modern AI has made remarkable advances in vision and language, robotic dexterity remains unsolved due to the complexity of high-dimensional control, limited real-world data, and the need for rich multisensory feedback. In this talk, I present the atomic skill approach to robotic dexterity - a framework that decomposes complex manipulation tasks into reusable, generalizable low-level skills. I will show how these atomic skills can be learned in simulation and composed through high-level policies to perform sophisticated behaviors, with examples including in-hand reorientation, thread fastening, and coordinated humanoid manipulation.",
+    "event_id": "e003",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:06.495568+00:00",
+      "http_status": 200,
+      "page_sha256": "db6a08e9b508f1d69c04701fe5b040c7d1b72e967606fc6cccb30896d6b16209",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2828.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2828.htm",
+    "speaker": "Haozhi Qi [UChicago/UC Berkeley]",
+    "title": "The Atomic Skill Approach to Robotic Dexterity",
+    "venue": "Seminar Room 2, 19th Floor, Tower C, TusPark (#腾讯会议：398-077-2882 密码：095015)",
+    "when": "16:00-17:30, Sep 23, 2025 (Tue)"
+  },
+  {
+    "abstract": "Chaos makes isolated systems of many interacting particles quickly thermalize and forget their past. While this picture applies to simple observables such as order parameters and correlators, it need not extend to more complex quantities like wavefunction amplitudes, that are becoming accessible in quantum computers and simulators and can reveal a richer structure. In this talk, I will show that although the quantum eigenstates are thermal and strongly entangled, many of them are genuinely scarred, that is, have an enlarged amplitude along underlying classical unstable periodic orbits. For a wide family of spin models, scarring produces non-Porter-Thomas amplitude statistics and makes the system more likely to revisit the orbit it was initialized on, retaining memory of its past and weakly breaking ergodicity. Some features of scarring even extend beyond periodic orbits, giving rise to “quantum trails” along generic trajectories. These findings prove structure in spite of chaos in many-body quantum systems.",
+    "event_id": "e004",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:07.572924+00:00",
+      "http_status": 200,
+      "page_sha256": "dfe7f89b12c53d65be3758ec616301c94d75506c71bb986581eb61405d60feab",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2830.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2830.htm",
+    "speaker": "Andrea Pizzi [Trinity College, Cambridge]",
+    "title": "Genuine quantum scars in many-body spin systems",
+    "venue": "RM 1-222, FIT Building",
+    "when": "10:00-11:00, Sep 17, 2025 (Wed)"
+  },
+  {
+    "abstract": "Quantum phase estimation (QPE) is an important algorithm in quantum information processing, designed to estimate the eigenvalues of a unitary operator, and it plays a significant role in quantum metrology. In our previous work [1], we have established a general framework for QPE based on sequential quantum channels [2] induced by sequential Ramsey interferometry measurements [3-5], where the adaptive scheme can achieve measurement precision at the Heisenberg limit. In this report, we introduce a general approach to bosonic quantum error detection via adaptive QPE [6]. We will begin with the decomposition of the symmetry operator, and introduce its application to error detection of various bosonic codes, including rotation-symmetric codes (such as cat codes and binomial codes) and translation-symmetric codes (such as GKP codes). Furthermore, this method enables high-fidelity state preparation of multiple bosonic codes. [1] Y. -D. Jin, S.-Y. Zhang, and W.-L. Ma*, Phys. Rev. A 111, 022406 (2025). [2] W. -L. Ma*, S. -S. Li, and R.-B. Liu, Phys. Rev. A 107, 012217 (2023). [3] Y. -D.Jin # , C.-D.Qiu # , and W.-L. Ma*, Phys. Rev. A 109, 042204 (2024). [4] C.-D.Qiu # , Y.-D.Jin # , C.-D.Qiu, G.-Q. Liu, and W.-L. Ma*, Phys. Rev. B 110 ,024311 (2024). [5] J.-X. Zhang # , Y.-D.Jin # , C.-D.Qiu, W.-L.Ma*, and G.-Q. Liu*, Nat. Commun. (in press, arXiv:2412.21026). [6] Y.-D. Jin, S.-Y. Zhang, U. L. Andersen and W.-L. Ma*, arXiv :2507.03999 (2025).",
+    "event_id": "e005",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:08.651758+00:00",
+      "http_status": 200,
+      "page_sha256": "b71223563247e2d8ea9f5d6cc5c671a1e8a44b7c8f1d56cf85c776136a17816b",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2825.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2825.htm",
+    "speaker": "金缘德 [中国科学院半导体研究所/中国科学院大学]",
+    "title": "General Approach to Error Detection of Bosonic Codes via Phase Estimation",
+    "venue": "RM S527, MMW Building",
+    "when": "10:00-11:30, Sep 12, 2025 (Fri)"
+  },
+  {
+    "abstract": "Physical systems based on coherent atom-light interactions are important for precision measurements and sensing. The measurement sensitivities of classical systems are fundamentally limited by spin projection noise and photon shot noise, hence employing q uantum entanglement and squeezed states to break such limits is of great interests and at the frontier of quantum metrology. Ultimately, precision measurement becomes equivalent to a problem of quantum information processing, i.e., how to efficiently encode and decode the unknown signal in the quantum states of atoms and light. In this talk, I will describe recent efforts in our group to control quantum information and to extend the measurement capabilities of practical quantum systems containing one hundred billion atoms, including continuous quantum-enhanced sensing with steady-state spin squeezing and machine learning, bypassing the Heisenberg uncertainty principle, entangling qudit atoms with internal spin squeezing, and concurrent light squeezing and spin squeezing.  I will also report novel quantum light sources made from an atom ensemble, such as a synchronized squeezed light array and a quantum-correlated light array, which has potential impacts in quantum sensing, imaging and quantum networks. These techniques, although demonstrated in room-temperature atomic vapor, are broadly applicable to many other systems such as solid-state spins, trapped ions, cold atoms and optomechanics.",
+    "event_id": "e006",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:09.729176+00:00",
+      "http_status": 200,
+      "page_sha256": "5d2ac9a94adfe471231116bacfb7fe8da543af7124118692ffc5166e980edf67",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2823.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2823.htm",
+    "speaker": "肖艳红 [复旦大学]",
+    "title": "Quantum information in precision measurements using spin squeezing and light squeezing",
+    "venue": "RM 1-222, FIT Building",
+    "when": "16:30-18:00, Sep 11, 2025 (Thu)"
+  },
+  {
+    "abstract": "The prevailing consensus is that the sequential sharing of nonlocality in a Bell experiment requires generalised unsharp measurements, since a sharp measurement inevitably destroys the entanglement of the shared state. In contrast, we introduce a qubit projective measurement-based protocol, aided by local randomness, that enables the sharing of nonlocality by an arbitrary number of sequential observers (Bobs) with a single spatially separated observer (Alice). We achieve this by identifying a crucial interplay between the degrees of measurement incompatibility of Alice and Bob, thereby demonstrating the unbounded sharing of nonlocality. Our findings not only offer a new paradigm for understanding the fundamental role of measurement incompatibility in quantum nonlocality, but also pave the way for various information-processing tasks based on local randomness-assisted projective measurements.",
+    "event_id": "e007",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:10.805864+00:00",
+      "http_status": 200,
+      "page_sha256": "b4fa9a8bc6a3e0b768792ca631b124f7ed28c322185bc73da26d49c6125305d0",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2822.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2822.htm",
+    "speaker": "Souradeep Sasmal [University of Electronic Science and Technology of China]",
+    "title": "Unbounded Sharing of Nonlocality Using Qubit Projective Measurements",
+    "venue": "RM S327, MMW Building (#腾讯会议：435-802-209)",
+    "when": "15:00-17:00, Sep 8, 2025 (Mon)"
+  },
+  {
+    "abstract": "GFlowNets are a family of generative models that learn to sample objects from a given probability distribution, potentially known only up to a normalizing constant. The key concept behind GFlowNets is the use of two stochastic policies: a forward policy, which incrementally constructs compositional objects, and a backward policy, which sequentially deconstructs them. During inference, GFlowNets sample trajectories in an appropriately constructed directed acyclic graph environment. In this talk, we address the challenges and limitations of training GFlowNets. Specifically, we discuss the merits of optimizing the backward policy in GFlowNets, introduce a theory that relaxes the acyclicity assumption, and present a simpler theoretical framework for non-acyclic GFlowNets in discrete environments. If time permits, we will also discuss continuous-time generalizations of our approach to the setting of diffusion samplers.",
+    "event_id": "e008",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:11.883877+00:00",
+      "http_status": 200,
+      "page_sha256": "d00ee4cf7a8c3b275a082dcd1c0397a8fdbf111acb92b55660a0f6f15d6d8753",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2811.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2811.htm",
+    "speaker": "Sergey Samsonov [HSE University]",
+    "title": "On some methodological aspects of generative flow networks",
+    "venue": "RM 1-222, FIT Building",
+    "when": "11:00-12:00, Aug 25, 2025 (Mon)"
+  },
+  {
+    "abstract": "While Vision Language Models (VLMs) are impressive in tasks such as visual question answering (VQA) and image captioning, their ability to apply multi-step reasoning to images has lagged, giving rise to perceptions of modality imbalance or brittleness. Towards systematic study of such issues, we introduce a synthetic framework for assessing the ability of VLMs to perform algorithmic visual reasoning, comprising three tasks: Table Readout, Grid Navigation, and Visual Analogy. Each has two levels of difficulty, SIMPLE and HARD, and even the SIMPLE versions are difficult for frontier VLMs. We seek strategies for training on the SIMPLE version of tasks that improve performance on the corresponding HARD task, i.e., S2H generalization. This synthetic framework, where each task also has a text-only version, allows a quantification of the modality imbalance and how it is impacted by training strategy. Ablations highlight the importance of explicit image-to-text conversion in promoting S2H generalization when using auto-regressive training. We also report results of mechanistic study of this phenomenon, including a measure of gradient alignment that seems to identify training strategies that promote better S2H generalization.",
+    "event_id": "e009",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:12.956399+00:00",
+      "http_status": 200,
+      "page_sha256": "b1051efe610aca751dcb733d389ba220ed29fcad10e285f17c48d42eead9e9c3",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2810.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2810.htm",
+    "speaker": "程韵 [普林斯顿大学]",
+    "title": "Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?",
+    "venue": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)",
+    "when": "11:00-12:00, Aug 13, 2025 (Wed)"
+  },
+  {
+    "abstract": "We formalize a new concept for LLMs, context-enhanced learning. It involves standard gradient-based learning on text except that the context is enhanced with additional data on which no auto-regressive gradients are computed. This setting is a gradient-based analog of usual in-context learning (ICL) and appears in some recent works. Using a multi-step reasoning task, we prove in a simplified setting that context-enhanced learning can be exponentially more sample-efficient than standard learning when the model is capable of ICL. At a mechanistic level, we find that the benefit of context-enhancement arises from a more accurate gradient learning signal. We also experimentally demonstrate that it appears hard to detect or recover learning materials that were used in the context during training. This may have implications for data security as well as copyright.",
+    "event_id": "e010",
+    "fetch": {
+      "accessed_at": "2026-10-05T12:51:14.031372+00:00",
+      "http_status": 200,
+      "page_sha256": "f64a2ad3675de38a32c418455c87b535069c3b8a785608e2c005b2e295235c68",
+      "robots_status": 404,
+      "url": "https://iiis.tsinghua.edu.cn/en/info/1044/2809.htm"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2809.htm",
+    "speaker": "朱星宇 [普林斯顿大学]",
+    "title": "On the Power of Context-Enhanced Learning in LLMs",
+    "venue": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/O15OBOE6VLfC #腾讯会议：490-402-711)",
+    "when": "11:00-12:00, Aug 11, 2025 (Mon)"
+  }
+]

@@ -1,0 +1,43 @@
+General Approach to Error Detection of Bosonic Codes via Phase Estimation
+演讲人：
+金缘德
+[中国科学院半导体研究所/中国科学院大学]
+时间：
+10:00-11:30, Sep 12, 2025 (Fri)
+地点：
+RM S527, MMW Building
+内容：
+Quantum phase estimation (QPE) is an important algorithm in quantum information processing, designed to estimate the eigenvalues of a unitary operator, and it plays a significant role in quantum metrology. In our previous work [1], we have established a general framework for QPE based on sequential quantum channels [2] induced by sequential Ramsey interferometry measurements [3-5], where the adaptive scheme can achieve measurement precision at the Heisenberg limit. In this report, we introduce a general approach to bosonic quantum error detection via adaptive QPE [6]. We will begin with the decomposition of the symmetry operator, and introduce its application to error detection of various bosonic codes, including rotation-symmetric codes (such as cat codes and binomial codes) and translation-symmetric codes (such as GKP codes). Furthermore, this method enables high-fidelity state preparation of multiple bosonic codes.
+[1] Y. -D. Jin, S.-Y. Zhang, and W.-L. Ma*,
+Phys. Rev. A
+111, 022406 (2025).
+[2] W. -L. Ma*, S. -S. Li, and R.-B. Liu,
+Phys. Rev. A
+107, 012217 (2023).
+[3] Y. -D.Jin
+#
+, C.-D.Qiu
+#
+, and W.-L. Ma*,
+Phys. Rev. A
+109, 042204 (2024).
+[4] C.-D.Qiu
+#
+, Y.-D.Jin
+#
+, C.-D.Qiu, G.-Q. Liu, and W.-L. Ma*,
+Phys. Rev. B
+110
+,024311 (2024).
+[5] J.-X. Zhang
+#
+, Y.-D.Jin
+#
+, C.-D.Qiu, W.-L.Ma*, and G.-Q. Liu*,
+Nat. Commun.
+(in press, arXiv:2412.21026).
+[6] Y.-D. Jin, S.-Y. Zhang, U. L. Andersen and W.-L. Ma*,
+arXiv
+:2507.03999 (2025).
+个人简介:
+金缘德，现为中国科学院半导体研究所博士研究生,主要研究量子物理和量子信息理论,包括开放量子系统、量子测量与量子纠错等方向。2024年本科毕业于北京科技大学黄昆英才班，毕业设计的相关研究被评选为北京市优秀本科毕业论文;同年保送中国科学院半导体研究所攻读博士学位，导师为马稳龙研究员，已在Nat.Commun，Phys.Rev.A/B期刊发表论文4篇。

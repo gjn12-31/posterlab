@@ -1,0 +1,55 @@
+{
+  "critical_fields": [
+    "title",
+    "speaker",
+    "date",
+    "time",
+    "venue",
+    "description"
+  ],
+  "fields": {
+    "date": {
+      "allowed_forms": [
+        "2025-09-19",
+        "2025年9月19日"
+      ],
+      "match": "allowed_forms",
+      "value": "2025-09-19"
+    },
+    "description": {
+      "match": "normalized_exact",
+      "value": "本讲座介绍基于相位估计的玻色编码错误检测方法，涉及旋转对称编码、平移对称编码以及高保真态制备。"
+    },
+    "speaker": {
+      "match": "normalized_exact",
+      "value": "金缘德"
+    },
+    "time": {
+      "allowed_forms": [
+        "10:00-11:30",
+        "10:00–11:30"
+      ],
+      "match": "allowed_forms",
+      "value": "10:00-11:30"
+    },
+    "title": {
+      "match": "normalized_exact",
+      "value": "General Approach to Error Detection of Bosonic Codes via Phase Estimation"
+    },
+    "venue": {
+      "match": "normalized_exact",
+      "value": "RM S527, MMW Building"
+    }
+  },
+  "forbidden_stale_dates": [
+    "2025-09-12",
+    "2025年9月12日"
+  ],
+  "schema_version": "1.0",
+  "source_review": {
+    "confirmed": false,
+    "reviewer_a": "",
+    "reviewer_b": ""
+  },
+  "task_id": "e005-update"
+}

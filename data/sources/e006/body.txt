@@ -1,0 +1,16 @@
+Quantum information in precision measurements using spin squeezing and light squeezing
+演讲人：
+肖艳红
+[复旦大学]
+时间：
+16:30-18:00, Sep 11, 2025 (Thu)
+地点：
+RM 1-222, FIT Building
+内容：
+Physical systems based on coherent atom-light interactions are important for precision measurements and sensing. The measurement sensitivities of classical systems are fundamentally limited by spin projection noise and photon shot noise, hence employing q
+uantum entanglement and squeezed states to break such limits is of great interests and at the frontier of quantum metrology. Ultimately, precision measurement becomes equivalent to a problem of quantum information processing, i.e., how to efficiently encode and decode the unknown signal in the quantum states of atoms and light. In this talk, I will describe recent efforts in our group to control
+quantum information
+and to extend the measurement capabilities of practical quantum systems containing one hundred billion atoms, including continuous quantum-enhanced sensing with steady-state spin squeezing and machine learning, bypassing the Heisenberg uncertainty principle, entangling qudit atoms with internal spin squeezing, and concurrent light squeezing and spin squeezing.  I will also report novel quantum light sources made from an atom ensemble, such as a synchronized squeezed light array and a quantum-correlated light array, which has potential impacts in quantum sensing, imaging and quantum networks. These techniques, although demonstrated in room-temperature atomic vapor, are broadly applicable to many other systems such as solid-state spins, trapped ions, cold atoms and optomechanics.
+个人简介:
+肖艳红，复旦大学物理学系教授。美国物理学会会士。1998年、2000年清华大学学士、硕士；2004年美国哈佛大学博士；2005-2009年哈佛-史密斯天文物理中心原子分子部博士后。2009年底加入复旦大学。研究方向是量
+测量基础，原子纠缠态，量子增强的传感，量子光学，光量子模拟，量子光源，原子磁力计等。

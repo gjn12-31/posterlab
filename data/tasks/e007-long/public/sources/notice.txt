@@ -1,0 +1,8 @@
+来源：https://iiis.tsinghua.edu.cn/en/info/1044/2822.htm
+以下为从来源提取的活动事实；简介为项目整理的中文摘要，并非学校原文。
+title：Unbounded Sharing of Nonlocality Using Qubit Projective Measurements
+speaker：Souradeep Sasmal
+date：2025-09-08
+time：15:00-17:00
+venue：RM S327, MMW Building (#腾讯会议：435-802-209)
+description：本讲座讨论使用量子比特投影测量共享非定域性的研究，关注量子测量与非定域关联之间的关系。报告围绕非定域性的共享问题展开，介绍量子信息研究中的相关理论方法与研究进展。
