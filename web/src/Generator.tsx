@@ -1,4 +1,5 @@
 import { studioFetch, STATIC_DEMO, DEMO_MESSAGE } from "./studio-api";
+import DiscoveryHome from "./DiscoveryHome";
 import { GenerationFailure } from "./GenerationFailure";
 import React, { useEffect, useRef, useState, useId } from "react";
 import {
@@ -52,6 +53,7 @@ import {
 
 import { EvaluationPanel, type Review } from "./EvaluationPanel";
 import "./studio-next.css";
+import "./suno-studio.css";
 import {
   ModelPicker,
   defaultPreferences,
@@ -129,7 +131,9 @@ async function api<T>(path: string, body?: unknown, key?: string): Promise<T> {
     throw new ApiError(
       typeof data.detail === "string"
         ? data.detail
-        : [data.detail?.message, data.detail?.suggestion].filter(Boolean).join(" ") || "服务暂时无法完成请求，请稍后重试。",
+        : [data.detail?.message, data.detail?.suggestion]
+            .filter(Boolean)
+            .join(" ") || "服务暂时无法完成请求，请稍后重试。",
       r.status,
       data.detail?.request_reusable === true,
     );
@@ -191,6 +195,18 @@ function ReplyText({ text }: { text: string }) {
   );
 }
 export default function Generator() {
+  const [home, setHome] = useState(
+    () => location.hash !== "#studio" && !load("posterlab.chat.pending", null),
+  );
+  useEffect(() => {
+    const route = () => setHome(location.hash !== "#studio");
+    window.addEventListener("hashchange", route);
+    return () => window.removeEventListener("hashchange", route);
+  }, []);
+  function navigateHome(value: boolean) {
+    setHome(value);
+    location.hash = value ? "home" : "studio";
+  }
   const [initialScene, setInitialScene] = useState<string | null>(null);
   const [reviewScores, setReviewScores] = useState<Record<string, number>>({});
   const [reviewTarget, setReviewTarget] = useState<Job | null>(null);
@@ -465,6 +481,7 @@ export default function Generator() {
     return `已读取 ${imported.length} 个对话，按 ID 合并；已有对话保持原样。`;
   }
   function fresh() {
+    navigateHome(false);
     rememberDraft();
     setThreadId(null);
     setDraft(threadId ? load("posterlab.draft.new", "") : "");
@@ -477,6 +494,7 @@ export default function Generator() {
     setTimeout(() => textarea.current?.focus(), 0);
   }
   function open(t: Conversation) {
+    navigateHome(false);
     rememberDraft();
     setThreadId(t.id);
     setDraft(load("posterlab.draft." + t.id, ""));
@@ -669,11 +687,25 @@ export default function Generator() {
     try {
       const next = await api<Job>("/generations/" + job.id + "/retry", {}, key);
       setJobs((old) => [next, ...old.filter((j) => j.id !== next.id)]);
-      updateThreads((old) => old.map((t) => t.id === threadId && !t.messages.some((m) => m.jobId === next.id) ? {
-        ...t,
-        updated: new Date().toISOString(),
-        messages: [...t.messages, { id: key, role: "assistant", content: "已按原需求重新生成；如发现交付问题，将自动纠错。", jobId: next.id }],
-      } : t));
+      updateThreads((old) =>
+        old.map((t) =>
+          t.id === threadId && !t.messages.some((m) => m.jobId === next.id)
+            ? {
+                ...t,
+                updated: new Date().toISOString(),
+                messages: [
+                  ...t.messages,
+                  {
+                    id: key,
+                    role: "assistant",
+                    content: "已按原需求重新生成；如发现交付问题，将自动纠错。",
+                    jobId: next.id,
+                  },
+                ],
+              }
+            : t,
+        ),
+      );
       setNewJobId(next.id);
       setCanvas(true);
       setError("");
@@ -856,7 +888,7 @@ export default function Generator() {
                   ? "重试发送"
                   : artwork
                     ? "发送修改"
-                    : "发送创意"}
+                    : "生成海报"}
             </span>
           </button>
         </div>
@@ -875,6 +907,45 @@ export default function Generator() {
       </p>
     </div>
   );
+  if (home)
+    return (
+      <DiscoveryHome
+        threads={threads}
+        jobs={jobs}
+        blocked={busy || !!pending}
+        demo={STATIC_DEMO}
+        motion={motion}
+        onMotion={() => {
+          setMotion(!motion);
+          save("posterlab.creative.motion", !motion);
+        }}
+        onCreate={(prompt) => {
+          fresh();
+          setDraft(prompt);
+        }}
+        onResume={() => navigateHome(false)}
+        onOpen={open}
+        onGuide={(prompt) => {
+          fresh();
+          setDraft(prompt);
+          try {
+            sessionStorage.setItem(
+              "posterlab.tools.new:none.idea",
+              JSON.stringify(prompt),
+            );
+            sessionStorage.setItem(
+              "posterlab.tools.new:none.expanded",
+              JSON.stringify(""),
+            );
+            sessionStorage.setItem(
+              "posterlab.tools.new:none.plan-key",
+              JSON.stringify(crypto.randomUUID()),
+            );
+          } catch {}
+          showTools("brief");
+        }}
+      />
+    );
   return (
     <div
       className={
@@ -987,11 +1058,21 @@ export default function Generator() {
             >
               <PanelLeft size={20} />
             </button>
-            <button className="wordmark" onClick={fresh}>
+            <button
+              className="wordmark"
+              onClick={() => navigateHome(true)}
+              aria-label="返回 PosterLab 首页"
+            >
               PosterLab <span>创作助手</span>
             </button>
           </div>
           <div>
+            <button
+              className="back-to-discover"
+              onClick={() => navigateHome(true)}
+            >
+              <ArrowLeft size={14} /> 发现灵感
+            </button>
             <button
               className="motion-toggle"
               aria-label={motion ? "关闭动态效果" : "开启动效"}
@@ -1170,14 +1251,22 @@ export default function Generator() {
                                   <ArrowUpRight size={18} />
                                 </button>
                               ) : j.state === "failed" ? (
-                                <GenerationFailure job={j} busy={busy} recover={() => retryRender(j)} retry={() => regenerate(j)} />
+                                <GenerationFailure
+                                  job={j}
+                                  busy={busy}
+                                  recover={() => retryRender(j)}
+                                  retry={() => regenerate(j)}
+                                />
                               ) : (
                                 <div
                                   className="generation-progress"
                                   role="status"
                                 >
                                   <LoaderCircle size={17} className="spin" />
-                                  {phase[j.state]}{j.state === "repairing" ? ` · 第 ${j.repair_attempt}/2 轮` : ""}
+                                  {phase[j.state]}
+                                  {j.state === "repairing"
+                                    ? ` · 第 ${j.repair_attempt}/2 轮`
+                                    : ""}
                                   <span className="progress-dots">…</span>
                                 </div>
                               ))}
@@ -1267,7 +1356,11 @@ export default function Generator() {
                             "designing",
                             "checking",
                             "rendering",
-                          ].indexOf(active.state === "repairing" ? "checking" : active.state)
+                          ].indexOf(
+                            active.state === "repairing"
+                              ? "checking"
+                              : active.state,
+                          )
                             ? "done"
                             : ""
                         }
@@ -1515,11 +1608,18 @@ export default function Generator() {
                 : "待核算，以平台账单为准"}
             </dd>
           </dl>
-          {(artwork.local_repairs?.length || artwork.repair_attempt) ? (
+          {artwork.local_repairs?.length || artwork.repair_attempt ? (
             <details>
               <summary>交付检查与自动修复</summary>
-              <p>图片已完成渲染和文件检查。模型自动纠错 {artwork.repair_attempt || 0} 轮；用量包含纠错调用。</p>
-              <ul>{artwork.local_repairs?.map((repair) => <li key={repair}>{repair}</li>)}</ul>
+              <p>
+                图片已完成渲染和文件检查。模型自动纠错{" "}
+                {artwork.repair_attempt || 0} 轮；用量包含纠错调用。
+              </p>
+              <ul>
+                {artwork.local_repairs?.map((repair) => (
+                  <li key={repair}>{repair}</li>
+                ))}
+              </ul>
             </details>
           ) : null}
           {artwork.design_plan && (

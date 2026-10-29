@@ -1,0 +1,114 @@
+/* Carry the discovery palette into the functional workspace. */
+:root {
+  --accent: #edb38b;
+  --muted: #a49990;
+  --line: #39312b;
+}
+.chat-app {
+  background: #141211;
+}
+.chat-topbar {
+  background: #191511d9;
+  border-bottom-color: #ffffff0b;
+}
+.wordmark:before,
+.brand-symbol {
+  color: #edb38b;
+}
+.wordmark span {
+  color: #b39d8a;
+}
+.ambient-lights > i {
+  background: radial-gradient(circle, #a9783e, transparent 63%);
+}
+.ambient-lights > i:nth-child(2) {
+  background: radial-gradient(circle, #954d64, transparent 65%);
+}
+.ambient-lights > i:nth-child(3) {
+  background: radial-gradient(circle, #74412c, transparent 65%);
+}
+.ambient-lights > div {
+  opacity: 0.05;
+}
+.send-button {
+  background: linear-gradient(110deg, #c4507b, #df774b);
+  color: #fff4e9;
+  border: 1px solid #ffcc9425;
+}
+.send-button:hover:not(:disabled) {
+  background: linear-gradient(110deg, #dd5a8a, #ed895d);
+}
+.composer {
+  background: #241e19ed;
+  border-color: #5b4433;
+}
+.composer:focus-within {
+  border-color: #ce9d78;
+  box-shadow:
+    0 0 0 3px #dda9690b,
+    0 15px 50px #0002;
+}
+.composer textarea {
+  color: #f1e3d7;
+}
+.welcome h1 em {
+  background: linear-gradient(100deg, #ffd9ab, #e8a1a1);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.welcome-icon {
+  background: #35271e;
+  border-color: #5d3e2c;
+  color: #f0b78c;
+}
+.welcome-kicker {
+  color: #b49b84;
+}
+.chat-sidebar {
+  background: #191512;
+  border-color: #3d2f24;
+}
+.new-chat {
+  background: #35281f;
+  border-color: #64442f;
+  color: #f2c6a2;
+}
+.thread-list button.current {
+  background: #33271e;
+  color: #f2c6a2;
+}
+.canvas-panel {
+  background: #151311;
+  border-color: #3d3229;
+}
+.back-to-discover {
+  color: #d4b296;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 7px 10px;
+  border: 1px solid #ffffff12;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.back-to-discover:hover {
+  color: #ffddc1;
+  background: #ffffff09;
+}
+@media (max-width: 760px) {
+  .back-to-discover {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .wordmark span {
+    display: none;
+  }
+  .chat-topbar > div {
+    gap: 7px;
+  }
+  .chat-topbar {
+    padding: 0 12px;
+  }
+}
