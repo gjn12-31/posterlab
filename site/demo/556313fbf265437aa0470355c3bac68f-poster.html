@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>万圣节奇妙夜</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#0f0520; overflow:hidden; }
+  body { display:flex; justify-content:center; align-items:center; }
+
+  #poster {
+    width:1080px;
+    height:1440px;
+    position:relative;
+    overflow:hidden;
+    background: linear-gradient(165deg, #160A2E 0%, #241243 35%, #35195C 70%, #2A1B3D 100%);
+    font-family:'PosterSans', sans-serif;
+    color:#FFF8E7;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .bg-glow {
+    position:absolute;
+    width:900px; height:900px;
+    left:90px; top:100px;
+    background: radial-gradient(circle, rgba(255,140,66,0.12) 0%, rgba(255,140,66,0.04) 40%, transparent 70%);
+    border-radius:50%;
+    pointer-events:none;
+  }
+
+  .grain {
+    position:absolute; inset:0;
+    pointer-events:none;
+    opacity:0.06;
+    mix-blend-mode:overlay;
+  }
+
+  .moon { position:absolute; top:140px; right:120px; width:200px; height:200px; filter:drop-shadow(0 0 30px rgba(255,248,231,0.3)); }
+
+  .star {
+    position:absolute;
+    background:#FFF8E7;
+    clip-path: polygon(50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0% 50%, 39% 39%);
+    opacity:0.9;
+  }
+
+  .sparkle-img {
+    position:absolute;
+    mix-blend-mode:screen;
+    pointer-events:none;
+    border:none;
+  }
+
+  .title-wrap {
+    position:absolute;
+    top:280px; left:0;
+    width:100%;
+    text-align:center;
+    z-index:10;
+  }
+  .title-main {
+    font-family:'PosterDisplay', cursive;
+    font-size:150px;
+    line-height:1.05;
+    letter-spacing:8px;
+  }
+  .t-line1 {
+    display:block;
+    color:#FF8C42;
+    text-shadow: 0 0 40px rgba(255,140,66,0.35), 0 10px 0 rgba(42,27,61,0.25);
+    transform:rotate(-1.5deg);
+  }
+  .t-line2 {
+    display:block;
+    color:#FFF8E7;
+    margin-top:-10px;
+    text-shadow: 0 0 50px rgba(255,248,231,0.3), 0 10px 0 rgba(232,93,4,0.2);
+    transform:rotate(1deg);
+  }
+
+  .pumpkin-main { position:absolute; left:310px; top:620px; width:480px; height:450px; z-index:5; }
+  .ghost { position:absolute; left:800px; top:560px; width:200px; height:240px; z-index:6; transform:rotate(-6deg); filter:drop-shadow(0 10px 20px rgba(0,0,0,0.3)); }
+  .pumpkin-small { position:absolute; left:80px; top:780px; width:220px; height:200px; z-index:4; opacity:0.95; }
+
+  .vine { position:absolute; z-index:2; opacity:0.6; }
+
+  .panel-curve {
+    position:absolute;
+    bottom:0; left:0;
+    width:100%; height:380px;
+    z-index:20;
+  }
+  .panel-content {
+    position:absolute;
+    bottom:0; left:0;
+    width:100%; height:360px;
+    z-index:21;
+    padding:60px 70px 50px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+  }
+  .info-grid {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:30px;
+  }
+  .info-item { flex:1; }
+  .info-label {
+    font-size:26px;
+    color:#E85D04;
+    font-weight:bold;
+    letter-spacing:6px;
+    margin-bottom:14px;
+    font-family:'PosterSans', sans-serif;
+  }
+  .info-value {
+    font-size:36px;
+    color:#2A1B3D;
+    font-weight:bold;
+    line-height:1.3;
+    font-family:'PosterSans', sans-serif;
+  }
+  .divider {
+    height:3px;
+    background: repeating-linear-gradient(90deg, #E85D04 0, #E85D04 12px, transparent 12px, transparent 24px);
+    margin:10px 0;
+    border-radius:2px;
+  }
+  .desc-block { text-align:center; }
+  .desc-label {
+    font-size:26px;
+    color:#E85D04;
+    font-weight:bold;
+    letter-spacing:8px;
+    margin-bottom:16px;
+    font-family:'PosterSans', sans-serif;
+  }
+  .desc-value {
+    font-size:34px;
+    color:#2A1B3D;
+    font-weight:bold;
+    line-height:1.5;
+    font-family:'PosterSerif', serif;
+    letter-spacing:2px;
+  }
+
+  img[data-asset] { display:block; }
+</style>
+<style>@font-face{font-family:PosterSans;src:url('fonts/regular.woff2');font-weight:400;font-display:block}@font-face{font-family:PosterSans;src:url('fonts/bold.woff2');font-weight:700;font-display:block}@font-face{font-family:PosterSerif;src:url('fonts/serif.woff2');font-weight:400;font-display:block}@font-face{font-family:PosterDisplay;src:url('fonts/display.woff2');font-weight:400;font-display:block}html,body{margin:0;padding:0}*,*:before,*:after{box-sizing:border-box;animation:none!important;transition:none!important}body{font-family:PosterSans,sans-serif;font-size:32px}:where([data-field="title"]){font-size:72px;font-weight:700;line-height:1.2}</style></head>
+<body>
+<div id="poster">
+<svg height="0" style="position:absolute;" width="0">
+<defs>
+<lineargradient id="pumpkinGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#FFB347"></stop>
+<stop offset="50%" stop-color="#FF8C42"></stop>
+<stop offset="100%" stop-color="#E85D04"></stop>
+</lineargradient>
+<lineargradient id="pumpkinGradSmall" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#FFA94D"></stop>
+<stop offset="100%" stop-color="#F06543"></stop>
+</lineargradient>
+<radialgradient cx="50%" cy="50%" id="faceGlow" r="50%">
+<stop offset="0%" stop-color="#FFF3C4"></stop>
+<stop offset="60%" stop-color="#FFD166"></stop>
+<stop offset="100%" stop-color="#FF8C42"></stop>
+</radialgradient>
+<radialgradient cx="50%" cy="50%" id="moonGlow" r="50%">
+<stop offset="0%" stop-color="#FFF8E7"></stop>
+<stop offset="70%" stop-color="#FFEFD5"></stop>
+<stop offset="100%" stop-color="#F0E6D2"></stop>
+</radialgradient>
+<lineargradient id="ghostGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#FFFFFF"></stop>
+<stop offset="100%" stop-color="#F0E6D2"></stop>
+</lineargradient>
+<filter id="noiseFilter">
+<feturbulence basefrequency="0.65" numoctaves="3" stitchtiles="stitch" type="fractalNoise"></feturbulence>
+</filter>
+<filter id="glow">
+<fegaussianblur result="coloredBlur" stddeviation="8"></fegaussianblur>
+<femerge>
+<femergenode in="coloredBlur"></femergenode>
+<femergenode in="SourceGraphic"></femergenode>
+</femerge>
+</filter>
+</defs>
+</svg>
+<div class="bg-glow"></div>
+<svg class="grain" height="100%" width="100%">
+<rect filter="url(#noiseFilter)" height="100%" width="100%"></rect>
+</svg>
+<svg class="moon" viewbox="0 0 200 200">
+<circle cx="100" cy="100" fill="url(#moonGlow)" opacity="0.15" r="95"></circle>
+<path d="M135,35 A75,75 0 1,0 135,165 A60,60 0 1,1 135,35 Z" fill="url(#moonGlow)" filter="url(#glow)"></path>
+</svg>
+<div class="star" style="top:140px; left:200px; width:26px; height:26px;"></div>
+<div class="star" style="top:90px; left:520px; width:18px; height:18px; opacity:0.7;"></div>
+<div class="star" style="top:220px; left:920px; width:22px; height:22px;"></div>
+<div class="star" style="top:380px; left:120px; width:16px; height:16px; opacity:0.6;"></div>
+<div class="star" style="top:520px; left:960px; width:20px; height:20px;"></div>
+<div class="star" style="top:680px; left:90px; width:14px; height:14px; opacity:0.8;"></div>
+<div class="star" style="top:320px; left:720px; width:12px; height:12px; opacity:0.5;"></div>
+<img alt="" class="sparkle-img" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="top:260px; left:180px; width:70px; opacity:0.75;"/>
+<img alt="" class="sparkle-img" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="top:620px; left:870px; width:50px; opacity:0.6;"/>
+<img alt="" class="sparkle-img" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="top:880px; left:140px; width:60px; opacity:0.7;"/>
+<svg class="vine" style="top:1000px; left:-20px; width:280px; height:200px;" viewbox="0 0 280 200">
+<path d="M20,180 Q60,120 40,60 Q30,20 70,10" fill="none" stroke="#4B2E6B" stroke-linecap="round" stroke-width="6"></path>
+<path d="M50,140 Q80,130 90,110 Q70,120 50,140 Z" fill="#4B2E6B"></path>
+<path d="M45,80 Q75,70 85,50 Q65,60 45,80 Z" fill="#4B2E6B"></path>
+</svg>
+<svg class="vine" style="top:1020px; right:-30px; width:260px; height:180px; transform:scaleX(-1);" viewbox="0 0 280 200">
+<path d="M20,180 Q60,120 40,60 Q30,20 70,10" fill="none" stroke="#4B2E6B" stroke-linecap="round" stroke-width="6"></path>
+<path d="M50,140 Q80,130 90,110 Q70,120 50,140 Z" fill="#4B2E6B"></path>
+<path d="M45,80 Q75,70 85,50 Q65,60 45,80 Z" fill="#4B2E6B"></path>
+</svg>
+<div class="title-wrap">
+<div class="title-main" data-field="title">
+<span class="t-line1">万圣节</span>
+<span class="t-line2">奇妙夜</span>
+</div>
+</div>
+<svg class="pumpkin-main" viewbox="0 0 500 460">
+<path d="M250,130 C245,100 240,80 255,60 C270,80 265,100 260,130 Z" fill="#6B4226"></path>
+<path d="M255,70 Q310,40 330,80 Q300,110 255,90 Z" fill="#5A7D5A"></path>
+<ellipse cx="250" cy="260" fill="#c74a00" opacity="0.4" rx="190" ry="180"></ellipse>
+<path d="M250,120 C170,120 110,190 100,280 C90,370 110,440 170,455 C230,465 320,455 370,440 C420,420 430,340 410,260 C390,180 330,120 250,120 Z" fill="url(#pumpkinGrad)"></path>
+<path d="M170,140 C130,210 130,360 170,445" fill="none" opacity="0.5" stroke="#D96A0F" stroke-linecap="round" stroke-width="4"></path>
+<path d="M330,140 C370,210 370,360 330,445" fill="none" opacity="0.5" stroke="#D96A0F" stroke-linecap="round" stroke-width="4"></path>
+<path d="M215,130 C190,220 190,360 215,452" fill="none" opacity="0.4" stroke="#D96A0F" stroke-linecap="round" stroke-width="3"></path>
+<path d="M285,130 C310,220 310,360 285,452" fill="none" opacity="0.4" stroke="#D96A0F" stroke-linecap="round" stroke-width="3"></path>
+<path d="M250,125 L250,458" fill="none" opacity="0.3" stroke="#D96A0F" stroke-linecap="round" stroke-width="3"></path>
+<path d="M160,180 C140,240 140,340 160,410 C150,350 150,240 160,180 Z" fill="#FFD8A8" opacity="0.35"></path>
+<path d="M360,200 C375,260 375,350 360,410 C370,350 370,260 360,200 Z" fill="#FFD8A8" opacity="0.15"></path>
+<g filter="url(#glow)" opacity="0.6">
+<path d="M180,280 L230,330 L130,330 Z" fill="#FFD166"></path>
+<path d="M320,280 L370,330 L270,330 Z" fill="#FFD166"></path>
+<path d="M250,350 L225,385 L275,385 Z" fill="#FFD166"></path>
+<path d="M150,400 L180,400 L200,375 L220,400 L280,400 L300,375 L320,400 L350,400 C350,400 340,455 250,455 C160,455 150,400 150,400 Z" fill="#FFD166"></path>
+</g>
+<path d="M180,280 L230,330 L130,330 Z" fill="url(#faceGlow)"></path>
+<path d="M320,280 L370,330 L270,330 Z" fill="url(#faceGlow)"></path>
+<path d="M250,350 L225,385 L275,385 Z" fill="url(#faceGlow)"></path>
+<path d="M150,400 L180,400 L200,375 L220,400 L280,400 L300,375 L320,400 L350,400 C350,400 340,455 250,455 C160,455 150,400 150,400 Z" fill="url(#faceGlow)"></path>
+</svg>
+<svg class="ghost" viewbox="0 0 200 240">
+<path d="M100,30 C145,30 175,80 175,140 C175,180 165,210 150,230 C135,210 125,220 110,210 C95,200 85,220 70,210 C55,200 45,220 30,210 C20,200 25,160 25,140 C25,80 55,30 100,30 Z" fill="url(#ghostGrad)" filter="url(#glow)"></path>
+<ellipse cx="78" cy="100" fill="#2A1B3D" rx="9" ry="14"></ellipse>
+<ellipse cx="122" cy="100" fill="#2A1B3D" rx="9" ry="14"></ellipse>
+<path d="M85,130 Q100,145 115,130" fill="none" stroke="#2A1B3D" stroke-linecap="round" stroke-width="5"></path>
+<circle cx="60" cy="125" fill="#FF8C42" opacity="0.5" r="7"></circle>
+<circle cx="140" cy="125" fill="#FF8C42" opacity="0.5" r="7"></circle>
+</svg>
+<svg class="pumpkin-small" viewbox="0 0 220 200">
+<path d="M110,60 C105,40 100,25 115,10 C130,25 125,40 120,60 Z" fill="#6B4226"></path>
+<path d="M110,50 C60,50 20,90 15,135 C10,175 30,190 70,190 C110,190 150,185 180,175 C210,160 210,120 195,95 C180,70 160,50 110,50 Z" fill="url(#pumpkinGradSmall)"></path>
+<path d="M55,65 C35,95 35,150 55,180" fill="none" opacity="0.5" stroke="#D96A0F" stroke-width="3"></path>
+<path d="M165,65 C185,95 185,150 165,180" fill="none" opacity="0.5" stroke="#D96A0F" stroke-width="3"></path>
+<path d="M110,55 L110,188" fill="none" opacity="0.4" stroke="#D96A0F" stroke-width="2"></path>
+<path d="M75,110 L95,130 L55,130 Z" fill="#FFD166"></path>
+<path d="M145,110 L165,130 L125,130 Z" fill="#FFD166"></path>
+<path d="M70,145 L85,145 L95,130 L105,145 L135,145 L145,130 L155,145 C155,145 150,175 110,175 C70,175 70,145 70,145 Z" fill="#FFD166"></path>
+</svg>
+<svg class="panel-curve" preserveaspectratio="none" viewbox="0 0 1080 380">
+<path d="M0,70 C180,20 400,0 540,0 C680,0 900,20 1080,70 L1080,380 L0,380 Z" fill="#FFF8E7"></path>
+</svg>
+<div class="panel-content">
+<div class="info-grid">
+<div class="info-item">
+<div class="info-label">日期</div>
+<div class="info-value" data-field="date">2026年10月30日</div>
+</div>
+<div class="info-item">
+<div class="info-label">时间</div>
+<div class="info-value" data-field="time">19:00—21:00</div>
+</div>
+<div class="info-item">
+<div class="info-label">地点</div>
+<div class="info-value" data-field="venue">校园创新空间</div>
+</div>
+</div>
+<div class="divider"></div>
+<div class="desc-block">
+<div class="desc-label">活动内容</div>
+<div class="desc-value" data-field="description">南瓜灯制作、创意变装、音乐交流</div>
+</div>
+</div>
+</div>
+</body>
+</html>

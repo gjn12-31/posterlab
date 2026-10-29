@@ -119,3 +119,13 @@ def test_formal_budget_reserves_before_http(config,monkeypatch,tmp_path):
 def test_freeze_requires_real_review(config):
     from posterlab.batch import freeze
     with pytest.raises(ValueError,match='双人'):freeze(config,'test-frozen')
+
+
+def test_transport_timeout_is_not_retried(config,monkeypatch,tmp_path):
+    req=setup_provider(config,monkeypatch);calls=[]
+    def handler(request):
+        calls.append(request)
+        raise httpx.ReadTimeout('response unknown',request=request)
+    with pytest.raises(ProviderError) as error:
+        call_model(req,config,Budget(config),tmp_path/'timeout',transport=httpx.MockTransport(handler))
+    assert error.value.kind=='unknown_remote_state' and len(calls)==1

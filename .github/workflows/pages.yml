@@ -1,4 +1,4 @@
-name: Deploy PosterLab to GitHub Pages
+name: Build and deploy PosterLab Studio
 on:
   push:
     branches: [main]
@@ -18,9 +18,24 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm test
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+        env:
+          VITE_STATIC_DEMO: "true"
+      - name: Package recorded examples
+        run: python3 tools/build_demo_packages.py
+      - name: Include preserved legacy editor
+        run: cp -R legacy site/legacy
       - uses: actions/configure-pages@v5
-      - name: Check JavaScript syntax
-        run: node --check site/app.js
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site

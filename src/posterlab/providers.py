@@ -76,7 +76,7 @@ def call_model(request,config,budget,out_dir,pilot=True,transport=None):
                 updates={'status':'complete','http_status':response.status_code,'duration_seconds':elapsed,'usage_raw':result.usage,'provider_response_id':result.response_id,'returned_model':result.model,'billing_status':'estimate_unavailable'}
                 budget.settle(record,**updates);write_json(log,{**record,**updates});return result
             except (httpx.TransportError,ProviderError,ValueError,KeyError,IndexError) as error:
-                if isinstance(error,httpx.TransportError):retry=True;kind='unknown_remote_state';message=type(error).__name__
+                if isinstance(error,httpx.TransportError):retry=False;kind='unknown_remote_state';message=type(error).__name__
                 elif isinstance(error,ProviderError):kind=error.kind;message=str(error)
                 else:kind='invalid_response';message=type(error).__name__;retry=False
                 updates={'status':kind,'http_status':response.status_code if response is not None else None,'duration_seconds':time.perf_counter()-start,'error':message,'billing_status':'unknown'}

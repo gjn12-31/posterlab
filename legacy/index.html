@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="PosterLab 海报创作室：从一个灵感开始，轻松制作、优化和下载活动海报。">
+<meta name="theme-color" content="#faf8f3"><title>PosterLab · 海报创作室</title>
+<link rel="stylesheet" href="styles.css"><script src="app.js" defer></script>
+</head>
+<body>
+<header><a class="brand" href="./" aria-label="PosterLab 首页"><span class="brand-mark">p</span> PosterLab <span class="brand-note">海报创作室</span></a><nav aria-label="主导航"><button class="nav active" data-page="studio" aria-current="page">制作海报</button><button class="nav" data-page="gallery">我的作品</button><button class="nav" data-page="help">使用帮助</button></nav><span class="header-note"><i></i> 自由创作，轻松分享</span></header>
+<main>
+<section id="studio" class="page">
+<div class="intro"><div><p class="eyebrow">A LITTLE IDEA. A BEAUTIFUL POSTER.</p><h1>一个好想法，<br class="mobile-break">一张好海报<span>。</span></h1><p>把活动、分享与灵感，变成值得被看见的作品。</p></div><div class="steps"><span><b>01</b> 写下想法</span><span><b>02</b> 选个风格</span><span><b>03</b> 下载分享</span></div></div>
+<div class="workspace">
+<form id="editor" class="editor">
+<div class="section-title"><h2>从这里开始</h2><span>YOUR IDEAS</span></div>
+<label for="sample">从示例开始 <span>也可以写下自己的活动</span></label><select id="sample"><option value="">自由创作</option></select>
+<p id="source-note" class="small" hidden><a id="source-link" target="_blank" rel="noopener noreferrer">查看示例来源 ↗</a> · 历史活动，仅供试作</p>
+<label for="title">海报标题</label><textarea id="title" name="title" required maxlength="180" rows="2"></textarea>
+<label for="speaker">主讲人</label><input id="speaker" name="speaker" required maxlength="120">
+<div class="field-pair"><div><label for="date">活动日期</label><input id="date" name="date" type="date" required></div><div><label for="time">时间</label><input id="time" name="time" required maxlength="80"></div></div>
+<label for="venue">地点</label><input id="venue" name="venue" required maxlength="220">
+<details><summary>活动介绍 <span>补充一点，让作品更完整</span></summary><label class="sr-only" for="description">活动介绍</label><textarea id="description" name="description" required maxlength="1200" rows="5"></textarea></details>
+<div class="section-title style-title"><h2>选一种感觉</h2><span>YOUR STYLE</span></div>
+<div class="themes" role="group" aria-label="海报风格">
+<button type="button" class="theme selected" data-theme="paper" aria-pressed="true"><span class="swatch paper"><i></i></span><strong>暖纸人文</strong><small>温暖 · 舒展</small></button>
+<button type="button" class="theme" data-theme="blue" aria-pressed="false"><span class="swatch blue"><i></i></span><strong>蓝调学术</strong><small>理性 · 秩序</small></button>
+<button type="button" class="theme" data-theme="sage" aria-pressed="false"><span class="swatch sage"><i></i></span><strong>青绿漫想</strong><small>自然 · 轻盈</small></button>
+</div>
+<button type="submit" class="primary create">制作海报 <span>↗</span></button><p class="small centered">免费模板体验 · 无需登录 · 未接入 AI</p>
+</form>
+<section class="preview-panel" aria-label="海报预览"><div class="preview-heading"><div><span class="dot"></span> <span id="preview-label">你的灵感，正在成形</span></div><span>1080 × 1440</span></div>
+<div class="canvas-wrap"><canvas id="poster" width="1080" height="1440" role="img" aria-label="海报实时预览，内容对应左侧填写的活动信息"></canvas></div>
+<div class="preview-actions"><button id="optimize" type="button" class="secondary">优化一下 <span>✧</span></button><button id="download" type="button" class="primary">下载图片 <span>↓</span></button></div>
+<div id="versions" class="versions" hidden><button id="original" type="button">原版</button><button id="revised" type="button" class="active">优化版</button></div>
+<details class="checks"><summary id="check-summary">排版检查</summary><ul id="check-list"></ul><p class="small">检查文字完整度、画面边界和字号。不会核实活动信息或给出 AI 评分。</p></details>
+<p class="preview-foot">为分享而设计，为灵感留一点空间。</p>
+</section>
+</div>
+</section>
+<section id="gallery" class="page" hidden><div class="intro"><div><p class="eyebrow">MADE BY YOU.</p><h1>留住每一次灵感<span>。</span></h1><p>作品保存在当前浏览器。换设备或清除浏览器数据前，记得下载图片。</p></div><button class="secondary" id="new-work">＋ 新建海报</button></div><div id="gallery-grid"></div></section>
+<section id="help" class="page" hidden><div class="intro"><div><p class="eyebrow">A SMALL GUIDE.</p><h1>好上手，也好看<span>。</span></h1><p>从填写信息，到完成一张属于你的海报。</p></div></div><div class="help-grid"><article><span>01</span><h2>写下活动信息</h2><p>填写标题、主讲人、时间与地点，也可以从 10 个真实公开活动示例开始，修改为自己的内容。</p></article><article><span>02</span><h2>找到喜欢的感觉</h2><p>三种风格随时切换。点击「优化一下」调整标题层级与文字间距，用原版和优化版比较效果。</p></article><article><span>03</span><h2>下载，去分享</h2><p>下载 1080 × 1440 的 PNG 图片。点击「制作海报」保存到我的作品，以后还可以接着编辑。</p></article></div><div class="help-note"><h2>关于这个版本</h2><p>这是 GitHub Pages 上的浏览器模板体验版。制作、排版检查和导出在你的设备上完成，活动内容不会发送给模型。公开示例来自清华大学交叉信息研究院，可能包含原文识别错误；请在发布活动前自行核对。</p><p>完整的 Python 项目还包括模型接入、两轮生成、规则评测、人工复核和实验导出。API 配置保持留空，在线版的排版优化不代表 AI 实测结果。</p><a href="https://github.com/gjn12-31/posterlab" target="_blank" rel="noopener noreferrer">查看项目与完整评测框架 ↗</a></div></section>
+</main><footer><span>POSTERLAB · 让想法被看见</span><span>一点灵感，无限可能。</span></footer><div id="toast" role="status" aria-live="polite"></div>
+</body></html>

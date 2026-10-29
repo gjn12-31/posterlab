@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>万圣节奇妙夜</title>
+<meta content="奶油白纸张+深紫暖橙复古凹版海报；拱形深紫夜空版框内放置思源宋体主标题与星光素材；南瓜重新设计为星月星座雕刻，小幽灵戴巫帽搭肩构成叙事主视觉；底部地面虚线后增加留白，信息区用黑体标签+宋体数值形成成熟层级。" name="posterlab-plan"/>
+<meta content="奶油纸上的深紫暖橙复古万圣节海报：戴帽小幽灵倚靠星月星座南瓜灯。" name="posterlab-summary"/>
+<meta content="整体视觉骨架从深色夜景卡片改为奶油纸复古印刷海报，新增拱形深紫版框、双层描边与橙色角标；标题由站酷快乐体改为思源宋体，信息标签改用思源黑体。" name="posterlab-change"/>
+<meta content="主视觉重绘为故事场景：南瓜灯雕刻成星眼月嘴并带星座连线，小幽灵从南瓜后探出、双臂搭肩，星光素材集中于拱门夜空中。" name="posterlab-change"/>
+<meta content="底部信息区不再贴边弧面，改为拱门地面线下方大面积留白后的三栏宋体数值，活动内容用上下暖橙细线面板承载。" name="posterlab-change"/>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; background:#E7DCC4; overflow:hidden; }
+  body { display:flex; justify-content:center; align-items:center; }
+
+  #poster {
+    width:1080px; height:1440px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(circle at 50% 34%, #FCF7EC 0%, #F5EDDD 58%, #EDE0C6 100%);
+    font-family:'PosterSans', sans-serif;
+    color:#33204F;
+    box-shadow:0 24px 60px rgba(51,32,79,.28);
+  }
+
+  .grain {
+    position:absolute; inset:0; pointer-events:none;
+    opacity:.10; mix-blend-mode:multiply;
+  }
+
+  .frame { position:absolute; inset:0; pointer-events:none; }
+
+  .arch {
+    position:absolute; left:140px; top:150px; width:800px; height:820px;
+    z-index:2; pointer-events:none;
+  }
+
+  .title {
+    position:absolute; top:228px; left:0; width:100%;
+    text-align:center; z-index:6; pointer-events:none;
+  }
+  .t1, .t2 {
+    display:block; font-family:'PosterSerif', serif; font-weight:700;
+    text-shadow:6px 6px 0 rgba(24,12,44,.38);
+  }
+  .t1 {
+    font-size:132px; line-height:1.08; color:#F6EEDF; letter-spacing:22px; text-indent:22px;
+  }
+  .t2 {
+    font-size:172px; line-height:1.02; color:#F2994A; letter-spacing:26px; text-indent:26px;
+    margin-top:4px;
+  }
+
+  .ornament-title {
+    position:absolute; top:592px; left:320px; width:440px; height:26px; z-index:6;
+  }
+
+  .main-art {
+    position:absolute; left:120px; top:540px; width:840px; height:430px; z-index:5;
+  }
+
+  .sparkle { position:absolute; pointer-events:none; mix-blend-mode:screen; }
+
+  .ground {
+    position:absolute; left:150px; right:150px; top:1008px; height:5px;
+    background:#3B2263; z-index:4;
+  }
+  .ground::before, .ground::after {
+    content:""; position:absolute; width:16px; height:16px; background:#D95D22;
+    transform:rotate(45deg); top:-6px;
+  }
+  .ground::before { left:-8px; }
+  .ground::after { right:-8px; }
+
+  .info { position:absolute; left:70px; right:70px; top:1120px; z-index:5; }
+  .info-row { display:flex; align-items:flex-start; }
+  .info-item { flex:1; text-align:center; position:relative; }
+  .info-item + .info-item::before {
+    content:""; position:absolute; left:0; top:6px; bottom:6px; width:1px;
+    background:rgba(59,34,99,.38);
+  }
+  .label {
+    font-family:'PosterSans', sans-serif; font-size:26px; font-weight:700;
+    letter-spacing:8px; color:#D95D22; margin-bottom:12px;
+  }
+  .value {
+    font-family:'PosterSerif', serif; font-weight:700; font-size:38px;
+    line-height:1.15; color:#33204F; letter-spacing:2px;
+  }
+
+  .ornament-info {
+    margin:26px auto 24px; display:flex; align-items:center; justify-content:center; gap:14px;
+  }
+  .ornament-info .line { width:190px; height:2px; background:#D95D22; opacity:.85; }
+  .ornament-info .dia { width:11px; height:11px; background:#D95D22; transform:rotate(45deg); }
+
+  .desc-panel {
+    border-top:2px solid #D95D22; border-bottom:2px solid #D95D22;
+    padding:20px 0 22px; text-align:center;
+  }
+  .desc-label { margin-bottom:10px; }
+  .desc-value {
+    font-family:'PosterSerif', serif; font-weight:700; font-size:38px;
+    line-height:1.35; color:#33204F; letter-spacing:3px;
+  }
+</style>
+<style>@font-face{font-family:PosterSans;src:url('fonts/regular.woff2');font-weight:400;font-display:block}@font-face{font-family:PosterSans;src:url('fonts/bold.woff2');font-weight:700;font-display:block}@font-face{font-family:PosterSerif;src:url('fonts/serif.woff2');font-weight:400;font-display:block}@font-face{font-family:PosterDisplay;src:url('fonts/display.woff2');font-weight:400;font-display:block}html,body{margin:0;padding:0}*,*:before,*:after{box-sizing:border-box;animation:none!important;transition:none!important}body{font-family:PosterSans,sans-serif;font-size:32px}:where([data-field="title"]){font-size:72px;font-weight:700;line-height:1.2}</style></head>
+<body>
+<div id="poster">
+<svg class="grain" height="1440" viewbox="0 0 1080 1440" width="1080">
+<defs>
+<filter height="100%" id="paperNoise" width="100%" x="0" y="0">
+<feturbulence basefrequency="0.85" numoctaves="4" stitchtiles="stitch" type="fractalNoise"></feturbulence>
+<fecolormatrix type="saturate" values="0"></fecolormatrix>
+</filter>
+</defs>
+<rect filter="url(#paperNoise)" height="1440" width="1080"></rect>
+</svg>
+<svg class="frame" viewbox="0 0 1080 1440">
+<rect fill="none" height="1380" stroke="#3B2263" stroke-width="4" width="1020" x="30" y="30"></rect>
+<rect fill="none" height="1368" opacity=".7" stroke="#3B2263" stroke-width="1.5" width="988" x="46" y="46"></rect>
+<path d="M46,112 L46,68 Q46,46 68,46 L112,46" fill="none" stroke="#D95D22" stroke-width="4"></path>
+<path d="M1034,112 L1034,68 Q1034,46 1012,46 L968,46" fill="none" stroke="#D95D22" stroke-width="4"></path>
+<path d="M46,1328 L46,1372 Q46,1394 68,1394 L112,1394" fill="none" stroke="#D95D22" stroke-width="4"></path>
+<path d="M1034,1328 L1034,1372 Q1034,1394 1012,1394 L968,1394" fill="none" stroke="#D95D22" stroke-width="4"></path>
+</svg>
+<svg class="arch" preserveaspectratio="none" viewbox="0 0 800 820">
+<defs>
+<lineargradient id="nightGrad" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#40266B"></stop>
+<stop offset="62%" stop-color="#35205A"></stop>
+<stop offset="100%" stop-color="#2C1A49"></stop>
+</lineargradient>
+<radialgradient cx="50%" cy="72%" id="archGlow" r="55%">
+<stop offset="0%" stop-color="#E2703A" stop-opacity=".30"></stop>
+<stop offset="100%" stop-color="#E2703A" stop-opacity="0"></stop>
+</radialgradient>
+</defs>
+<path d="M0,820 L0,420 A400,400 0 0 1 800,420 L800,820 Z" fill="url(#nightGrad)"></path>
+<path d="M0,820 L0,420 A400,400 0 0 1 800,420 L800,820 Z" fill="url(#archGlow)"></path>
+<path d="M20,820 L20,420 A380,380 0 0 1 780,420 L780,820 Z" fill="none" opacity=".55" stroke="#E2703A" stroke-width="2"></path>
+</svg>
+<div class="title">
+<div class="t1" data-field="title"><span class="t1">万圣节</span><span class="t2">奇妙夜</span></div>
+</div>
+<svg class="ornament-title" viewbox="0 0 440 26">
+<path d="M0,13 L182,13" stroke="#F2994A" stroke-width="3"></path>
+<path d="M258,13 L440,13" stroke="#F2994A" stroke-width="3"></path>
+<polygon fill="#F2994A" points="220,2 232,13 220,24 208,13"></polygon>
+</svg>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:198px; top:222px; width:62px; opacity:.85;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:820px; top:268px; width:52px; opacity:.78;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:292px; top:576px; width:46px; opacity:.9;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:768px; top:612px; width:56px; opacity:.72;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:516px; top:188px; width:34px; opacity:.55;"/>
+<svg class="main-art" viewbox="0 0 840 430">
+<defs>
+<lineargradient id="pumpkinBody" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#F79A45"></stop>
+<stop offset="52%" stop-color="#E8702A"></stop>
+<stop offset="100%" stop-color="#CE4E12"></stop>
+</lineargradient>
+<radialgradient cx="50%" cy="50%" id="carveGlow" r="50%">
+<stop offset="0%" stop-color="#FFFCE8"></stop>
+<stop offset="58%" stop-color="#FFD166"></stop>
+<stop offset="100%" stop-color="#FF9F45"></stop>
+</radialgradient>
+<radialgradient cx="50%" cy="58%" id="pumpkinAura" r="50%">
+<stop offset="0%" stop-color="#FFB25C" stop-opacity=".42"></stop>
+<stop offset="100%" stop-color="#FFB25C" stop-opacity="0"></stop>
+</radialgradient>
+<filter height="180%" id="softGlow" width="180%" x="-40%" y="-40%">
+<fegaussianblur result="blur" stddeviation="10"></fegaussianblur>
+<femerge>
+<femergenode in="blur"></femergenode>
+<femergenode in="SourceGraphic"></femergenode>
+</femerge>
+</filter>
+</defs>
+<ellipse cx="390" cy="256" fill="url(#pumpkinAura)" rx="275" ry="230"></ellipse>
+<g>
+<path d="M408,66 C404,44 400,26 418,8 C438,28 432,48 428,70" fill="#4A2B6B" stroke="#2C1A49" stroke-linejoin="round" stroke-width="5"></path>
+<path d="M420,44 Q474,14 500,44 Q470,72 420,60 Z" fill="#3F7A52" stroke="#2C1A49" stroke-linejoin="round" stroke-width="5"></path>
+</g>
+<g>
+<path d="M390,86 C245,86 172,166 160,252 C148,338 172,412 240,428 C308,442 470,432 538,418 C606,402 626,326 612,244 C596,158 520,86 390,86 Z" fill="url(#pumpkinBody)" stroke="#2C1A49" stroke-linejoin="round" stroke-width="7"></path>
+<path d="M252,108 C210,178 210,346 252,414" fill="none" opacity=".55" stroke="#B5430C" stroke-linecap="round" stroke-width="5"></path>
+<path d="M528,108 C570,178 570,346 528,414" fill="none" opacity=".55" stroke="#B5430C" stroke-linecap="round" stroke-width="5"></path>
+<path d="M318,96 C286,172 286,352 318,424" fill="none" opacity=".42" stroke="#B5430C" stroke-linecap="round" stroke-width="4"></path>
+<path d="M462,96 C494,172 494,352 462,424" fill="none" opacity=".42" stroke="#B5430C" stroke-linecap="round" stroke-width="4"></path>
+<path d="M390,92 L390,430" fill="none" opacity=".35" stroke="#B5430C" stroke-linecap="round" stroke-width="4"></path>
+</g>
+<g fill="none" opacity=".72" stroke="#5B3A78" stroke-dasharray="5 7" stroke-width="2">
+<path d="M320,215 L390,252 L460,215"></path>
+<path d="M320,215 L300,300"></path>
+<path d="M460,215 L486,304"></path>
+</g>
+<g fill="#5B3A78" opacity=".72">
+<circle cx="320" cy="215" r="4"></circle>
+<circle cx="390" cy="252" r="4"></circle>
+<circle cx="460" cy="215" r="4"></circle>
+<circle cx="300" cy="300" r="3.4"></circle>
+<circle cx="486" cy="304" r="3.4"></circle>
+</g>
+<g filter="url(#softGlow)" opacity=".85">
+<polygon fill="#FFC85C" points="320,185 348.5,205.7 337.6,239.3 302.4,239.3 291.5,205.7"></polygon>
+<polygon fill="#FFC85C" points="460,185 488.5,205.7 477.6,239.3 442.4,239.3 431.5,205.7"></polygon>
+<path d="M305,295 Q390,357 475,295 Q390,327 305,295 Z" fill="#FFC85C"></path>
+</g>
+<g>
+<polygon fill="url(#carveGlow)" points="320,185 348.5,205.7 337.6,239.3 302.4,239.3 291.5,205.7"></polygon>
+<polygon fill="url(#carveGlow)" points="460,185 488.5,205.7 477.6,239.3 442.4,239.3 431.5,205.7"></polygon>
+<path d="M390,240 L376,270 L404,270 Z" fill="url(#carveGlow)"></path>
+<path d="M305,295 Q390,357 475,295 Q390,327 305,295 Z" fill="url(#carveGlow)"></path>
+<polygon fill="#FFF7D6" opacity=".9" points="352,308 357,318 368,318 359,325 363,336 352,328 341,336 345,325 336,318 347,318"></polygon>
+<polygon fill="#FFF7D6" opacity=".9" points="428,308 433,318 444,318 435,325 439,336 428,328 417,336 421,325 412,318 423,318"></polygon>
+</g>
+<ellipse cx="390" cy="432" fill="#2C1A49" opacity=".28" rx="212" ry="20"></ellipse>
+<g>
+<path d="M430,142 Q344,152 252,178" fill="none" stroke="#2C1A49" stroke-linecap="round" stroke-width="42"></path>
+<path d="M430,142 Q344,152 252,178" fill="none" stroke="#F6EEDF" stroke-linecap="round" stroke-width="32"></path>
+<path d="M490,142 Q576,152 668,178" fill="none" stroke="#2C1A49" stroke-linecap="round" stroke-width="42"></path>
+<path d="M490,142 Q576,152 668,178" fill="none" stroke="#F6EEDF" stroke-linecap="round" stroke-width="32"></path>
+<circle cx="252" cy="178" fill="#F6EEDF" r="17" stroke="#2C1A49" stroke-width="5"></circle>
+<circle cx="668" cy="178" fill="#F6EEDF" r="17" stroke="#2C1A49" stroke-width="5"></circle>
+</g>
+<g>
+<ellipse cx="460" cy="98" fill="#F6EEDF" rx="54" ry="50" stroke="#2C1A49" stroke-width="6"></ellipse>
+<ellipse cx="440" cy="94" fill="#2C1A49" rx="7" ry="11"></ellipse>
+<ellipse cx="480" cy="94" fill="#2C1A49" rx="7" ry="11"></ellipse>
+<ellipse cx="460" cy="120" fill="#2C1A49" rx="8" ry="6"></ellipse>
+<circle cx="424" cy="112" fill="#D95D22" opacity=".45" r="7"></circle>
+<circle cx="496" cy="112" fill="#D95D22" opacity=".45" r="7"></circle>
+<path d="M455,54 Q470,78 495,70 L430,70 Q452,78 455,54 Z" fill="#4A2B6B" stroke="#2C1A49" stroke-linejoin="round" stroke-width="5"></path>
+<path d="M430,64 Q460,76 490,64 L486,52 Q460,63 434,52 Z" fill="#D95D22"></path>
+<polygon fill="#F6EEDF" points="460,54 463,61 470,61 465,66 467,73 460,69 453,73 455,66 450,61 457,61"></polygon>
+<ellipse cx="460" cy="72" fill="#4A2B6B" rx="74" ry="13" stroke="#2C1A49" stroke-width="5"></ellipse>
+</g>
+</svg>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:764px; top:684px; width:74px; opacity:.95;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:328px; top:690px; width:54px; opacity:.85;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:176px; top:872px; width:52px; opacity:.7;"/>
+<img alt="" class="sparkle" data-asset="sparkles-ivory" src="assets/sparkles-ivory.png" style="left:836px; top:842px; width:44px; opacity:.65;"/>
+<div class="ground"></div>
+<div class="info">
+<div class="info-row">
+<div class="info-item">
+<div class="label">日期</div>
+<div class="value" data-field="date">2026年10月30日</div>
+</div>
+<div class="info-item">
+<div class="label">时间</div>
+<div class="value" data-field="time">19:00—21:00</div>
+</div>
+<div class="info-item">
+<div class="label">地点</div>
+<div class="value" data-field="venue">校园创新空间</div>
+</div>
+</div>
+<div class="ornament-info">
+<div class="line"></div>
+<div class="dia"></div>
+<div class="line"></div>
+</div>
+<div class="desc-panel">
+<div class="label desc-label">活动内容</div>
+<div class="desc-value" data-field="description">南瓜灯制作、创意变装、音乐交流</div>
+</div>
+</div>
+</div>
+</body>
+</html>

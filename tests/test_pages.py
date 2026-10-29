@@ -1,4 +1,4 @@
-"""Exercise the actual GitHub Pages interface, storage and PNG export."""
+"""Exercise the preserved legacy interface, storage and PNG export."""
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope='module')
 def pages_server():
-    server = ThreadingHTTPServer(('127.0.0.1', 0), partial(SimpleHTTPRequestHandler, directory=str(ROOT / 'site')))
+    server = ThreadingHTTPServer(('127.0.0.1', 0), partial(SimpleHTTPRequestHandler, directory=str(ROOT / 'legacy')))
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
     yield f'http://127.0.0.1:{server.server_port}'

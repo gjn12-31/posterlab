@@ -1,171 +1,110 @@
-# PosterLab · 海报生成与评测实验台
+# PosterLab · AI 原创海报
 
-依据 [项目执行计划](docs/plan.md) 构建的本地 Python + Streamlit 项目。已实现可操作网页、10个活动的数据集、固定浏览器渲染、一次修改状态机、规则评测、API 适配器、日志预算、人工复核和下载。
+把活动通知交给 AI，选择艺术方向，生成一张可下载的海报。主入口使用 React / TypeScript；Python 服务调用 StepFun，让模型自主编写完整 HTML/CSS，再使用隔离 Chromium 渲染 PNG。
 
-**当前交付为离线框架验收版。模型 ID 留空，真实 API 实测、双人事实核对、视觉评审校准和正式实验尚未完成。离线图片来自手写 fixture，视觉分数为空，不冒充模型结果。**
 
-## 在线体验与 GitHub 部署
+## 2026-10-29 开放创作升级
 
-- 在线海报创作室：https://gjn12-31.github.io/posterlab/
-- 公开仓库：https://github.com/gjn12-31/posterlab
+- 设计与修改默认使用 `step-5-preview`，`reasoning_effort=high`，输出上限按模型公开支持的64K设置；对话整理继续使用 `step-3.5-flash`。视觉评测默认 `step-5-preview`。
+- 原图 + 原HTML + 渲染实测排版一起交给设计模型。全新方案模式不提供旧HTML，避免复制旧结构。
+- 新增自由创作方向；其他六种风格仅提供灵感，不锁定颜色、布局或装饰。
+- 支持静态 SVG 原创矢量插画、CSS伪元素与安全内部渐变/滤镜。支持思源黑体、思源宋体和站酷快乐体三种真实本地字体。安全边界仍禁止脚本、联网资源、外部字体和活动事实篡改。
+- 修改幅度：精细调整 / 明显改版（默认）/ 全新方案。事实保持准确，视觉结构可以重构。作品详情提供设计思路、实际修改要求、模型和 token 用量，源码包包含准确设计请求（不含密钥或图片base64）。
+- 修改记录包含真实成图的像素差异比例，表示变化程度，不是审美评分。评测结合实际字号与位置，避免只凭缩略图猜测像素。
+- 新模型价格未配置，不沿用旧模型单价。金额显示待核算，保留每次¥0.10的调用预留，此预留不是准确费用上限；实际费用以平台账单为准。
+- 明天展示的逐步讲稿见 [现场演示脚本](docs/2026-10-30-live-demo.md)。
 
-`site/` 是无需服务端的 GitHub Pages 版本，支持三种风格、10个公开活动示例、即时预览、排版调整、浏览器本地作品保存和 1080×1440 PNG 下载。作品最多保留30个，保存在当前浏览器；清除站点数据会清空作品，请下载保存。
+线上展示：[gjn12-31.github.io/posterlab](https://gjn12-31.github.io/posterlab/)。展示资料为虚构校园活动的真实彩排结果，不包含密钥或其他本机创作记录。
 
-**在线版使用 Canvas 模板，不调用模型；文字布局检查不是完整评测或 AI 评分。完整生成、独立评审、人工复核和实验功能通过下方 Python / Streamlit 本地版运行。API Key 不得写入静态网页或提交到仓库。**
+## 怎么使用
 
-推送 `main` 后，`.github/workflows/pages.yml` 自动部署 `site/` 到 GitHub Pages。只有静态目录进入网页发布产物。首次配置在仓库 Settings → Pages → Source 选择 GitHub Actions。
+主界面采用对话 + Canvas：打开后直接输入需求，点击输入框右下角的「发送」。Enter 发送，Shift + Enter 换行；中文输入法选字不会误发送。
 
-本地预览在线版：
+1. **直接创作**：输入「帮我做一张咖啡市集海报，标题……」，点击右下角「发送」。AI 真正生成 HTML/CSS，再渲染到 Canvas。
+2. **场景模板**：输入框上方进入咖啡市集、音乐演出、新品促销、展览艺术、课程分享、户外公益六类场景。替换标题、日期、地点等关键信息后点击「生成这张海报」，也可先编辑完整提示词；模板仅组织需求，不固定生成版式。
+3. **需求助手**：只写简单想法，点击「AI 帮我完善提示词」，得到完整、可编辑的需求。确认后点击「按这个方案生成海报」。这一步单独调用一次模型，不会直接创建海报。
+4. **素材库**：搜索并选用 24 款双色 Lucide 图标和 8 张原创背景。最多选择6项、含1张背景；新背景自动替换旧背景。素材作为真实图片参与生成，输入框上方可移除。每个素材有授权链接，源码包带素材和授权文件。
+5. **优化海报**：生成后点击画布「优化这一版」，按需选择构图、留白、层级、字体、配色、背景、装饰、可读性、氛围九类维度，也可自由写意见或换画布比例。点击「生成优化版本」直接提交。没有人为设置的迭代次数限制，仍受模型预算、上下文长度与本机资源约束。
+6. **版本对比**：两个以上成功版本可并排查看。画布底部选择旧版本后发送修改，会从所选版本继续，不覆盖旧图。
+7. **品牌与收藏**：「我的创作工具」里设置品牌名称、色系、语气、受众并启用；收藏主输入框中的提示词供下次使用。两者保存在当前浏览器。
+8. **下载与备份**：画布顶部下载 PNG；「作品详情」查看生成 HTML、风格提示词、模型、费用，下载包含字体和选用素材的源码包。「我的收藏」支持导出/导入对话 JSON；按对话 ID 合并，已有内容保持原样。
+9. **动效和手机**：流动光场、渐变标题、卡片悬浮和扫光；右上角可关闭动效，也尊重系统减少动态设置。手机用「对话 / 画布」切换。
 
-```bash
-python3 -m http.server 8765 --directory site
-# 打开 http://localhost:8765
-```
+也可以正常问答、讨论风格，不必通过向导。场景模板现在可以直接点击「生成这张海报」；需求助手可点击「按这个方案生成海报」；优化面板可点击「生成优化版本」。不必反复复制提示词再发送。工具草稿按对话与作品保存，关闭面板后可以继续填写。
 
-重新生成网页示例：`.venv/bin/python scripts/build_site_samples.py`。网页端到端验证：`.venv/bin/python -m pytest tests/test_pages.py`。
+### AI 海报评测
 
-## 立即打开本地完整版
+画布点击「AI 评测海报」启动真实图片分析。查看六维雷达图、加权综合分、具体证据与修改建议；勾选方向、补充意见，点击「按所选建议生成新版」。保留原始事实、风格、素材和旧版本。同一作品已有成功评测时直接读取，不重复调用。新版可再次评测、继续修改。
 
-本机环境已安装，在项目目录运行：
+评测模型为 `STEP_VISION_MODEL`（默认 `step-5-preview`），当前渲染的 PNG 通过 base64 发送给 StepFun。六维权重：视觉层级22%、文字可读性22%、构图与留白18%、配色与风格14%、信息传达16%、完成度与辨识度8%。模型提供分项分数和依据，后端计算总分；缺失或无效结果不展示评分。评分属于主观设计建议，不代表实际传播效果。
 
-```bash
-.venv/bin/streamlit run app.py --server.port 8501
-```
+按评测建议修改直接进入 HTML 生成，省去一次对话整理调用。视觉模型价格尚未核实，因此记录实际 token 用量、不估算费用，并保留每次 ¥0.10 的预算预留；该预留不是实际账单或可靠的视觉调用费用上限。以平台账单为准。评测记录保存在 SQLite，原始模型响应仅保存为服务端诊断文件，不包含在作品导出包中。
+旧作品会导入对话列表，原先的修改版本归为同一个对话。原模板版的品牌素材、二维码、CSV 批量等功能保留在侧栏底部「服务与工具 → 模板与旧版工具」。
 
-访问 http://127.0.0.1:8501 。也可双击 `start_demo.command`。
+AI 创作没有模板降级：调用、内容检查或渲染失败会显示原因。刷新恢复生成查询；尚未确认的消息可手动恢复原请求，不重复创建已提交任务。
 
-1. 在「制作海报」填写自己的活动信息，或从10个公开活动示例开始。
-2. 选择暖纸人文、蓝调学术、青绿漫想，点击「制作海报」。当前使用真实可渲染的离线模板。
-3. 点击「优化一下」进行一次调整；使用「原版 / 优化版 / 前后对比」切换查看。
-4. 点击「下载图片」直接获取 PNG；展开「需要可编辑文件？」可以打包源文件。
-5. 所有作品在「我的作品」中保存，点击「打开作品」自动回到制作界面。
+## 安装与启动
 
-界面默认不展示任务 ID、原始 JSON、请求路径和英文状态码。「使用帮助 → 高级工具」保留服务设置、评测证据、人工复核和固定测试任务。
-
-个人文案与风格保存为独立的 personal 作品快照，原有30条评测数据不会被修改；个人作品不进入默认实验统计。当前模板体验不伪造 AI 生成或视觉评分。
-
-网页刷新、切换标签页和加载结果不发送 API 请求。状态以磁盘为准，按钮禁用以外还有文件锁与幂等检查。初稿和修改稿互不覆盖；修改失败不会拿初稿代替。
-
-## 新环境安装
-
-使用 Python 3.12（当前 3.12.14），macOS / Linux：
+Python 3.11–3.12（推荐3.12），Node.js 22.12+：
 
 ```bash
 python3.12 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.lock.txt
-python -m pip install -e . --no-deps
+python -m pip install -e '.[dev,server]'
 python -m playwright install chromium
-posterlab doctor
-posterlab validate-data
-python -m pytest
-streamlit run app.py
+cd web
+npm ci
+npm run build
+cd ..
+python -m posterlab.server
 ```
 
-若未安装 Python 3.12，可先用 uv 的 `uv python install 3.12` 和 `uv venv --python 3.12 .venv`。依赖锁不含本机 editable 绝对路径。字体已随工程提供，SIL OFL 许可见 `resources/fonts/LICENSE.txt`。Chromium 安装不需要 API Key。
+把 `.env.example` 复制为 `.env`，只在本机填写 `STEP_API_KEY` 后重启服务。也支持通过环境变量注入密钥。不要放入浏览器、`VITE_*`、Git 或导出包。
 
-当前验证环境：macOS ARM64、Python 3.12.14、Playwright 1.63.0、Chromium 153.0.8010.12、Streamlit 1.65.0。实际版本、字体 hash 由 `doctor` 保存到 `artifacts/environment.json`。
+打开 http://127.0.0.1:8787 。macOS 安装后可双击 `start_studio.command`。AI 创作需要已配置的后端；无需 API 的模板编辑入口是 http://127.0.0.1:8787/?mode=templates 。开发模式另开终端运行 `cd web && npm run dev`，Vite 将 `/api` 代理到8787。
 
-## 已实现的工作流
+## 生成方式与边界
 
-```mermaid
-flowchart LR
- A[公开任务与素材] --> B[执行调用1 / 离线fixture]
- B --> C[HTML合同与固定PNG渲染]
- C --> D[公开结构反馈]
- A --> E[执行调用2 / 离线fixture]
- C --> E
- D --> E
- E --> F[修改稿渲染]
- C --> G[修改后独立评测]
- F --> G
- H[隐藏答案] --> G
- G --> I[证据 / 人工复核 / CSV / ZIP]
-```
+六个参考方向是未来光场、杂志编辑、自然人文、大胆发生、瑞士网格、午夜霓虹。设计模型默认为 `step-5-preview`，通过多模态 API 直接返回完整 HTML/CSS/SVG，设计说明保存在 HTML 元信息中，自主决定版式与插画。没有固定海报骨架。这是 HTML 排版生成，不是扩散模型生成摄影或插画；当前 AI 流程可以使用素材库内的安全 PNG，支持自主绘制静态 SVG，不支持任意外部图片、脚本或网络字体。
 
-- 公开输入和答案分开；修改请求不接受 AnswerSpec，只接收公开反馈白名单。
-- 渲染仅允许精确虚拟域名白名单，阻止脚本、外部网络、表单和自定义字体。截图固定1080×1440；保留原 HTML、注入环境后的 HTML、PNG、DOM几何。
-- 检查唯一字段、最低子节点字号、画布边界、裁切、隐藏、图片加载与比例。复杂遮挡只形成候选与 unknown。
-- 事实匹配采用 NFKC / 空白归一化与显式日期等价格式，旧日期在全局文本检查。
-- 两种 API 协议均发送实际图片 base64；至多一次传输重试，内容错误不重试。原始 usage 保留，未知费用不记零。
-- 执行最多2次逻辑调用；评审每阶段最多一次。已保存响应可继续本地处理，未知远端状态禁止自动重发。
-- 评审单图匿名、顺序可固定打乱；严格 JSON 验证，缺字段/越界分不自动补齐。
-- 原始与人工裁定后的评价分别保存。审美分不能覆盖事实/交付错误，四维分数不合成百分制。
+后端检查静态 HTML 白名单、标记字段原文、画布尺寸、文字越界与字段重叠。Chromium 禁用脚本并隔离网络，仅允许本地中文字体和注册素材 PNG。自动校验不能保证艺术质量、对比度或所有装饰遮挡，请在发布前检查成图。自然语言自由描述若未按标签列出事实，无法逐字段验证；精确信息请使用上述标签。
 
-## 数据与来源
+每次模型调用先预留 ¥0.10；纯问答调用一次，生成或修改通常包含一次对话理解与一次 HTML 生成。默认 `STUDIO_BUDGET_CNY=5` 为本机累计预算。失败也可能消耗模型费用；超时不自动重试，不确定金额保持预留。金额按返回 token 数估算，供应商账单为准。服务只供本机使用，不应直接暴露公网。
 
-`data/collected_events.json` 是收集的 **10条独立活动记录**；来源清单为 `data/source_manifest.jsonl`。具体来源例如 [AI as a Lens](https://iiis.tsinghua.edu.cn/en/info/1044/2824.htm)、[Robotic Dexterity](https://iiis.tsinghua.edu.cn/en/info/1044/2828.htm)。全部详情 URL、访问时间与原页面 hash 均在清单中。
+## 数据与备份
 
-为覆盖计划的三种条件，10场活动各生成标准/日期更新/长文本，共30任务。e001/e002为开发，余下8场为测试；没有跨集合变体。相对原计划7场/21任务的变化记录在 `docs/decisions.md`。
+对话文字保存在当前浏览器 localStorage，清除站点数据会删除对话；生成海报仍保留在服务端。AI 作品与生成记录在 `studio-data/generations/` 和 `studio-data/usage.sqlite3`，浏览器清缓存不删除它们。备份时保留整个 `studio-data/`；导出单张作品可用「作品详情 → 下载 HTML 源文件包」。源码包包含所需中文字体、所选素材及授权文件，文件较大。对话 JSON 只备份文字与作品 ID，不含海报图片；跨设备使用需另行迁移 studio-data。
+
+模板工具的旧作品仍在当前浏览器 IndexedDB；清除浏览器站点数据会移除，应导出项目 JSON 备份。其品牌素材、二维码、批量处理、SVG 和版本功能继续保留。
+
+## 验证与部署
 
 ```bash
-# 使用缓存；--refresh 才重新获取已有网页
-.venv/bin/python scripts/collect_sources.py
-# 从缓存重建任务（会重建工作数据，不应在正式冻结后使用）
-.venv/bin/python scripts/build_tasks.py
-.venv/bin/posterlab validate-data
-# 正式校验当前会因缺双人复核而失败，这是预期行为
-.venv/bin/posterlab validate-data --formal
+cd web
+npm test
+npm run build
+cd ..
+python -m pytest --ignore=tests/test_pages.py -q
 ```
 
-日期更新是实验构造，并非活动真的改期。简介为项目整理的中文摘要，原始英文资料另存，待双人核对。演示 Logo 和主题图为项目原创几何图案，不冒用学校标识；不是官方活动海报。详细说明见 `docs/data_readme.md`。
+`site/` 是前端构建产物。纯 GitHub Pages 无法运行 Python/Chromium AI 后端；使用模板入口，或将前后端一起部署到具备 Python 和 Chromium 的服务器并补充认证、配额与并发控制。GitHub Pages 发布为明确标注的展示模式：可查看真实彩排海报、两版对比、已完成的评测和下载；不发起实时模型调用。完整 AI 创作仍在本机运行。
 
-## CLI
+- [AI 生成工程说明](docs/ai-generation.md)
+- [原模板工作台工程记录](docs/studio-implementation.md)
+- [原版 Python / Streamlit 说明](docs/legacy-readme.md)
 
-```bash
-.venv/bin/posterlab doctor
-.venv/bin/posterlab render-fixture --name valid --out work/fixture-valid
-.venv/bin/posterlab run --task e001-standard --mode demo
-.venv/bin/posterlab inspect --run RUN_ID
-.venv/bin/posterlab resume --run RUN_ID
-.venv/bin/posterlab export --run RUN_ID --stage revised
-.venv/bin/posterlab batch --batch-id demo-dev --split dev --phase all
-.venv/bin/posterlab aggregate --include-demo
-.venv/bin/posterlab report --include-demo
-.venv/bin/python scripts/verify_fixtures.py
-.venv/bin/python scripts/build_calibration.py
-```
+原有研究数据、`app.py`、评测流水线与 `legacy/` 页面继续保留。
 
-默认统计排除 demo。`--include-demo` 输出单独 demo 报告，不与真实成绩混合。报告和统计重建不会调用 API。比例保存分子/分母，分母0为 null。
 
-## 真实 API 接入（留待框架验收后）
+### 自由选择模型
 
-```bash
-cp .env.example .env
-# 本地编辑 .env，填入 DASHSCOPE_API_KEY / ANTHROPIC_API_KEY
-# 编辑 configs/dev.yaml，填入账户确实可用的两个 model ID
-.venv/bin/posterlab doctor
-.venv/bin/posterlab run --task e001-standard --mode dev
-```
+输入框下方「创作偏好」可分别选择需求助手与对话、海报生成与修改、海报视觉评测的模型。支持 Step 5 Preview、Step 3.7 Flash、Step 3.5 Flash；后者仅处理文本，不参与看图评测。选择保存在当前浏览器，下一次请求生效，不影响已经在运行的任务。服务默认仍由环境变量指定。
 
-执行端使用 DashScope OpenAI-compatible chat，评审端使用 Anthropic Messages。模型名称不照抄计划中的未验证示例。区域地址需与账户匹配。密钥不会写入 YAML、页面、请求快照或 ZIP。
+修改选择文本模型时只传入源码与排版资料；选择多模态模型时同时传入原图。评测报告按作品和模型分别缓存，同一模型已有报告不会重复调用；不同模型的分数不要直接当作质量提升。模型访问权限、速度和实际费用取决于 StepFun 账号。供应商报错时明确显示，不自动降级模型。
 
-默认 Pilot 全局上限4次真实 HTTP尝试，正常完整链路为2次执行+2次评审。`smoke --role executor/judge` 和传输重试也占用此额度；不能先做2次 smoke 后假定还剩4次。API服务尚未实测，具体账号兼容性和计费需验证。
+开发接口：`GET /api/models` 返回模型能力与服务默认；`POST /api/chat` 接受 `model` 和 `design_model`；`POST /api/generations`、`POST /api/evaluations` 接受 `model`；评测应用接口接受 `design_model`；`GET /api/evaluations/for/{id}?model=…` 读取对应模型的报告。服务端验证用途，模型选择参与去重指纹。
 
-金额配置尚为空。正式请求需设置经确认的币种、金额上限和每次费用预留。费用未能精确计算时保留 usage、预留和 unknown；本版没有假装掌握图像/缓存细分定价。Pilot 费用未核账时正式批次会阻止。
 
-正式冻结/批次入口已实现，但当前数据未核对、模型未配置、校准未完成，因此不会通过前置检查：
+### GitHub Pages 发布
 
-```bash
-posterlab freeze --experiment posterlab-v1
-posterlab batch --batch-id formal-v1 --experiment posterlab-v1 --split test --phase execute
-posterlab batch --batch-id formal-v1 --experiment posterlab-v1 --split test --phase judge
-posterlab audit-sample --experiment posterlab-v1
-```
-
-冻结保存代码/数据/字体/配置/提示词/依赖与环境；变动后拒绝继续。正式批次先执行，再全批次匿名打乱图像评审顺序。校准通过记录位于 `artifacts/calibration/accepted.json`，需要真实10次评审及两位不同复核人，不能将离线校准样例当成通过。
-
-## 目录
-
-- `app.py`：Streamlit 编排和界面。
-- `src/posterlab/`：schema、任务、渲染、检查、调用、预算、状态机、统计、导出。
-- `configs/`、`prompts/`：独立配置及提示词。
-- `data/tasks/*/public/`：执行模型可读资料。
-- `data/answers/`：评测专用答案，未双人核对。
-- `data/sources/`：10场活动原网页和正文快照。
-- `runs/<run_id>/`：不可混淆的初稿/终稿、请求响应、检查和评价。
-- `artifacts/ledger/`：全局真实请求账本；当前没有付费调用。
-- `tests/`：离线合同、泄漏边界、重试/预算、状态恢复、统计、真实渲染和页面测试。
-- `docs/`：决策、数据说明、评分标准、导师记录、后续验收和提交清单。
-
-`runs/`、`artifacts/` 被 gitignore，仍须自行保存实验归档。课程最终 Word、市场与步骤 HTML、Proposal 尚未生成真实实验结论；待 API 实测后再制作，见 `docs/next_steps.md`。
+推送 `main` 后 GitHub Actions 以 `VITE_STATIC_DEMO=true` 构建，并为两张公开彩排作品生成源码包。`web/public/demo/manifest.json` 是明确标注的只读案例数据；POST 在展示版直接返回说明，不伪装实时 AI 成功。使用相对资源路径，支持仓库子目录 `/posterlab/`。普通 `npm run build` 仍构建本机完整模式。

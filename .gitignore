@@ -9,3 +9,10 @@ runs/
 artifacts/
 work/
 .DS_Store
+node_modules/
+web/*.tsbuildinfo
+studio-data/
+.env.*
+!.env.example
+# Built only for Pages artifacts; never commit duplicated font archives.
+site/demo/*.zip

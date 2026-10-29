@@ -1,0 +1,32 @@
+{
+  "name": "posterlab-studio",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "preview": "vite preview --host 127.0.0.1 --port 5173"
+  },
+  "dependencies": {
+    "idb": "^8.0.4",
+    "jszip": "^3.10.2",
+    "lucide-react": "^1.59.0",
+    "motion": "^14.3.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^4.1.12"
+  }
+}
