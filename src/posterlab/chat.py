@@ -13,6 +13,7 @@ from .library import select_assets
 from .model_catalog import resolve_model
 from .design_policy import estimate_cost, model_options
 import os
+from .failures import Failure, check_provider, provider_document, clean_usage, classify
 
 
 class Message(BaseModel):
@@ -114,11 +115,9 @@ def register_chat(app, ledger, key, model, transport, enqueue, store):
                         headers={'Authorization': 'Bearer ' + key},
                         json={'model': selected_model, 'messages': payload, **(model_options(selected_model,'chat') if selected_model != 'step-3.5-flash' else {'max_tokens':3000}), 'stream': False,
                               'response_format': {'type': 'json_object'}})
-                if response.status_code != 200:
-                    cost = 0 if response.status_code < 500 else None
-                    raise ValueError(f'AI 服务返回 HTTP {response.status_code}，请稍后重试。')
-                raw = response.json()
-                usage = raw.get('usage', {})
+                check_provider(response)
+                raw = provider_document(response)
+                usage = clean_usage(raw)
                 incoming, outgoing = usage.get('prompt_tokens'), usage.get('completion_tokens')
                 if type(incoming) is int and type(outgoing) is int and min(incoming, outgoing) >= 0:
                     cost = estimate_cost(selected_model,usage)
@@ -142,16 +141,26 @@ def register_chat(app, ledger, key, model, transport, enqueue, store):
                 saved = {'decision': decision.model_dump(), 'cost': cost, 'response_id': raw.get('id'), 'model': selected_model}
                 ledger.finish('chat-' + request_key, 'complete', cost, saved)
             except Exception as exc:
-                ledger.finish('chat-' + request_key, 'unknown' if isinstance(exc, httpx.TransportError) else 'invalid', cost, {'error': str(exc)[:1200]})
-                if isinstance(exc, httpx.TransportError):
-                    raise HTTPException(504, '连接中断，远端状态未知，未自动重发。请稍后核对记录。') from exc
-                message = 'AI 回复格式不完整，请重新发送。' if isinstance(exc, (ValidationError, json.JSONDecodeError)) else str(exc)[:300] if isinstance(exc, ValueError) else 'AI 回复暂时无法读取，请重新发送。'
-                raise HTTPException(502, message) from exc
+                if isinstance(exc,Failure) or isinstance(exc,httpx.TransportError):
+                    failure=classify(exc)
+                else:
+                    failure=Failure('chat_response','AI 回复格式不完整，请重新发送。','需求已保留；重新发送会建立新的模型请求。',stage='chat')
+                if isinstance(exc,Failure) and not exc.uncertain:cost=0
+                if failure.code=='connection_failed':cost=0
+                ledger.finish('chat-'+request_key,'unknown' if failure.uncertain else 'invalid',cost,{'error':failure.code})
+                detail={**failure.public(),'request_reusable':False}
+                raise HTTPException(504 if failure.code=='network_unknown' else 502,detail) from exc
         decision = Decision.model_validate(saved['decision'])
         job = None
         if decision.action == 'design' and data.mode != 'plan':
-            job = await enqueue(GenerateRequest(model=design_model, brief=decision.brief, style=decision.style, format=decision.format,
-                instruction=decision.instruction, original_request=data.messages[-1].content, revision_mode=decision.revision_mode, revision_of=data.current_id, asset_ids=asset_ids), request_key + '-design', tasks)
+            try:
+                job = await enqueue(GenerateRequest(model=design_model, brief=decision.brief, style=decision.style, format=decision.format,
+                    instruction=decision.instruction, original_request=data.messages[-1].content, revision_mode=decision.revision_mode, revision_of=data.current_id, asset_ids=asset_ids), request_key + '-design', tasks)
+            except HTTPException as exc:
+                # The paid chat decision is already stored. Retrying this same
+                # request resumes the handoff without paying for chat again.
+                raise HTTPException(exc.status_code,{'message':str(exc.detail),'request_reusable':True,
+                    'suggestion':'需求整理已保存，请处理问题后点击重试发送；不会重复调用对话模型。'}) from exc
         return {'reply': decision.reply, 'job': job, 'cost': saved['cost'], 'response_id': saved['response_id'], 'model': saved.get('model',selected_model)}
 
     app.include_router(router)

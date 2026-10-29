@@ -1,5 +1,6 @@
 """Image-grounded design critique and a fact-preserving revision handoff."""
 from __future__ import annotations
+from .failures import Failure, check_provider, provider_document, classify
 import asyncio
 import base64
 import hashlib
@@ -109,17 +110,16 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
     def get_review(id:str):return get(id)
     async def run(item,job,call_key):
         model=item['model']
-        cost=None
+        cost=None;dispatched=False
         try:
             png=(store.root/job['id']/'poster.png').read_bytes()
             context={'事实稿':job['brief'],'艺术方向':job['style_name'],'画布尺寸':job['format'],'评分维度':RUBRIC,'渲染实测参数':job.get('report',{})}
             messages=[{'role':'system','content':SYSTEM},{'role':'user','content':[{'type':'text','text':json.dumps(context,ensure_ascii=False)},{'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(png).decode(),'detail':'high'}}]}]
             async with httpx.AsyncClient(timeout=httpx.Timeout(300,connect=10),transport=transport,follow_redirects=False) as client:
+                dispatched=True
                 response=await client.post('https://api.stepfun.com/v1/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,**model_options(model,'review'),'stream':False,'response_format':{'type':'json_object'}})
-            if response.status_code!=200:
-                cost=0 if response.status_code<500 else None
-                raise ValueError(f'视觉评测 API 返回 HTTP {response.status_code}。请确认视觉模型权限；未自动改用文本评分或重试。')
-            raw=response.json()
+            check_provider(response)
+            raw=provider_document(response)
             diagnostic=store.root/job['id']/('evaluation-'+item['id']+'.json')
             diagnostic.write_text(json.dumps(raw,ensure_ascii=False),encoding='utf-8')
             diagnostic.chmod(0o600)
@@ -131,9 +131,13 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
             item.update(state='complete',report=report,finished=datetime.now(timezone.utc).isoformat(),cost=None)
             put(item);ledger.finish(call_key,'complete',cost,{'evaluation_id':item['id']})
         except Exception as exc:
-            message='模型未返回完整有效的六维评测，未展示评分。可重新发起评测。' if isinstance(exc,(ValidationError,json.JSONDecodeError)) else str(exc) if isinstance(exc,ValueError) else '评测连接中断或响应无效，未自动重试；请稍后核对。'
-            item.update(state='failed',error=message[:500]);put(item)
-            ledger.finish(call_key,'unknown' if isinstance(exc,httpx.TransportError) else 'invalid',cost)
+            if isinstance(exc,(Failure,httpx.TransportError,OSError)):
+                failure=classify(exc,'evaluation')
+            else:
+                failure=Failure('evaluation_invalid','模型未返回完整有效的六维评测，未展示评分。','原海报已保留，可以重新发起评测。',stage='evaluation')
+            if not dispatched or failure.code in ('provider_auth','provider_quota','provider_rate_limit','provider_rejected','connection_failed'):cost=0
+            item.update(state='failed',error=failure.message,failure=failure.public());put(item)
+            ledger.finish(call_key,'unknown' if failure.uncertain else 'invalid',cost)
     @router.post('/evaluations',status_code=202)
     async def evaluate(data:RequestReview,request:Request,tasks:BackgroundTasks):
         selected_model=resolve_model(data.model,model,'review')

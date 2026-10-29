@@ -80,6 +80,9 @@ class Ledger:
         self.path, self.budget = path, budget
         with self.connect() as db:
             db.execute('CREATE TABLE IF NOT EXISTS calls (key TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, state TEXT NOT NULL, reserved REAL NOT NULL, spent REAL NOT NULL DEFAULT 0, result TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP)')
+            # This is the single-process service startup, not a per-request ledger.
+            # Keep uncertain funds reserved, but release stale concurrency slots.
+            db.execute("UPDATE calls SET state='unknown' WHERE state='pending'")
 
     def connect(self):
         return sqlite3.connect(self.path, timeout=10)

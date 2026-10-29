@@ -66,11 +66,11 @@ def test_repair_is_bounded_and_explicit_retry_preserves_failure(tmp_path,monkeyp
     calls=[]
     def handler(req):
         calls.append(req)
-        return result(HTML.replace('</head>','<script>bad</script></head>')) if len(calls)<=3 else result()
+        return result(HTML.replace('</head>','<script>bad</script></head>')) if len(calls)<=2 else result()
     with TestClient(build(tmp_path,monkeypatch,handler)) as c:
         original=c.post('/api/generations',json=REQUEST,headers=HEADERS).json()['id']
         job=c.get('/api/generations/'+original).json()
-        assert job['state']=='failed' and len(calls)==3
+        assert job['state']=='failed' and len(calls)==2 and job['failure']['code']=='repair_exhausted'
         assert c.get('/api/generations/'+original+'/image').status_code==409
         headers={'Idempotency-Key':'explicit-retry-0001'}
         retry=c.post('/api/generations/'+original+'/retry',json={},headers=headers).json()
@@ -78,7 +78,7 @@ def test_repair_is_bounded_and_explicit_retry_preserves_failure(tmp_path,monkeyp
         assert c.get('/api/generations/'+retry['id']).json()['state']=='complete'
         assert c.get('/api/generations/'+original).json()['state']=='failed'
         assert c.post('/api/generations/'+original+'/retry',json={},headers=headers).json()['id']==retry['id']
-        assert len(calls)==4
+        assert len(calls)==3
 
 
 def test_timeout_during_repair_does_not_repeat_uncertain_call(tmp_path,monkeypatch):

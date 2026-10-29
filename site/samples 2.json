@@ -1,0 +1,132 @@
+[
+  {
+    "id": "e001",
+    "name": "用 AI 看见科学的新可能",
+    "fields": {
+      "title": "AI as a Lens: Expanding Vision for Scientific Discovery",
+      "speaker": "冯昱善",
+      "date": "2025-09-25",
+      "time": "16:30-18:00",
+      "venue": "RM 1-222, FIT Building",
+      "description": "本讲座讨论如何将人工智能与光学原理结合，从已有测量数据中发现隐藏结构，并介绍其在生物医学成像与系外行星探测中的应用。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2824.htm"
+  },
+  {
+    "id": "e002",
+    "name": "多智能体的协作与学习",
+    "fields": {
+      "title": "Advancing Deep Learning for Multi-Agent Al:Incentives and Scalability",
+      "speaker": "Tonghan Wang",
+      "date": "2025-09-25",
+      "time": "15:00-16:00",
+      "venue": "RM 1-222, FIT Building",
+      "description": "本讲座围绕多智能体人工智能的激励机制与可扩展性，讨论如何构建能够面对现实复杂性、并满足对齐要求的智能体系统。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2833.htm"
+  },
+  {
+    "id": "e003",
+    "name": "机器人的灵巧之手",
+    "fields": {
+      "title": "The Atomic Skill Approach to Robotic Dexterity",
+      "speaker": "Haozhi Qi",
+      "date": "2025-09-23",
+      "time": "16:00-17:30",
+      "venue": "Seminar Room 2, 19th Floor, Tower C, TusPark (#腾讯会议：398-077-2882 密码：095015)",
+      "description": "本讲座介绍面向机器人灵巧操作的原子技能方法，探讨如何让机器人获得更丰富的操作能力。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2828.htm"
+  },
+  {
+    "id": "e004",
+    "name": "探索多体量子系统",
+    "fields": {
+      "title": "Genuine quantum scars in many-body spin systems",
+      "speaker": "Andrea Pizzi",
+      "date": "2025-09-17",
+      "time": "10:00-11:00",
+      "venue": "RM 1-222, FIT Building",
+      "description": "本讲座关注多体自旋系统中的量子疤痕现象，讨论混沌系统热化与更复杂量子信息之间的关系。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2830.htm"
+  },
+  {
+    "id": "e005",
+    "name": "量子编码与错误检测",
+    "fields": {
+      "title": "General Approach to Error Detection of Bosonic Codes via Phase Estimation",
+      "speaker": "金缘德",
+      "date": "2025-09-12",
+      "time": "10:00-11:30",
+      "venue": "RM S527, MMW Building",
+      "description": "本讲座介绍基于相位估计的玻色编码错误检测方法，涉及旋转对称编码、平移对称编码以及高保真态制备。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2825.htm"
+  },
+  {
+    "id": "e006",
+    "name": "量子信息与精密测量",
+    "fields": {
+      "title": "Quantum information in precision measurements using spin squeezing and light squeezing",
+      "speaker": "肖艳红",
+      "date": "2025-09-11",
+      "time": "16:30-18:00",
+      "venue": "RM 1-222, FIT Building",
+      "description": "本讲座讨论自旋压缩与光压缩在精密测量中的量子信息应用，关注相干原子与光相互作用系统的测量灵敏度。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2823.htm"
+  },
+  {
+    "id": "e007",
+    "name": "共享量子的非定域性",
+    "fields": {
+      "title": "Unbounded Sharing of Nonlocality Using Qubit Projective Measurements",
+      "speaker": "Souradeep Sasmal",
+      "date": "2025-09-08",
+      "time": "15:00-17:00",
+      "venue": "RM S327, MMW Building (#腾讯会议：435-802-209)",
+      "description": "本讲座讨论使用量子比特投影测量共享非定域性的研究，关注量子测量与非定域关联之间的关系。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2822.htm"
+  },
+  {
+    "id": "e008",
+    "name": "理解生成流网络",
+    "fields": {
+      "title": "On some methodological aspects of generative flow networks",
+      "speaker": "Sergey Samsonov",
+      "date": "2025-08-25",
+      "time": "11:00-12:00",
+      "venue": "RM 1-222, FIT Building",
+      "description": "本讲座讨论生成流网络的方法论问题，关注这一生成建模框架的研究思路及其关键方法。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2811.htm"
+  },
+  {
+    "id": "e009",
+    "name": "让视觉推理走得更远",
+    "fields": {
+      "title": "Generalizing from SIMPLE to HARD Visual Reasoning: Can We Mitigate Modality Imbalance in VLMs?",
+      "speaker": "程韵",
+      "date": "2025-08-13",
+      "time": "11:00-12:00",
+      "venue": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/hpLuprdKjM45 #腾讯会议：567-960-508)",
+      "description": "本讲座讨论视觉推理从简单任务向困难任务的泛化，关注视觉语言模型中的模态不平衡问题。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2810.htm"
+  },
+  {
+    "id": "e010",
+    "name": "大模型如何理解上下文",
+    "fields": {
+      "title": "On the Power of Context-Enhanced Learning in LLMs",
+      "speaker": "朱星宇",
+      "date": "2025-08-11",
+      "time": "11:00-12:00",
+      "venue": "RM 1-222, FIT Building (https://meeting.tencent.com/dm/O15OBOE6VLfC #腾讯会议：490-402-711)",
+      "description": "本讲座讨论大语言模型中上下文增强学习的作用，关注上下文信息如何影响模型的学习过程。"
+    },
+    "source_url": "https://iiis.tsinghua.edu.cn/en/info/1044/2809.htm"
+  }
+]

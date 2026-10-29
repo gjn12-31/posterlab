@@ -19,6 +19,8 @@ export type Job = {
   image_url?: string;
   summary?: string;
   error?: string;
+  failure?: {code: string; message: string; suggestion: string; stage: string; charge_uncertain: boolean; details?: string} | null;
+  retry_not_before?: number | null;
   can_rerender?: boolean;
   repair_attempt?: number;
   local_repairs?: string[];

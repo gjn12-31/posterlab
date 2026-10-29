@@ -1,4 +1,5 @@
 import { studioFetch, STATIC_DEMO, DEMO_MESSAGE } from "./studio-api";
+import { GenerationFailure } from "./GenerationFailure";
 import React, { useEffect, useRef, useState, useId } from "react";
 import {
   ArrowUp,
@@ -100,6 +101,7 @@ class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
+    public requestReusable = false,
   ) {
     super(message);
   }
@@ -127,8 +129,9 @@ async function api<T>(path: string, body?: unknown, key?: string): Promise<T> {
     throw new ApiError(
       typeof data.detail === "string"
         ? data.detail
-        : "消息内容不符合要求，请精简后再试。",
+        : [data.detail?.message, data.detail?.suggestion].filter(Boolean).join(" ") || "服务暂时无法完成请求，请稍后重试。",
       r.status,
+      data.detail?.request_reusable === true,
     );
   return data;
 }
@@ -645,7 +648,8 @@ export default function Generator() {
       setError((e as Error).message);
       if (
         e instanceof ApiError &&
-        [400, 402, 413, 422, 502, 503].includes(e.status)
+        !e.requestReusable &&
+        [400, 401, 402, 403, 413, 422, 429, 502, 503, 504].includes(e.status)
       ) {
         setPending(null);
         save("posterlab.chat.pending", null);
@@ -712,14 +716,14 @@ export default function Generator() {
       {error && (
         <div className="chat-error" role="alert">
           {error}
-          {!service?.ai && !STATIC_DEMO && (
+          {!STATIC_DEMO && (
             <button
               onClick={() => {
                 setError("");
                 refresh();
               }}
             >
-              重新连接
+              重新连接并查询任务
             </button>
           )}
         </div>
@@ -1166,28 +1170,7 @@ export default function Generator() {
                                   <ArrowUpRight size={18} />
                                 </button>
                               ) : j.state === "failed" ? (
-                                <div className="generation-error">
-                                  <b>这次海报没有完成</b>
-                                  <p>{j.error}</p>
-                                  {j.can_rerender && (
-                                    <button
-                                      className="text-action"
-                                      disabled={busy}
-                                      onClick={() => retryRender(j)}
-                                    >
-                                      本地修复并出图（不调用模型）
-                                    </button>
-                                  )}
-                                  <button className="text-action" disabled={busy} onClick={() => regenerate(j)}>
-                                    按原需求重新生成（调用模型）
-                                  </button>
-                                  <span>
-                                    {completed.length
-                                      ? "原来的作品已保留。"
-                                      : "没有生成可用图片。"}
-                                    可以继续发消息调整后再生成。
-                                  </span>
-                                </div>
+                                <GenerationFailure job={j} busy={busy} recover={() => retryRender(j)} retry={() => regenerate(j)} />
                               ) : (
                                 <div
                                   className="generation-progress"

@@ -27,6 +27,7 @@ export type Review = {
   rubric_version: string;
   created: string;
   error?: string;
+  failure?: { suggestion: string; charge_uncertain: boolean };
   report?: {
     overall: number;
     summary: string;
@@ -371,7 +372,7 @@ export function EvaluationPanel({
               ))}
             </div>
             {review?.state === "failed" && (
-              <p className="tool-error">{review.error}</p>
+              <p className="tool-error">{review.error} {review.failure?.suggestion}</p>
             )}
             <button
               className="review-primary"
