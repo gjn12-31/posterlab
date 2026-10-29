@@ -46,7 +46,7 @@ def test_source_package_includes_actual_materials_and_license(tmp_path,monkeypat
 def test_refinement_inherits_assets_but_explicit_empty_list_removes_them(tmp_path,monkeypatch):
     def handler(req):
         payload=json.loads(req.content)
-        if payload['max_tokens']==3000:return chat_result('design')
+        if payload.get('max_tokens')==3000:return chat_result('design')
         user=json.loads(payload['messages'][1]['content'])
         return result(ASSET_HTML if user['已选素材'] else HTML)
     with TestClient(build(tmp_path,monkeypatch,handler)) as c:

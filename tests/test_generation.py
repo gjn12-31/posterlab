@@ -140,7 +140,7 @@ def test_flagship_revision_uses_image_and_can_reimagine_without_old_html(tmp_pat
   second=c.post('/api/generations',json={**REQUEST,'revision_of':first,'revision_mode':'reimagine','instruction':'全新方案'},headers={'Idempotency-Key':'reimagine-test-one'}).json()['id']
   j=c.get('/api/generations/'+second).json()
   assert j['state']=='complete' and j['reference_image_used'] and j['model']=='step-5-preview'
-  assert calls[1]['reasoning_effort']=='high' and calls[1]['max_tokens']==65536
+  assert calls[1]['reasoning_effort']=='high' and 'max_tokens' not in calls[1]
   parts=calls[1]['messages'][1]['content'];assert parts[1]['image_url']['url'].startswith('data:image/png;base64,')
   assert json.loads(parts[0]['text'])['已有设计HTML']==''
   assert j['cost'] is None and j['visual_delta']['changed_pixel_percent']==0

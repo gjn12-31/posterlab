@@ -24,7 +24,7 @@ def test_chat_handoff_generates_once_and_includes_conversation_context(tmp_path,
     calls=[]
     def handler(req):
         data=json.loads(req.content);calls.append(data)
-        return chat_result('design') if data['max_tokens']==3000 else result()
+        return chat_result('design') if data.get('max_tokens')==3000 else result()
     with TestClient(build(tmp_path,monkeypatch,handler)) as c:
         body={'messages':[{'role':'user','content':'先用纸白和红色'}, {'role':'assistant','content':'好的，编辑风格。'}, {'role':'user','content':'按刚才的方向生成设计开放日海报'}]}
         response=c.post('/api/chat',json=body,headers=HEADERS)
@@ -43,7 +43,7 @@ def test_conversational_date_edit_preserves_original_and_updates_validation(tmp_
     def handler(req):
         nonlocal count
         data=json.loads(req.content)
-        if data['max_tokens']==3000:return chat_result('design',BRIEF.replace('2026-11-08','2026-11-09'))
+        if data.get('max_tokens')==3000:return chat_result('design',BRIEF.replace('2026-11-08','2026-11-09'))
         count+=1
         return result(HTML if count==1 else HTML.replace('2026-11-08','2026-11-09'))
     with TestClient(build(tmp_path,monkeypatch,handler)) as c:
@@ -87,7 +87,7 @@ def test_provider_json_fence_is_accepted_without_exposing_raw_validation(tmp_pat
 def test_revision_missing_style_keeps_current_direction(tmp_path,monkeypatch):
     def handler(req):
         payload=json.loads(req.content)
-        if payload['max_tokens']==3000:
+        if payload.get('max_tokens')==3000:
             raw=chat_result('design').json()
             decision=json.loads(raw['choices'][0]['message']['content'])
             del decision['style'];del decision['format']

@@ -30,7 +30,7 @@ POST 必须携带 Idempotency-Key；同 key 同内容返回原任务，不再次
 - Playwright Chromium，固定画布1080×1440、1080×1080、1920×1080。
 - PosterSans、PosterSerif、PosterDisplay 三套真实中文字体及授权文件，部署需包含 web/public/fonts。
 - 生成文本、PNG 和原始模型响应保存在本机 studio-data，默认不进 Git/源码交付。
-- 需求整理：step-3.5-flash；设计和改版：step-5-preview，高推理强度、输出上限65536 tokens、超时600秒；视觉评测：step-5-preview，中等推理强度、上限16000 tokens。模型及设计推理强度可用环境变量配置。
+- 需求整理：step-3.5-flash；设计和改版：step-5-preview，高推理强度、设计及自动纠错不设置 max_tokens（遵循模型上下文上限）、超时600秒；视觉评测：step-5-preview，中等推理强度、上限16000 tokens。模型及设计推理强度可用环境变量配置。
 - 原生 HTML 输出避免把长代码包进 JSON 的转义损坏；设计思路、摘要和变化用 head 中的 meta 元信息承载。design-request.json 保存实际提示词，源码包可追溯。
 - 未知模型价格不套用旧模型费率；记录真实 token 用量，费用以供应商账单为准。本地预算为预留机制，不是平台余额或严格的实际花费上限。
 

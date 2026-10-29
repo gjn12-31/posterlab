@@ -30,7 +30,7 @@ def test_chat_and_design_models_are_independent_and_frozen_in_request(tmp_path,m
         job=c.get('/api/generations/'+first.json()['job']['id']).json()
         assert job['model']=='step-5-preview' and job['state']=='complete'
         assert [x['model'] for x in calls]==['step-3.7-flash','step-5-preview']
-        assert calls[1]['max_tokens']==65536
+        assert 'max_tokens' not in calls[1]
         assert first.json()['cost'] is None
         assert c.post('/api/chat',json={**body,'design_model':'step-3.5-flash'},headers=HEADERS).status_code==409
         assert len(calls)==2
@@ -45,6 +45,7 @@ def test_selected_generation_model_controls_image_feedback(tmp_path,monkeypatch)
             job=c.post('/api/generations',json={**REQUEST,'revision_of':initial,'model':model},headers={'Idempotency-Key':f'model-revision-{i}'}).json()
             done=c.get('/api/generations/'+job['id']).json()
             assert done['model']==model and done['state']=='complete'
+            assert 'max_tokens' not in calls[-1]
             assert done['reference_image_used']==(i==0)
         assert isinstance(calls[1]['messages'][1]['content'],list)
         assert isinstance(calls[2]['messages'][1]['content'],str)

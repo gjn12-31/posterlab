@@ -52,6 +52,7 @@ def test_invalid_response_is_repaired_by_same_model_with_diagnostics_and_ledger(
         job=c.get('/api/generations/'+id).json()
         assert job['state']=='complete' and job['repair_attempt']==1
         assert len(calls)==2 and calls[0]['model']==calls[1]['model']
+        assert all('max_tokens' not in call for call in calls)
         assert '缺少完整 HTML' in calls[1]['messages'][-1]['content']
         assert job['usage']['prompt_tokens']==2400
         assert job['cost']==pytest.approx(sum(a['cost'] for a in job['attempts']))

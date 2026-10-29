@@ -10,11 +10,19 @@ MODES = {
 }
 
 def model_options(model, purpose='design'):
+    if purpose == 'design':
+        # StepFun Chat Completions documents omitted max_tokens as unrestricted
+        # within the model context. Thinking and artwork share this budget;
+        # an arbitrary small limit can truncate otherwise valid HTML.
+        # https://platform.stepfun.com/docs/zh/api-reference/chat/chat-completion-create
+        options = {}
+        if model in ('step-5-preview', 'step-3.7-flash'):
+            options['reasoning_effort'] = os.getenv('STEP_DESIGN_EFFORT','high')
+        return options
     if model == 'step-5-preview':
-        return {'reasoning_effort': os.getenv('STEP_DESIGN_EFFORT','high') if purpose=='design' else 'medium',
-                'max_tokens': 65536 if purpose=='design' else 16000}
-    options={'max_tokens': 24000 if purpose=='design' else 10000}
-    if model == 'step-3.7-flash':options['reasoning_effort']='high' if purpose=='design' else 'medium'
+        return {'reasoning_effort': 'medium', 'max_tokens': 16000}
+    options={'max_tokens': 10000}
+    if model == 'step-3.7-flash':options['reasoning_effort']='medium'
     return options
 
 def supports_images(model):
