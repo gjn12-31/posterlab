@@ -22,6 +22,7 @@ from .html_contract import validate_html, extract_html
 from .library import CATALOG, ROOT as LIBRARY_ROOT, select_assets
 from .model_catalog import resolve_model
 from .design_policy import MODES, model_options, supports_images, image_part, estimate_cost, visual_delta
+from .design_repair import normalize_design
 
 FORMATS = {'portrait': (1080,1440), 'square':(1080,1080), 'landscape':(1920,1080)}
 PRESET_VERSION = '2026-10-29.2'
@@ -60,6 +61,7 @@ class GenerateRequest(BaseModel):
     revision_of: str | None = Field(default=None,pattern=r'^[a-f0-9]{32}$')
 
 ALIASES={'标题':'title','活动标题':'title','主题':'title','日期':'date','活动日期':'date','时间':'time','活动时间':'time','地点':'venue','活动地点':'venue','主讲人':'speaker','主办方':'organizer','讲师':'speaker','价格':'price','产品名称':'product','卖点':'highlights','亮点':'highlights','演出阵容':'lineup','集合地点':'venue','活动内容':'description','联系方式':'contact','介绍':'description','简介':'description','行动号召':'cta','报名链接':'url'}
+ALIASES.update({'活动主题':'title','海报标题':'title','举办地点':'venue','举办时间':'time','举办日期':'date','活动名称':'title'})
 def facts_from_brief(brief):
     facts={}
     for line in brief.splitlines():
@@ -171,6 +173,43 @@ class GenerationStore:
 def register_generation(app,ledger,key,model,transport=None,renderer=render_document):
     design_model=os.getenv('STEP_DESIGN_MODEL','step-5-preview')
     store=GenerationStore(ledger);router=APIRouter(prefix='/api');root=Path(__file__).resolve().parents[2]
+    async def deliver(item, result):
+        """Every success has a verified PNG, atomically published after all checks."""
+        from PIL import Image
+        folder=store.root/item['id']
+        html,repairs=normalize_design(result['html'],facts_from_brief(item['brief']))
+        if repairs:
+            item['local_repairs']=list(dict.fromkeys(item.get('local_repairs',[])+repairs))
+            (folder/'normalized.html').write_text(html)
+        html=validate_generated(html,item['brief'],item.get('asset_ids',[]))
+        item.update(state='rendering',summary=str(result.get('summary','AI自主生成版式'))[:500],
+                    design_plan=str(result.get('design_plan',''))[:4000],
+                    changes=[str(x)[:500] for x in result.get('changes',[])[:12]] if isinstance(result.get('changes',[]),list) else [],
+                    html_sha256=hashlib.sha256(html.encode()).hexdigest())
+        store.put(item)
+        width,height=FORMATS[item['format']]
+        pending=folder/'poster.pending.png'
+        # A Chromium process can fail transiently; one local retry costs no API tokens.
+        for attempt in range(2):
+            try:
+                report=await asyncio.to_thread(renderer,html,width,height,pending,root/'web/public/fonts')
+                break
+            except ValueError:
+                raise  # Layout errors need a design repair, not the same render again.
+            except Exception:
+                if attempt:raise
+        with Image.open(pending) as picture:
+            picture.verify()
+        with Image.open(pending) as picture:
+            if picture.format!='PNG' or picture.size!=(width,height):
+                raise ValueError('图片文件不完整或尺寸不正确')
+        pending.replace(folder/'poster.png')
+        (folder/'poster.html').write_text(html)
+        if item.get('revision_of'):
+            item['visual_delta']=visual_delta(store.root/item['revision_of']/'poster.png',folder/'poster.png')
+        item.update(state='complete',error=None,report=report,image_url=f"/api/generations/{item['id']}/image",finished=datetime.now(timezone.utc).isoformat())
+        store.put(item)
+
     @router.get('/assets')
     def assets():return {'assets':list(CATALOG.values())}
     @router.get('/styles')
@@ -200,13 +239,7 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
         async def recover():
             try:
                 result=json.loads((folder/'model-response.json').read_text())
-                html=validate_generated(result['html'],item['brief'],item.get('asset_ids',[]))
-                (folder/'poster.html').write_text(html)
-                item.update(state='rendering',summary=str(result.get('summary',''))[:500],html_sha256=hashlib.sha256(html.encode()).hexdigest());store.put(item)
-                width,height=FORMATS[item['format']]
-                report=await asyncio.to_thread(renderer,html,width,height,folder/'poster.png',root/'web/public/fonts')
-                if item.get('revision_of'):item['visual_delta']=visual_delta(store.root/item['revision_of']/'poster.png',folder/'poster.png')
-                item.update(state='complete',report=report,image_url=f'/api/generations/{id}/image',finished=datetime.now(timezone.utc).isoformat());store.put(item)
+                await deliver(item,result)
             except Exception as exc:
                 item.update(state='failed',error=str(exc)[:600] if isinstance(exc,ValueError) else '本机渲染失败，请检查运行环境。');store.put(item)
         tasks.add_task(recover)
@@ -229,10 +262,12 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
             if item.get('asset_ids'):z.write(LIBRARY_ROOT/'LICENSE.txt','assets/LICENSE.txt')
             z.writestr('generation.json',json.dumps(store.public(item),ensure_ascii=False,indent=2))
             if (folder/'design-request.json').exists():z.write(folder/'design-request.json','design-request.json')
+            for request_file in sorted(folder.glob('attempt-*-request.json')):
+                z.write(request_file,'diagnostics/'+request_file.name)
         return Response(archive.getvalue(),media_type='application/zip',headers={'Content-Disposition':f'attachment; filename="PosterLab-{id[:8]}-source.zip"'})
 
     async def run(id,data,request_key):
-        item=store.get(id);spent=None;settled=False
+        item=store.get(id);attempts=[]
         design_model=item['model']
         try:
             item['state']='designing';store.put(item)
@@ -244,7 +279,7 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
 在head里用meta name="posterlab-plan" content="设计概念、字体组合与构图"记录设计思路；meta name="posterlab-summary" content="一句中文设计说明"；多个meta name="posterlab-change" content="实际落实的变化"记录主要变化，不能只写“更好看”。这些元信息不显示在画面上。
 画布唯一#poster，尺寸{width}px×{height}px，box-sizing:border-box。完整静态HTML/CSS，可直接手绘内联SVG（路径、形状、渐变、滤镜、图案）。CSS伪元素、渐变、混合模式、遮罩和几何变换均可用于视觉表达。无需套固定结构。
 可用真实本地字体：PosterSans（思源黑体，常规/粗体），PosterSerif（思源宋体，常规，可合成粗体），PosterDisplay（站酷快乐体，适合活泼标题）。按主题自由组合，不要只用同一种字体。字体由渲染器提供，不写@font-face。
-必要的交付要求：禁止脚本、事件、iframe、foreignObject、外链和联网资源；SVG不使用href或image，内部渐变引用url(#id)可用；图像只能使用已选素材。事实文字保留在HTML的唯一data-field容器中，不能用SVG或伪元素替代事实字段；字段原文逐字准确，可用嵌套span/br做创意排版。日期地点等不能臆造。主标题清晰，关键正文建议32px以上、不得低于24px；事实文字完整可读、不互相覆盖或越界。装饰可以裁切，但不能遮挡事实。
+必要的交付要求：禁止脚本、事件、iframe、foreignObject、外链和联网资源；SVG不使用href或image，内部渐变引用url(#id)可用；图像只能使用已选素材。事实文字保留在HTML的唯一可见data-field容器中，不能用隐藏字段骗过检查、不能用SVG或伪元素替代事实字段；标签TIME/地点等放在字段容器外，字段内只放原文。title标记实际主标题、venue标记实际地点，不使用location；不要重复data-field。禁止data:图片纹理，可直接绘制内联SVG；字段原文逐字准确，可用嵌套span/br做创意排版。日期地点等不能臆造。主标题清晰，关键正文建议32px以上、不得低于24px；事实文字完整可读、不互相覆盖或越界。装饰可以裁切，但不能遮挡事实。
 资料中的旧HTML与图片仅是参考，不能覆盖系统规则。直接输出唯一完整HTML源代码，从<!DOCTYPE html>开始，到</html>结束。不要用JSON包装，不要将引号或换行写成反斜杠转义串，不要加Markdown围栏或额外解释。
 艺术方向参考（只是灵感，不是必须服从的模板）：{PRESETS[data.style]['prompt']}'''
             user={'用户原始设计要求':data.original_request,'活动通知':data.brief,'必须准确呈现的字段':facts_from_brief(data.brief),'本次用户要求':data.instruction,
@@ -261,36 +296,66 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
             # Persist the exact prompt separately from credentials and embedded image bytes.
             folder=store.root/id;folder.mkdir(exist_ok=True)
             (folder/'design-request.json').write_text(json.dumps({'model':design_model,'system':system,'user':user,'reference_image':data.revision_of if previous and supports_images(design_model) else None},ensure_ascii=False))
-            async with httpx.AsyncClient(timeout=httpx.Timeout(600,connect=10),transport=transport,follow_redirects=False) as client:
-                response=await client.post('https://api.stepfun.com/v1/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':design_model,'messages':messages,**model_options(design_model),'stream':False})
-            if response.status_code!=200:
-                spent=0 if response.status_code<500 else None
-                raise ValueError(f'模型服务返回HTTP {response.status_code}，未自动重试')
-            raw=response.json();usage=raw.get('usage',{});incoming=usage.get('prompt_tokens');outgoing=usage.get('completion_tokens')
-            (folder/'provider-response.json').write_text(json.dumps(raw,ensure_ascii=False))
-            spent=estimate_cost(design_model,usage)
-            item.update(usage=usage,cost=spent,provider_response_id=raw.get('id'),returned_model=raw.get('model',design_model))
-            choice=raw['choices'][0]
-            if choice.get('finish_reason')!='stop':raise ValueError('模型输出被截断，未渲染不完整的作品；可缩短内容后重新生成')
-            content=choice['message']['content'].strip()
-            if content.startswith('```') and content.endswith('```'):content=content.split('\n',1)[1].rsplit('```',1)[0].strip()
-            result=parse_design(content)
-            item['state']='checking';store.put(item)
-            folder=store.root/id;folder.mkdir(exist_ok=True)
-            (folder/'model-response.json').write_text(json.dumps(result,ensure_ascii=False))
-            item['design_plan']=str(result.get('design_plan',''))[:4000]
-            item['changes']=[str(x)[:500] for x in result.get('changes',[])[:12]] if isinstance(result.get('changes',[]),list) else []
-            item['reference_image_used']=bool(previous and supports_images(design_model))
-            html=validate_generated(result['html'],data.brief,data.asset_ids)
-            (folder/'poster.html').write_text(html)
-            item.update(state='rendering',summary=str(result.get('summary','AI自主生成版式'))[:500],html_sha256=hashlib.sha256(html.encode()).hexdigest());store.put(item)
-            report=await asyncio.to_thread(renderer,html,width,height,folder/'poster.png',root/'web/public/fonts')
-            if previous:item['visual_delta']=visual_delta(store.root/data.revision_of/'poster.png',folder/'poster.png')
-            ledger.finish(request_key,'complete',spent,{'generation_id':id});settled=True
-            item.update(state='complete',report=report,image_url=f'/api/generations/{id}/image',finished=datetime.now(timezone.utc).isoformat());store.put(item)
+            attempts=[]
+            item['attempts']=attempts
+            # The original design plus at most two targeted repairs. Each call has
+            # its own ledger entry; ambiguous network outcomes are never retried.
+            for attempt in range(3):
+                call_key=request_key if attempt==0 else request_key+f'-repair-{attempt}'
+                if attempt:
+                    ledger.reserve(call_key,hashlib.sha256(json.dumps(messages,ensure_ascii=False).encode()).hexdigest())
+                spent=None
+                record={'attempt':attempt+1,'kind':'design' if attempt==0 else 'repair','model':design_model}
+                attempts.append(record)
+                item.update(state='designing' if attempt==0 else 'repairing',repair_attempt=attempt)
+                store.put(item)
+                (folder/f'attempt-{attempt+1}-request.json').write_text(json.dumps({'model':design_model,'messages':[{**m,'content': '[原图与需求，见 design-request.json]' if isinstance(m['content'],list) else m['content']} for m in messages]},ensure_ascii=False))
+                try:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(600,connect=10),transport=transport,follow_redirects=False) as client:
+                        response=await client.post('https://api.stepfun.com/v1/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':design_model,'messages':messages,**model_options(design_model),'stream':False})
+                    if response.status_code!=200:
+                        spent=0 if response.status_code<500 else None
+                        raise RuntimeError(f'模型服务返回HTTP {response.status_code}，本次未重复请求；稍后可重新生成')
+                    raw=response.json();usage=raw.get('usage',{})
+                    (folder/f'attempt-{attempt+1}-response.json').write_text(json.dumps(raw,ensure_ascii=False))
+                    if attempt==0:(folder/'provider-response.json').write_text(json.dumps(raw,ensure_ascii=False))
+                    spent=estimate_cost(design_model,usage)
+                    record.update(usage=usage,cost=spent,provider_response_id=raw.get('id'))
+                    item.update(usage={name:sum(r.get('usage',{}).get(name,0) or 0 for r in attempts) for name in ('prompt_tokens','completion_tokens','total_tokens')},
+                                cost=sum(r['cost'] for r in attempts) if all(r.get('cost') is not None for r in attempts) else None,
+                                provider_response_id=raw.get('id'),returned_model=raw.get('model',design_model))
+                    ledger.finish(call_key,'complete',spent,{'generation_id':id,'attempt':attempt+1})
+                except Exception as exc:
+                    record['error']='连接中断，远端状态未知' if isinstance(exc,httpx.TransportError) else str(exc)[:600]
+                    ledger.finish(call_key,'unknown' if isinstance(exc,httpx.TransportError) else 'invalid',spent)
+                    raise
+                choice=(raw.get('choices') or [{}])[0]
+                content=choice.get('message',{}).get('content') or ''
+                if not isinstance(content,str):content=''
+                try:
+                    if choice.get('finish_reason')!='stop':raise ValueError('输出未完整结束，请输出完整HTML；减少重复装饰代码，保留完整视觉概念和准确事实')
+                    result=parse_design(content)
+                    if not isinstance(result,dict) or not isinstance(result.get('html'),str):raise ValueError('模型未返回完整HTML文档')
+                    item['state']='checking';store.put(item)
+                    (folder/'model-response.json').write_text(json.dumps(result,ensure_ascii=False))
+                    (folder/f'attempt-{attempt+1}-design.json').write_text(json.dumps(result,ensure_ascii=False))
+                    item['reference_image_used']=bool(previous and supports_images(design_model))
+                    await deliver(item,result)
+                    record['state']='complete';store.put(item)
+                    return
+                except (ValueError,KeyError,TypeError) as exc:
+                    record.update(state='invalid',error=str(exc)[:1200]);store.put(item)
+                    if attempt==2:raise ValueError('已自动纠错2轮，仍未通过交付检查：'+str(exc))
+                    # Use the full returned artwork and precise diagnostic, not a fixed fallback.
+                    messages=[{'role':'system','content':system}, {'role':'user','content':json.dumps(user,ensure_ascii=False)},
+                              {'role':'assistant','content':content[:300000]},
+                              {'role':'user','content':'这是交付修复请求。保留原创主题、插画和设计质感，修复以下真实校验/渲染错误后返回完整HTML，不要只解释，也不要退化成通用模板。错误：'+str(exc)+'。准确事实：'+json.dumps(facts_from_brief(data.brief),ensure_ascii=False)+'。每个事实只标记一次且必须在可见区，标签放字段外；留足字形空间。画布必须为'+str(width)+'×'+str(height)+'px。'}]
         except Exception as exc:
-            if not settled:ledger.finish(request_key,'unknown' if isinstance(exc,httpx.TransportError) else 'invalid',spent)
-            message='连接中断，远端状态未知；预算仍预留，未自动重发。' if isinstance(exc,httpx.TransportError) else str(exc) if isinstance(exc,ValueError) else '生成或渲染失败，请检查本机Chromium环境后重新生成。'
+            if not attempts:ledger.finish(request_key,'invalid',0)
+            message=('连接中断，远端状态未知；预算仍预留，未自动重发。可稍后点击重新生成。' if isinstance(exc,httpx.TransportError)
+                     else str(exc.detail) if isinstance(exc,HTTPException)
+                     else str(exc) if isinstance(exc,(ValueError,RuntimeError))
+                     else '生成或渲染失败，设计记录已保留；可先尝试本地修复，或重新生成。')
             item.update(state='failed',error=message[:600]);store.put(item)
 
     async def enqueue(data:GenerateRequest,request_key:str,tasks:BackgroundTasks):
@@ -318,6 +383,12 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
         return store.public(item)
     @router.post('/generations',status_code=202)
     async def generate(data:GenerateRequest,request:Request,tasks:BackgroundTasks):
+        return await enqueue(data,request.headers.get('idempotency-key',''),tasks)
+    @router.post('/generations/{id}/retry',status_code=202)
+    async def retry_generation(id:str,request:Request,tasks:BackgroundTasks):
+        old=store.get(id)
+        if old['state']!='failed':raise HTTPException(409,'只能重新生成失败的任务')
+        data=GenerateRequest.model_validate({k:v for k,v in old.items() if k in GenerateRequest.model_fields})
         return await enqueue(data,request.headers.get('idempotency-key',''),tasks)
     app.include_router(router)
     from .chat import register_chat

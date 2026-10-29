@@ -51,3 +51,17 @@ it("names a conversation from the actual poster title instead of boilerplate", (
     titleFrom("请根据以下需求制作海报\n标题：春日咖啡节\n日期：2026-11-01"),
   ).toBe("春日咖啡节");
 });
+
+it("recovers missing server jobs after refresh without duplicating local conversations", async () => {
+  const { recoverMissingJobs } = await import("./chat-model");
+  const base = { brief: "活动主题：设计开放日", style: "free", style_name: "自由创作", format: "portrait", instruction: "", model: "m", preset_prompt: "", created: "2026-10-29" };
+  const jobs: Job[] = [{ ...base, id: "b", state: "failed", revision_of: "a" }, { ...base, id: "a", state: "complete" }];
+  const original = importLegacy([jobs[1]]).map((t) => ({ ...t, id: "user-conversation" }));
+  const recovered = recoverMissingJobs(original, jobs);
+  expect(recovered).toHaveLength(1);
+  expect(recovered[0].id).toBe("user-conversation");
+  expect(recovered[0].messages.filter((m) => m.jobId).map((m) => m.jobId)).toEqual(["a", "b"]);
+  expect(recoverMissingJobs(recovered, jobs)).toEqual(recovered);
+  expect(recoverMissingJobs(original, [{ ...jobs[0], revision_of: undefined }, jobs[1]])).toHaveLength(2);
+  expect(titleFrom(base.brief)).toBe("设计开放日");
+});

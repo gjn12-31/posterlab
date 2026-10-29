@@ -31,6 +31,7 @@ import {
   type Conversation,
   historyFor,
   importLegacy,
+  recoverMissingJobs,
   titleFrom,
 } from "./chat-model";
 import "./generator.css";
@@ -85,6 +86,7 @@ const phase: Record<string, string> = {
   queued: "正在准备画布",
   designing: "正在设计海报",
   checking: "正在核对文字与布局",
+  repairing: "正在自动修复设计，请稍候",
   rendering: "正在渲染海报",
 };
 function load<T>(key: string, fallback: T): T {
@@ -321,13 +323,7 @@ export default function Generator() {
         );
         setThreadId(example.id);
       }
-      if (!load<boolean>("posterlab.chat.imported", false)) {
-        updateThreads((old) => [
-          ...old,
-          ...importLegacy(j).filter((t) => !old.some((o) => o.id === t.id)),
-        ]);
-        save("posterlab.chat.imported", true);
-      }
+      updateThreads((old) => recoverMissingJobs(old, j));
     } catch (e) {
       setError((e as Error).message);
       setReady(true);
@@ -658,6 +654,29 @@ export default function Generator() {
     } finally {
       requestLock.current = false;
       setSending(false);
+    }
+  }
+  async function regenerate(job: Job) {
+    if (requestLock.current || busy) return;
+    requestLock.current = true;
+    const storageKey = "posterlab.retry." + job.id;
+    const key = load<string>(storageKey, "") || crypto.randomUUID();
+    save(storageKey, key);
+    try {
+      const next = await api<Job>("/generations/" + job.id + "/retry", {}, key);
+      setJobs((old) => [next, ...old.filter((j) => j.id !== next.id)]);
+      updateThreads((old) => old.map((t) => t.id === threadId && !t.messages.some((m) => m.jobId === next.id) ? {
+        ...t,
+        updated: new Date().toISOString(),
+        messages: [...t.messages, { id: key, role: "assistant", content: "已按原需求重新生成；如发现交付问题，将自动纠错。", jobId: next.id }],
+      } : t));
+      setNewJobId(next.id);
+      setCanvas(true);
+      setError("");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      requestLock.current = false;
     }
   }
   async function retryRender(job: Job) {
@@ -1156,9 +1175,12 @@ export default function Generator() {
                                       disabled={busy}
                                       onClick={() => retryRender(j)}
                                     >
-                                      重新检查并渲染（不调用模型）
+                                      本地修复并出图（不调用模型）
                                     </button>
                                   )}
+                                  <button className="text-action" disabled={busy} onClick={() => regenerate(j)}>
+                                    按原需求重新生成（调用模型）
+                                  </button>
                                   <span>
                                     {completed.length
                                       ? "原来的作品已保留。"
@@ -1172,7 +1194,7 @@ export default function Generator() {
                                   role="status"
                                 >
                                   <LoaderCircle size={17} className="spin" />
-                                  {phase[j.state]}
+                                  {phase[j.state]}{j.state === "repairing" ? ` · 第 ${j.repair_attempt}/2 轮` : ""}
                                   <span className="progress-dots">…</span>
                                 </div>
                               ))}
@@ -1262,7 +1284,7 @@ export default function Generator() {
                             "designing",
                             "checking",
                             "rendering",
-                          ].indexOf(active.state)
+                          ].indexOf(active.state === "repairing" ? "checking" : active.state)
                             ? "done"
                             : ""
                         }
@@ -1510,6 +1532,13 @@ export default function Generator() {
                 : "待核算，以平台账单为准"}
             </dd>
           </dl>
+          {(artwork.local_repairs?.length || artwork.repair_attempt) ? (
+            <details>
+              <summary>交付检查与自动修复</summary>
+              <p>图片已完成渲染和文件检查。模型自动纠错 {artwork.repair_attempt || 0} 轮；用量包含纠错调用。</p>
+              <ul>{artwork.local_repairs?.map((repair) => <li key={repair}>{repair}</li>)}</ul>
+            </details>
+          ) : null}
           {artwork.design_plan && (
             <details open>
               <summary>设计思路与实际变化</summary>

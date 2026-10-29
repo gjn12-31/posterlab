@@ -59,12 +59,15 @@ def test_refinement_sends_original_html_and_preserves_original(tmp_path,monkeypa
 def test_dangerous_or_changed_facts_rejected(html):
  with pytest.raises(ValueError):validate_generated(html,BRIEF)
 
-def test_invalid_model_output_never_falls_back_to_template(tmp_path,monkeypatch):
+def test_changed_fact_is_restored_without_replacing_model_art(tmp_path,monkeypatch):
  app=build(tmp_path,monkeypatch,lambda req:result(HTML.replace('2026-11-08','2030-01-01')))
  with TestClient(app) as c:
   id=c.post('/api/generations',json=REQUEST,headers=HEADERS).json()['id']
-  job=c.get('/api/generations/'+id).json();assert job['state']=='failed' and '被改动' in job['error']
-  assert c.get('/api/generations/'+id+'/image').status_code==409
+  job=c.get('/api/generations/'+id).json();assert job['state']=='complete' and job['local_repairs']
+  source=c.get('/api/generations/'+id+'/source').json()['html']
+  assert '2026-11-08' in source and '2030-01-01' not in source and '#eee5d7' in source
+  assert len(job['attempts'])==1
+  assert c.get('/api/generations/'+id+'/image').status_code==200
   assert c.get('/api/status').json()['spent']>0
 
 def test_network_failure_keeps_reservation_no_retry(tmp_path,monkeypatch):
@@ -157,14 +160,14 @@ def test_local_rerender_recovers_transient_renderer_failure_without_another_api_
  def handler(req):count['api']+=1;return result()
  def transient(html,w,h,path,fonts):
   count['render']+=1
-  if count['render']==1:raise ValueError('Temporary renderer failure')
+  if count['render']<=3:raise ValueError('Temporary renderer failure')
   return fake_render(html,w,h,path,fonts)
  with TestClient(build(tmp_path,monkeypatch,handler,renderer=transient)) as c:
   id=c.post('/api/generations',json=REQUEST,headers=HEADERS).json()['id']
   assert c.get('/api/generations/'+id).json()['can_rerender']
   assert c.post('/api/generations/'+id+'/rerender',json={}).status_code==202
   assert c.get('/api/generations/'+id).json()['state']=='complete'
-  assert count=={'api':1,'render':2}
+  assert count=={'api':3,'render':4}
   assert c.post('/api/generations/'+id+'/rerender',json={}).status_code==409
 
 

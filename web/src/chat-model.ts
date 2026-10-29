@@ -1,7 +1,7 @@
 export type Job = {
   id: string;
   state:
-    "queued" | "designing" | "checking" | "rendering" | "complete" | "failed";
+    "queued" | "designing" | "checking" | "repairing" | "rendering" | "complete" | "failed";
   created: string;
   brief: string;
   style: string;
@@ -20,6 +20,8 @@ export type Job = {
   summary?: string;
   error?: string;
   can_rerender?: boolean;
+  repair_attempt?: number;
+  local_repairs?: string[];
   model: string;
   cost?: number | null;
   provider_response_id?: string;
@@ -41,7 +43,7 @@ export type Conversation = {
 };
 export function titleFrom(text: string) {
   const title = text.match(
-    /(?:^|\n)\s*(?:标题|活动标题|主题)[：:]\s*(.+)/,
+    /(?:^|\n)\s*(?:标题|活动标题|活动主题|活动名称|主题)[：:]\s*(.+)/,
   )?.[1];
   return (title || text).replace(/\s+/g, " ").slice(0, 24) || "新对话";
 }
@@ -86,4 +88,20 @@ export function importLegacy(jobs: Job[]): Conversation[] {
       },
     ]),
   }));
+}
+
+// Reconcile server-side jobs after a refresh or interrupted submission without
+// discarding local conversations or duplicating their existing messages.
+export function recoverMissingJobs(threads: Conversation[], jobs: Job[]): Conversation[] {
+  const known = new Set(threads.flatMap((t) => t.messages.map((m) => m.jobId).filter(Boolean)));
+  let next = [...threads];
+  for (const group of importLegacy(jobs)) {
+    const missing = group.messages.filter((m) => !known.has(m.jobId || m.id.slice(0, -2)));
+    if (!missing.length) continue;
+    const groupIds = new Set(group.messages.map((m) => m.jobId).filter(Boolean));
+    const target = next.findIndex((t) => t.messages.some((m) => m.jobId && groupIds.has(m.jobId)));
+    if (target >= 0) next[target] = { ...next[target], messages: [...next[target].messages, ...missing], updated: group.updated };
+    else next.push({ ...group, messages: missing });
+  }
+  return next;
 }
