@@ -1,0 +1,24 @@
+@font-face {
+  font-family: PosterSans;
+  src: url("/fonts/PosterSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: PosterSans;
+  src: url("/fonts/PosterSans-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: PosterCommon;
+  src: url("/fonts/PosterCommon-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: PosterCommon;
+  src: url("/fonts/PosterCommon-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}

@@ -1581,18 +1581,6 @@ body.paused .bento-card:hover {
   }
 }
 /* Product application surfaces */
-@font-face {
-  font-family: PosterSans;
-  src: url("/fonts/PosterSans-Regular.woff2") format("woff2");
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: PosterSans;
-  src: url("/fonts/PosterSans-Bold.woff2") format("woff2");
-  font-weight: 700;
-  font-display: swap;
-}
 :root {
   --line: #ffffff14;
   --muted: #8e9bb1;
@@ -3693,3 +3681,30 @@ body[data-motion="1"] *:after {
     padding: 8px;
   }
 }
+
+/* Keep the editing controls quiet around the full-colour artwork. */
+.template-home-link {font-size:13px;color:#efb693}
+.required-field {margin-left:6px;color:#b9a995;font-size:10px;font-weight:400}
+.topbar .brandmark {background:#cc4c30;border-radius:7px;transform:rotate(-4deg);box-shadow:none}
+.topbar .brandmark::before,.topbar .brandmark::after {background:#fff9ef}
+.workspace .primary,.export-options button[aria-pressed="true"] {border-color:#e3b496}
+.workspace .primary {background:#edc1a2;color:#261f1a}
+
+.template-panel-switch {display:none}
+.export-repairs {padding:14px;background:#2e2824;border:1px solid #665041;border-radius:9px;margin:12px 0}
+.export-repairs h3 {font-size:13px;margin:0 0 8px;color:#f4cfaf}
+.export-repairs button {width:100%;display:flex;justify-content:space-between;align-items:center;color:#ffe1c7;border:0;border-top:1px solid #514339;padding:9px 0;background:transparent;text-align:left;font-size:13px}
+@media(max-width:700px){
+ .template-panel-switch {position:sticky;top:0;z-index:3;display:flex;gap:4px;background:#232720;padding:5px 12px;border-bottom:1px solid #555849}
+ .template-panel-switch button {flex:1;border:0;border-radius:5px;padding:10px 4px;background:none;color:#d0d1c5;font-size:13px}
+ .template-panel-switch button[aria-pressed="true"] {background:#efc4a5;color:#2c261f;font-weight:650}
+ .studio-layout:not([data-panel="editor"]) .editor-panel,
+ .studio-layout:not([data-panel="preview"]) .canvas-panel,
+ .studio-layout:not([data-panel="assistant"]) .assistant-panel {display:none}
+ .editor-panel .field-list .label {min-width:0}
+ .workspace-bar .save-state {font-size:10px}
+}
+.edition-picker {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:18px}
+.edition-picker button {border:1px solid #424944;background:#262b27;padding:6px;color:#deded3;font-size:11px;border-radius:6px}
+.edition-picker button[aria-pressed="true"] {border-color:#f0b593;color:#ffd9bf}
+.edition-picker img {width:100%;height:42px;object-fit:cover;display:block;border-radius:3px;margin-bottom:4px}

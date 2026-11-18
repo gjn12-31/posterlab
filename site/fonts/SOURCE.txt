@@ -11,3 +11,5 @@ PosterDisplay-Regular.woff2: ZCOOL KuaiLe Regular, official google/fonts ofl/zco
 Official sources:
 https://github.com/notofonts/noto-cjk/tree/main/Serif/OTF/SimplifiedChinese
 https://github.com/google/fonts/tree/main/ofl/zcoolkuaile
+
+PosterCommon-Regular.woff2 and PosterCommon-Bold.woff2 are local subsets of the corresponding Noto Sans CJK SC files, distributed under the same SIL OFL 1.1. Regenerate with scripts/build_preview_fonts.py (fontTools and Brotli).

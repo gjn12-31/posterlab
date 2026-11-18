@@ -1,4 +1,7 @@
 import QRCode from "qrcode";
+import commonGlyphs from "./common-glyphs.txt?raw";
+import "./poster-fonts.css";
+import { editions, editionImage } from "./editions";
 
 import {
   type Project,
@@ -26,18 +29,26 @@ export const escapeXml = (s: string) =>
         "'": "&apos;",
       })[c]!,
   );
-let fontReady: Promise<void> | undefined;
-export function loadFonts() {
-  return (fontReady ??= (async () => {
-    await document.fonts.load("400 32px PosterSans");
-    await document.fonts.load("700 100px PosterSans");
-    await document.fonts.ready;
-  })());
+const compactGlyphs = new Set(commonGlyphs);
+function fontFamilyFor(text: string) {
+  return Array.from(text).every(
+    (char) => /\s/.test(char) || compactGlyphs.has(char),
+  )
+    ? "PosterCommon"
+    : "PosterSans";
+}
+export async function loadFonts(text = "") {
+  const family = fontFamilyFor(text);
+  await Promise.all(
+    [400, 700].map((weight) =>
+      document.fonts.load(`${weight} 32px ${family}`, text || "Aa"),
+    ),
+  );
 }
 const canvas = document.createElement("canvas"),
   ctx = canvas.getContext("2d")!;
 export function wrap(text: string, size: number, width: number, bold = false) {
-  ctx.font = `${bold ? 700 : 400} ${size}px PosterSans`;
+  ctx.font = `${bold ? 700 : 400} ${size}px PosterCommon, PosterSans, sans-serif`;
   const out: string[] = [];
   for (const para of text.split("\n")) {
     let line = "";
@@ -88,7 +99,7 @@ export function renderPoster(
     weight = 400,
     anchor = "start",
   ) =>
-    `<text x="${x}" y="${y}" fill="${color}" font-family="PosterSans" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}">${escapeXml(value)}</text>`;
+    `<text x="${x}" y="${y}" fill="${color}" font-family="PosterCommon, PosterSans, sans-serif" font-size="${size}" font-weight="${weight}" text-anchor="${anchor}">${escapeXml(value)}</text>`;
   const art = (x: number, y: number, width: number, height: number) => {
     const hero = s.heroId && project.assets[s.heroId];
     if (hero)
@@ -128,7 +139,32 @@ export function renderPoster(
     accent,
     700,
   );
-  const areaW = land ? 1080 : w - 2 * m;
+  const edition = s.edition && editions[s.edition];
+  const hasDetails = !!(
+    b.date ||
+    b.time ||
+    b.venue ||
+    b.speaker ||
+    b.description ||
+    b.url ||
+    b.cta
+  );
+  let titleTop = 140;
+  if (edition && s.edition) {
+    const artX = land ? 1120 : 0;
+    const artY = land ? 0 : 108;
+    const artW = w - artX;
+    const artH = land
+      ? h
+      : Math.round(
+          h * (hasDetails ? (format === "square" ? 0.22 : 0.34) : 0.6),
+        );
+    const hero = s.heroId && project.assets[s.heroId];
+    const photo = hero ? hero.data : editionImage(s.edition);
+    body += `<svg x="${artX}" y="${artY}" width="${artW}" height="${artH}" viewBox="0 0 ${artW} ${artH}"><image href="${photo}" width="${artW}" height="${artH}" preserveAspectRatio="xMidYMid slice"/><rect width="${artW}" height="${artH}" fill="url(#photo-fade)"/><text x="45" y="${artH - 38}" font-family="Georgia,serif" font-style="italic" font-size="${Math.min(artW * 0.25, artH * 0.46)}" letter-spacing="-8" fill="#fff8e8">${edition.wordmark}</text></svg>`;
+    titleTop = land ? 166 : artY + artH + 18;
+  }
+  const areaW = land ? (edition ? 985 : 1080) : w - 2 * m;
   let font = (land ? 92 : format === "square" ? 86 : 106) * s.titleScale;
   const titleLimit = land ? 270 : format === "square" ? 235 : 350;
   let titleLines = wrap(b.title || "写下你的好想法", font, areaW, true);
@@ -142,7 +178,7 @@ export function renderPoster(
       field: "title",
       message: "标题过长，请缩短或调小字号",
     });
-  let y = 140;
+  let y = titleTop;
   const anchor = s.align === "center" ? "middle" : "start",
     tx = s.align === "center" ? m + areaW / 2 : m;
   titleLines.forEach((line) => {
@@ -150,15 +186,15 @@ export function renderPoster(
     body += text(line, tx, y, font, t.ink, 700, anchor);
   });
   y += 38;
-  if (land) {
+  if (land && !edition) {
     body += art(1235, 125, 620, 660);
     y = Math.max(y, 420);
-  } else {
+  } else if (!edition) {
     const artH = format === "square" ? 145 : 255;
     body += art(m, y, w - m * 2, artH);
     y += artH + 43;
   }
-  const contentW = land ? 1080 : w - 2 * m,
+  const contentW = areaW,
     col = contentW / 2 - 24;
   const row = (a: Field, c: Field) => {
     const entries = [a, c];
@@ -208,14 +244,14 @@ export function renderPoster(
       const code = QRCode.create(b.url, { errorCorrectionLevel: "M" }),
         n = code.modules.size,
         side = n + 8;
-      const qx = land ? 1550 : m + contentW - qrSize,
-        qy = land ? 830 : y;
+      const qx = land && !edition ? 1550 : m + contentW - qrSize,
+        qy = land && !edition ? 830 : y;
       let path = "";
       for (let r = 0; r < n; r++)
         for (let c = 0; c < n; c++)
           if (code.modules.get(r, c)) path += `M${c + 4} ${r + 4}h1v1h-1z`;
       body += `<svg x="${qx}" y="${qy}" width="${qrSize}" height="${qrSize}" viewBox="0 0 ${side} ${side}"><rect width="${side}" height="${side}" fill="#fff"/><path d="${path}" fill="#111"/></svg>`;
-      if (!land && qy + qrSize > footerY - 20)
+      if ((!land || edition) && qy + qrSize > footerY - 20)
         issues.push({
           level: "error",
           field: "url",
@@ -237,8 +273,8 @@ export function renderPoster(
   }
   if (y > footerY - 60)
     issues.push({ level: "error", message: "活动信息过长，已超出安全区域" });
-  body += `<line x1="${m}" y1="${footerY - 16}" x2="${w - m}" y2="${footerY - 16}" stroke="${accent}" opacity=".4"/>`;
-  const ctaLines = wrap(b.cta, 22, w - 2 * m);
+  body += `<line x1="${m}" y1="${footerY - 16}" x2="${land && edition ? 1050 : w - m}" y2="${footerY - 16}" stroke="${accent}" opacity=".4"/>`;
+  const ctaLines = wrap(b.cta, 22, land && edition ? areaW : w - 2 * m);
   if (ctaLines.length > 1)
     issues.push({
       level: "error",
@@ -265,9 +301,11 @@ export function renderPoster(
       });
   }
   const prefix = `p-${project.id.replace(/[^a-zA-Z0-9-]/g, "")}-${format}-${s.theme}-`;
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="海报预览"><defs><linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#effffc"/><stop offset=".22" stop-color="#727b9d"/><stop offset=".4" stop-color="#e8dfff"/><stop offset=".6" stop-color="#242c50"/><stop offset=".8" stop-color="#c4ffeb"/><stop offset="1" stop-color="#8c71b0"/></linearGradient></defs><rect width="${w}" height="${h}" fill="${t.bg}"/>${body}</svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="海报预览"><defs><linearGradient id="photo-fade" x2="0" y2="1"><stop offset=".45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".38"/></linearGradient><linearGradient id="chrome" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#effffc"/><stop offset=".22" stop-color="#727b9d"/><stop offset=".4" stop-color="#e8dfff"/><stop offset=".6" stop-color="#242c50"/><stop offset=".8" stop-color="#c4ffeb"/><stop offset="1" stop-color="#8c71b0"/></linearGradient></defs><rect width="${w}" height="${h}" fill="${t.bg}"/>${body}</svg>`;
   return {
     svg: svg
+      .replaceAll('id="photo-fade"', `id="${prefix}photo-fade"`)
+      .replaceAll("url(#photo-fade)", `url(#${prefix}photo-fade)`)
       .replaceAll('id="artclip"', `id="${prefix}artclip"`)
       .replaceAll("url(#artclip)", `url(#${prefix}artclip)`)
       .replaceAll('id="chrome"', `id="${prefix}chrome"`)
@@ -275,9 +313,11 @@ export function renderPoster(
     issues,
   };
 }
-let embeddedFont: Promise<string> | undefined;
-async function fontStyle() {
-  return (embeddedFont ??= (async () => {
+const embeddedFonts = new Map<string, Promise<string>>();
+function fontStyle(family: string) {
+  const cached = embeddedFonts.get(family);
+  if (cached) return cached;
+  const loading = (async () => {
     const fetchFont = async (name: string) => {
       const r = await fetch(`${import.meta.env.BASE_URL}fonts/${name}`);
       if (!r.ok) throw Error("导出字体加载失败，请联网重试");
@@ -293,24 +333,51 @@ async function fontStyle() {
       });
     };
     const [regular, bold] = await Promise.all([
-      fetchFont("PosterSans-Regular.woff2"),
-      fetchFont("PosterSans-Bold.woff2"),
+      fetchFont(family + "-Regular.woff2"),
+      fetchFont(family + "-Bold.woff2"),
     ]);
-    return `<style>@font-face{font-family:PosterSans;src:url(${regular});font-weight:400}@font-face{font-family:PosterSans;src:url(${bold});font-weight:700}</style>`;
-  })());
+    return `<style>@font-face{font-family:${family};src:url(${regular});font-weight:400}@font-face{font-family:${family};src:url(${bold});font-weight:700}</style>`;
+  })().catch((error) => {
+    embeddedFonts.delete(family);
+    throw error;
+  });
+  embeddedFonts.set(family, loading);
+  return loading;
 }
 export async function exportBlob(
   project: Project,
   format: Format,
   type: "png" | "svg",
 ) {
-  await loadFonts();
+  const text = [
+    project.current.brand.name,
+    ...Object.values(project.current.brief),
+    ...Object.values(labels),
+    "写下你的好想法",
+  ].join("");
+  await loadFonts(text);
   const rendered = renderPoster(project, format);
   if (rendered.issues.some((i) => i.level === "error"))
     throw Error(
       `${formats[format].name}：${rendered.issues.find((i) => i.level === "error")!.message}`,
     );
-  const svg = rendered.svg.replace("<defs>", "<defs>" + (await fontStyle()));
+  let svg = rendered.svg.replace(
+    "<defs>",
+    "<defs>" + (await fontStyle(fontFamilyFor(text))),
+  );
+  if (project.current.edition && !project.current.heroId) {
+    const url = editionImage(project.current.edition);
+    const response = await fetch(url);
+    if (!response.ok) throw Error("主视觉加载失败，请重试导出");
+    const blob = await response.blob();
+    const data = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(Error("主视觉读取失败"));
+      reader.readAsDataURL(blob);
+    });
+    svg = svg.replace(`href="${url}"`, `href="${data}"`);
+  }
   if (type === "svg") return new Blob([svg], { type: "image/svg+xml" });
   const url = URL.createObjectURL(
     new Blob([svg], { type: "image/svg+xml;charset=utf-8" }),

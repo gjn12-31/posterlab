@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { editionIds } from "./editions";
 export const fields = [
   "title",
   "speaker",
@@ -129,6 +130,7 @@ export const snapshotSchema = z.object({
   label: z.string().max(100),
   brief: briefSchema,
   locked: z.array(z.enum(fields)).max(8),
+  edition: z.enum(editionIds).optional(),
   theme: z.enum(["violet", "mint", "orange", "paper", "blue", "night"]),
   titleScale: z.number().min(0.65).max(1.4),
   align: z.enum(["left", "center"]),

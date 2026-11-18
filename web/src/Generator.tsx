@@ -743,7 +743,15 @@ export default function Generator() {
         setSource((e as Error).message);
       }
   }
-  const composer = (
+  const newDesign = STATIC_DEMO ? () => navigateHome(true) : fresh;
+  const composer = STATIC_DEMO ? (
+    <div className="replay-actions">
+      <span>已完成的创作记录</span>
+      <button onClick={() => navigateHome(true)}>
+        用自己的主题试印 <ArrowUpRight size={15} />
+      </button>
+    </div>
+  ) : (
     <div className="composer-wrap">
       {error && (
         <div className="chat-error" role="alert">
@@ -914,6 +922,7 @@ export default function Generator() {
         jobs={jobs}
         blocked={busy || !!pending}
         demo={STATIC_DEMO}
+        localTemplates={!ready || !service?.ai}
         motion={motion}
         onMotion={() => {
           setMotion(!motion);
@@ -980,9 +989,9 @@ export default function Generator() {
             <PanelLeft size={19} />
           </button>
         </div>
-        <button className="new-chat" onClick={fresh}>
+        <button className="new-chat" onClick={newDesign}>
           <Plus size={18} />
-          新对话
+          {STATIC_DEMO ? "新建海报" : "新对话"}
         </button>
         <input
           className="thread-search"
@@ -1037,8 +1046,7 @@ export default function Generator() {
         {STATIC_DEMO && (
           <aside className="demo-banner" aria-label="展示模式">
             <span>
-              <b>GitHub Pages 展示版</b> · 真实彩排案例，非实时
-              AI。可查看对比、评测和下载。
+              <b>AI 案例回放</b> · 查看两版海报、评测结果与原图下载。
             </span>
             <a
               href="https://github.com/gjn12-31/posterlab#安装与启动"
@@ -1085,9 +1093,9 @@ export default function Generator() {
               <Zap size={15} />
               <span>{motion ? "动效开启" : "动效关闭"}</span>
             </button>
-            <button className="top-new" onClick={fresh}>
+            <button className="top-new" onClick={newDesign}>
               <Plus size={17} />
-              <span>新对话</span>
+              <span>{STATIC_DEMO ? "新建海报" : "新对话"}</span>
             </button>
             {hasCanvas && (
               <button
@@ -1135,15 +1143,11 @@ export default function Generator() {
                   <Sparkles size={31} />
                 </div>
                 <p className="welcome-kicker">
-                  <span /> AN IDEA. A POSTER. A BETTER VERSION.
+                  <span /> AI 创作工作台
                 </p>
-                <h1>
-                  好想法，
-                  <br />
-                  <em>值得被看见。</em>
-                </h1>
+                <h1>这次想设计什么海报？</h1>
                 <p className="welcome-copy">
-                  从一句灵感到原创设计，看图评测，再大胆改版。
+                  写下简报或选择一个场景，生成后可在画布中评测、修改和导出。
                 </p>
                 {composer}
                 <div className="inspiration-strip" aria-label="场景灵感">
@@ -1176,7 +1180,6 @@ export default function Generator() {
                           backgroundImage: `url(${import.meta.env.BASE_URL}library/${item.bg}.png)`,
                         }}
                       >
-                        <span>0{i + 1}</span>
                         <b>{item.name}</b>
                         <i>{item.tag}</i>
                         <ArrowUpRight size={19} />
@@ -1185,7 +1188,9 @@ export default function Generator() {
                   ))}
                 </div>
                 <div className="welcome-bottom">
-                  <span>01 描述创意　→　02 生成海报　→　03 评测优化</span>
+                  <a href="?mode=templates">
+                    使用本地模板排版 <ArrowUpRight size={13} />
+                  </a>
                   <button onClick={() => showTools("saved")}>
                     我的创作工具 <ArrowUpRight size={13} />
                   </button>
@@ -1418,15 +1423,19 @@ export default function Generator() {
                       <ScanLine size={16} />
                       {reviewScores[artwork.id + ":" + reviewModel] != null
                         ? `查看评测 · ${reviewScores[artwork.id + ":" + reviewModel]}分`
-                        : "AI 评测海报"}
+                        : STATIC_DEMO
+                          ? "查看评测记录"
+                          : "AI 评测海报"}
                     </button>
                     <button
                       className="refine-button"
                       disabled={busy || !!pending}
-                      onClick={() => showTools("refine")}
+                      onClick={
+                        STATIC_DEMO ? newDesign : () => showTools("refine")
+                      }
                     >
                       <WandSparkles size={15} />
-                      优化这一版
+                      {STATIC_DEMO ? "开始自己的海报" : "优化这一版"}
                     </button>
                     {completed.length > 1 && (
                       <button onClick={() => setModal("compare")}>
@@ -1442,7 +1451,7 @@ export default function Generator() {
                   onClick={() => setMobileTab("chat")}
                 >
                   <ArrowLeft size={16} />
-                  返回对话，继续修改
+                  {STATIC_DEMO ? "查看创作对话" : "返回对话，继续修改"}
                 </button>
               </footer>
             </section>

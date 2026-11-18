@@ -1,114 +1,147 @@
-/* Carry the discovery palette into the functional workspace. */
-:root {
-  --accent: #edb38b;
-  --muted: #a49990;
-  --line: #39312b;
-}
+/* A dark editing surface keeps the artwork in focus. */
 .chat-app {
-  background: #141211;
+  --accent: #f3b18e;
+  --muted: #b6b6ab;
+  --line: #42443b;
+  background: #191b17;
+  color: #f2f0e8;
 }
-.chat-topbar {
-  background: #191511d9;
-  border-bottom-color: #ffffff0b;
+.chat-topbar,
+.chat-sidebar {
+  background: #20221d;
+  border-color: #3a3d34;
 }
 .wordmark:before,
-.brand-symbol {
-  color: #edb38b;
+.brand-symbol,
+.motion-toggle[aria-pressed="true"] svg {
+  color: #ed9776;
 }
 .wordmark span {
-  color: #b39d8a;
+  color: #c1c2b6;
 }
 .ambient-lights > i {
-  background: radial-gradient(circle, #a9783e, transparent 63%);
-}
-.ambient-lights > i:nth-child(2) {
-  background: radial-gradient(circle, #954d64, transparent 65%);
-}
-.ambient-lights > i:nth-child(3) {
-  background: radial-gradient(circle, #74412c, transparent 65%);
+  display: none;
 }
 .ambient-lights > div {
-  opacity: 0.05;
+  opacity: 0.13;
+  background-size: 24px 24px;
 }
-.send-button {
-  background: linear-gradient(110deg, #c4507b, #df774b);
-  color: #fff4e9;
-  border: 1px solid #ffcc9425;
+.welcome {
+  width: min(820px, 100%);
 }
-.send-button:hover:not(:disabled) {
-  background: linear-gradient(110deg, #dd5a8a, #ed895d);
-}
-.composer {
-  background: #241e19ed;
-  border-color: #5b4433;
-}
-.composer:focus-within {
-  border-color: #ce9d78;
-  box-shadow:
-    0 0 0 3px #dda9690b,
-    0 15px 50px #0002;
-}
-.composer textarea {
-  color: #f1e3d7;
-}
-.welcome h1 em {
-  background: linear-gradient(100deg, #ffd9ab, #e8a1a1);
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-}
-.welcome-icon {
-  background: #35271e;
-  border-color: #5d3e2c;
-  color: #f0b78c;
+.welcome h1 {
+  font-size: clamp(29px, 4vw, 52px);
+  color: #f6f4e8;
+  letter-spacing: -0.055em;
 }
 .welcome-kicker {
-  color: #b49b84;
+  color: #e9ac8b;
+  letter-spacing: 1.4px;
 }
-.chat-sidebar {
-  background: #191512;
-  border-color: #3d2f24;
+.welcome-kicker > span {
+  background: #df7d58;
+  box-shadow: none;
 }
-.new-chat {
-  background: #35281f;
-  border-color: #64442f;
-  color: #f2c6a2;
+.welcome-copy,
+.composer-hint {
+  color: #b5b6ac;
 }
+.composer-wrap {
+  background: linear-gradient(0deg, #191b17 85%, transparent);
+}
+.composer {
+  background: #282b24;
+  border-color: #505447;
+  border-radius: 14px;
+}
+.composer:focus-within {
+  border-color: #d9a583;
+  box-shadow: 0 0 0 3px #d9a58316;
+}
+.composer textarea {
+  color: #f4f0e5;
+}
+.composer textarea::placeholder {
+  color: #acafa2;
+}
+.send-button,
+.send-button:hover:not(:disabled),
+.evaluate-button,
+.dialog-done {
+  background: #f0bb99;
+  color: #2b231c;
+  border-color: #e1aa88;
+}
+.new-chat,
 .thread-list button.current {
-  background: #33271e;
-  color: #f2c6a2;
+  color: #f2d6bf;
+  background: #38362d;
+  border-color: #665140;
 }
 .canvas-panel {
-  background: #151311;
-  border-color: #3d3229;
+  background: #1c1e19;
+  border-color: #414339;
 }
-.back-to-discover {
-  color: #d4b296;
+.back-to-discover,
+.welcome-bottom a {
+  color: #e5c4a9;
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
-  padding: 7px 10px;
-  border: 1px solid #ffffff12;
-  border-radius: 20px;
+}
+.back-to-discover {
+  padding: 8px 10px;
+  border-radius: 7px;
   white-space: nowrap;
 }
 .back-to-discover:hover {
-  color: #ffddc1;
-  background: #ffffff09;
+  background: #ffffff12;
+}
+.demo-banner {
+  color: #dddacb;
+  background: #353729;
+  border-color: #4c503e;
+}
+.demo-banner a {
+  color: #f6dcc4;
 }
 @media (max-width: 760px) {
-  .back-to-discover {
-    font-size: 11px;
-    padding: 6px 8px;
+  .chat-topbar {
+    padding: 0 10px;
+  }
+  .chat-topbar > div {
+    gap: 5px;
   }
   .wordmark span {
     display: none;
   }
-  .chat-topbar > div {
-    gap: 7px;
+  .back-to-discover {
+    font-size: 11px;
+    padding: 6px 4px;
   }
-  .chat-topbar {
-    padding: 0 12px;
+  .demo-banner {
+    padding: 8px 14px;
+    gap: 3px 8px;
+    font-size: 11px;
   }
+}
+.replay-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #44463a;
+  background: #282a22;
+  margin: 10px 16px;
+  padding: 12px 16px;
+  border-radius: 9px;
+  color: #c7c8bb;
+  font-size: 13px;
+}
+.replay-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f1c49e;
 }

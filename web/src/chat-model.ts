@@ -73,7 +73,7 @@ export function importLegacy(jobs: Job[]): Conversation[] {
   }
   return [...groups].map(([id, group]) => ({
     id: "legacy-" + id,
-    title: titleFrom(group[0].brief.replace(/^标题[：:]\s*/, "")),
+    title: titleFrom(group[0].brief),
     created: group[0].created,
     updated: group.at(-1)!.created,
     messages: group.flatMap((j) => [

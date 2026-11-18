@@ -11,8 +11,9 @@ createRoot(document.getElementById("root")!).render(
       <div
         style={{
           padding: 40,
-          background: "#0b0e16",
-          color: "#ddd",
+          fontFamily: "system-ui, sans-serif",
+          background: "#faf9f4",
+          color: "#272821",
           minHeight: "100vh",
         }}
       >

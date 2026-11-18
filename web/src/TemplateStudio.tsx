@@ -81,6 +81,7 @@ import {
 } from "./render";
 import { status, aiSuggestion, request, type Service } from "./api";
 import "./style.css";
+import { editions, editionIds, editionImage, isEdition } from "./editions";
 const clone = <T,>(x: T): T => structuredClone(x);
 function Modal({
   title,
@@ -118,13 +119,46 @@ function Modal({
   );
 }
 function App() {
+  const [entry] = useState(() => location.hash);
+  const fromDiscovery = entry.startsWith("#new?");
+
   const [page, setPage] = useState<"home" | "studio" | "gallery" | "brand">(
-      "home",
+      fromDiscovery || entry.startsWith("#studio")
+        ? "studio"
+        : entry === "#gallery"
+          ? "gallery"
+          : entry === "#brand"
+            ? "brand"
+            : "home",
     ),
-    [project, setProject] = useState<Project>(createProject),
+    [project, setProject] = useState<Project>(() => {
+      if (!fromDiscovery) return createProject();
+      const params = new URLSearchParams(entry.slice(5));
+      const project = createProject({
+        title: (params.get("title") || "").slice(0, 180),
+        speaker: "",
+        date: "",
+        time: "",
+        venue: "",
+        description: "",
+        cta: "",
+      });
+      const edition = params.get("edition");
+      if (isEdition(edition)) project.current.edition = edition;
+      const theme = params.get("theme") || "paper";
+      project.current.theme = Object.hasOwn(themes, theme)
+        ? (theme as Theme)
+        : "paper";
+      return project;
+    }),
     [projects, setProjects] = useState<Project[]>([]),
     [tab, setTab] = useState<"content" | "styles" | "assets">("content"),
-    [format, setFormat] = useState<Format>("portrait"),
+    [format, setFormat] = useState<Format>(() => {
+      const value = fromDiscovery
+        ? new URLSearchParams(entry.slice(5)).get("format")
+        : entry.split("/")[1];
+      return value === "square" || value === "landscape" ? value : "portrait";
+    }),
     [ready, setReady] = useState(false),
     [fontError, setFontError] = useState(false),
     [saved, setSaved] = useState("准备工作空间"),
@@ -139,6 +173,9 @@ function App() {
     [suggestion, setSuggestion] = useState<Suggestion | null>(null),
     [busy, setBusy] = useState(""),
     [service, setService] = useState<Service | null>(null),
+    [mobilePanel, setMobilePanel] = useState<
+      "editor" | "preview" | "assistant"
+    >("editor"),
     [rightTab, setRightTab] = useState<"assistant" | "checks">("assistant"),
     [undo, setUndo] = useState<Snapshot[]>([]),
     [redo, setRedo] = useState<Snapshot[]>([]),
@@ -193,7 +230,7 @@ function App() {
         const rows = await listProjects();
         setProjects(rows);
         const latest = await setting("current");
-        if (latest) {
+        if (latest && !fromDiscovery) {
           const p = rows.find((p) => p.id === latest);
           if (p) setProject(p);
         }
@@ -211,7 +248,7 @@ function App() {
     })();
   }, [message]);
   useEffect(() => {
-    if (!initialized) return;
+    if (!initialized || (entry === "#gallery" && page === "gallery")) return;
     setSaved("正在保存…");
     const p = clone(project);
     persist(p)
@@ -220,6 +257,9 @@ function App() {
       )
       .then(() => {
         if (currentRef.current.updated === p.updated) {
+          if (fromDiscovery && location.hash === entry) {
+            history.replaceState(null, "", "#studio/" + format);
+          }
           setSaved("已自动保存");
           setStorageError(false);
         }
@@ -228,7 +268,12 @@ function App() {
         setSaved("保存失败，请导出备份");
         setStorageError(true);
       });
-  }, [project, initialized, persist]);
+  }, [project, initialized, persist, page, entry, fromDiscovery]);
+  useEffect(() => {
+    if (!initialized || location.hash.startsWith("#new?")) return;
+    const route = page === "studio" ? "#studio/" + format : "#" + page;
+    if (location.hash !== route) history.replaceState(null, "", route);
+  }, [page, format, initialized]);
   useEffect(() => {
     document.body.dataset.motion = String(reduced ? 0 : motionLevel);
   }, [motionLevel, reduced]);
@@ -246,6 +291,23 @@ function App() {
         : [],
     [project, ready],
   );
+  const exportFormats =
+    exportKind === "pack"
+      ? allIssues
+      : allIssues.filter((result) => result.format === format);
+  const exportErrors = exportFormats.flatMap((result) =>
+    result.issues
+      .filter((issue) => issue.level === "error")
+      .map((issue) => ({ ...issue, format: result.format })),
+  );
+  function focusField(field: Field) {
+    setMobilePanel("editor");
+    setTab("content");
+    setSelectedField(field);
+    requestAnimationFrame(() =>
+      document.getElementById("field-" + field)?.focus(),
+    );
+  }
   function edit(fn: (s: Snapshot) => void) {
     setProject((p) => {
       setUndo((u) => [clone(p.current), ...u].slice(0, 40));
@@ -265,6 +327,7 @@ function App() {
     });
   }
   async function navigate(next: typeof page) {
+    if (next === page) return;
     if (next === "gallery") {
       try {
         await persist(currentRef.current);
@@ -284,6 +347,7 @@ function App() {
     setUndo([]);
     setRedo([]);
     setPage("studio");
+    setMobilePanel("editor");
     setTab("content");
     window.scrollTo(0, 0);
   }
@@ -495,11 +559,8 @@ function App() {
           <sup>STUDIO</sup>
         </a>
         <nav aria-label="主导航">
-          <a
-            href={import.meta.env.BASE_URL}
-            style={{ fontSize: 12, color: "#c6ffe1" }}
-          >
-            AI 创作
+          <a href={import.meta.env.BASE_URL} className="template-home-link">
+            返回首页
           </a>
           <button
             className={page === "studio" ? "active" : ""}
@@ -765,7 +826,20 @@ function App() {
               </button>
             </div>
           </div>
-          <div className="studio-layout">
+          <nav className="template-panel-switch" aria-label="工作区面板">
+            {(["editor", "preview", "assistant"] as const).map(
+              (panel, index) => (
+                <button
+                  key={panel}
+                  aria-pressed={mobilePanel === panel}
+                  onClick={() => setMobilePanel(panel)}
+                >
+                  {["编辑内容", "预览海报", "助手与检查"][index]}
+                </button>
+              ),
+            )}
+          </nav>
+          <div className="studio-layout" data-panel={mobilePanel}>
             <aside className="editor-panel">
               <div className="panel-tabs" role="group" aria-label="编辑面板">
                 {(["content", "styles", "assets"] as const).map((t, i) => (
@@ -798,7 +872,7 @@ function App() {
                     <ChevronRight size={14} />
                   </button>
                   <label className="label">
-                    公开示例
+                    载入活动示例
                     <select
                       value=""
                       onChange={(e) => {
@@ -835,6 +909,9 @@ function App() {
                       >
                         <span>
                           {labels[field]}
+                          {["title", "date", "time", "venue"].includes(
+                            field,
+                          ) && <small className="required-field">必填</small>}
                           <button
                             className="lock-button"
                             type="button"
@@ -868,11 +945,12 @@ function App() {
                             value={project.current.brief[field]}
                             maxLength={field === "title" ? 180 : 1200}
                             onFocus={() => setSelectedField(field)}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
                               edit((s) => {
-                                s.brief[field] = e.target.value;
-                              })
-                            }
+                                s.brief[field] = value;
+                              });
+                            }}
                           />
                         ) : (
                           <input
@@ -894,11 +972,12 @@ function App() {
                             }
                             value={project.current.brief[field]}
                             onFocus={() => setSelectedField(field)}
-                            onChange={(e) =>
+                            onChange={(e) => {
+                              const value = e.currentTarget.value;
                               edit((s) => {
-                                s.brief[field] = e.target.value;
-                              })
-                            }
+                                s.brief[field] = value;
+                              });
+                            }}
                           />
                         )}
                       </label>
@@ -912,7 +991,36 @@ function App() {
               )}
               {tab === "styles" && (
                 <div className="panel-content">
-                  <p className="panel-caption">选择一种视觉语言</p>
+                  <p className="panel-caption">主视觉系列</p>
+                  <div className="edition-picker">
+                    {editionIds.map((id) => (
+                      <button
+                        key={id}
+                        aria-pressed={project.current.edition === id}
+                        onClick={() =>
+                          edit((s) => {
+                            s.edition = id;
+                            s.theme = editions[id].theme;
+                            delete s.heroId;
+                          })
+                        }
+                      >
+                        <img alt="" src={editionImage(id)} />
+                        {editions[id].name}
+                      </button>
+                    ))}
+                    <button
+                      aria-pressed={!project.current.edition}
+                      onClick={() =>
+                        edit((s) => {
+                          delete s.edition;
+                        })
+                      }
+                    >
+                      几何排版
+                    </button>
+                  </div>
+                  <p className="panel-caption">配色与风格</p>
                   <button
                     className="brief-launch"
                     onClick={() => setModal("explore")}
@@ -1270,17 +1378,7 @@ function App() {
                       className={"issue " + i.level}
                       key={n}
                       onClick={() => {
-                        if (i.field) {
-                          setTab("content");
-                          setSelectedField(i.field);
-                          setTimeout(
-                            () =>
-                              document
-                                .getElementById("field-" + i.field)
-                                ?.focus(),
-                            30,
-                          );
-                        }
+                        if (i.field) focusField(i.field);
                       }}
                     >
                       <AlertTriangle size={15} />
@@ -1630,10 +1728,7 @@ function App() {
         </Modal>
       )}
       {modal === "export" && (
-        <Modal
-          title="让作品，走向更多地方。"
-          close={() => !busy && setModal(null)}
-        >
+        <Modal title="导出海报" close={() => !busy && setModal(null)}>
           <div className="export-options">
             {(["png", "svg", "pack"] as const).map((k) => (
               <button
@@ -1660,10 +1755,7 @@ function App() {
             ))}
           </div>
           <div className="export-checks">
-            {(exportKind === "pack"
-              ? allIssues
-              : allIssues.filter((x) => x.format === format)
-            ).map((r) => (
+            {exportFormats.map((r) => (
               <div key={r.format}>
                 <span>{formats[r.format].name}</span>
                 <span>
@@ -1674,20 +1766,35 @@ function App() {
               </div>
             ))}
           </div>
+          {exportErrors.length > 0 && (
+            <div className="export-repairs">
+              <h3>导出前需处理</h3>
+              {exportErrors.map((issue, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setModal(null);
+                    setFormat(issue.format);
+                    if (issue.field) focusField(issue.field);
+                    else {
+                      setMobilePanel("assistant");
+                      setRightTab("checks");
+                    }
+                  }}
+                >
+                  {exportKind === "pack" && formats[issue.format].name + " · "}
+                  {issue.message}
+                  <ChevronRight size={15} />
+                </button>
+              ))}
+            </div>
+          )}
           <p className="fineprint">
             SVG 内嵌授权字体，文件较大。活动信息及素材使用权由创作者确认。
           </p>
           <button
             className="primary full"
-            disabled={
-              !!busy ||
-              !ready ||
-              (exportKind === "pack"
-                ? allIssues.some((r) =>
-                    r.issues.some((i) => i.level === "error"),
-                  )
-                : rendered.issues.some((i) => i.level === "error"))
-            }
+            disabled={!!busy || !ready || exportErrors.length > 0}
             onClick={runExport}
           >
             {busy ? (
