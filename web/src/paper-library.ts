@@ -10,6 +10,7 @@ interface Library extends DBSchema {
   papers: { key: string; value: Paper };
   index: { key: string; value: Entry };
 }
+let lastDurable: Paper | undefined;
 function open() {
   return openDB<Library>("posterlab-paper-library", 1, {
     upgrade(db) {
@@ -38,6 +39,7 @@ export async function keepPaper(p: Paper, insertOnly = false) {
         .put({ id: p.id, title: p.headline, saved: new Date().toISOString() }),
       tx.done,
     ]);
+    lastDurable = p;
   } finally {
     db.close();
   }
@@ -55,13 +57,34 @@ export async function paperEntries() {
 export async function openPaper(id: string) {
   const db = await open();
   try {
-    return readSavedPaper(await db.get("papers", id));
+    const paper = readSavedPaper(await db.get("papers", id));
+    lastDurable = paper;
+    return paper;
   } finally {
     db.close();
   }
 }
 
-type Resume = { paper: Paper; pendingWrite?: boolean } | { libraryId: string };
+type LibraryPointer = {
+  libraryId: string;
+  pendingFields?: Record<string, unknown>;
+};
+type Resume = { paper: Paper; pendingWrite?: boolean } | LibraryPointer;
+
+export async function restoreLibraryDraft(
+  pointer: LibraryPointer,
+): Promise<Paper> {
+  const stored = await openPaper(pointer.libraryId);
+  if (!pointer.pendingFields) return stored;
+  // The synchronous journal contains only editable fields. Both original image
+  // blobs stay in IndexedDB and are always restored from the same paper.
+  return readSavedPaper({
+    ...pointer.pendingFields,
+    id: stored.id,
+    artwork: stored.artwork,
+    figure: stored.figure,
+  });
+}
 
 export function resumePaper(initial: () => Paper): Resume {
   try {
@@ -69,7 +92,10 @@ export function resumePaper(initial: () => Paper): Resume {
     if (raw) {
       const value = JSON.parse(raw);
       if (typeof value?.libraryId === "string" && value.libraryId)
-        return { libraryId: value.libraryId };
+        return {
+          libraryId: value.libraryId,
+          pendingFields: value.pendingFields,
+        };
       return {
         paper: recoverPaper(raw),
         pendingWrite: typeof value?.pendingLibraryWrite === "string",
@@ -86,56 +112,49 @@ export async function savePaperDraft(
 ): Promise<void> {
   const save = ++latestSave;
   const writeId = crypto.randomUUID();
+  const { artwork, figure, ...fields } = paper;
+  const large =
+    (artwork?.data.length || 0) + (figure?.data.length || 0) >= 1_000_000;
+  const unchangedImages =
+    lastDurable?.id === paper.id &&
+    lastDurable.artwork?.data === artwork?.data &&
+    lastDurable.figure?.data === figure?.data &&
+    lastDurable.figure?.credit === figure?.credit &&
+    lastDurable.artwork?.model === artwork?.model;
+  const pending = initial ? undefined : writeId;
   let cached = false;
-  // A rendered cover can exceed the complete localStorage quota on its own.
-  // Small legacy drafts remain readable without opening IndexedDB.
-  if (
-    (paper.artwork?.data.length || 0) + (paper.figure?.data.length || 0) <
-    1_000_000
-  ) {
-    try {
-      // A reload can interrupt the IndexedDB write after the synchronous
-      // cache has succeeded. Mark that exact revision for replay on startup.
-      localStorage.setItem(
-        paperKey,
-        JSON.stringify(
-          initial ? paper : { ...paper, pendingLibraryWrite: writeId },
-        ),
-      );
-      cached = true;
-    } catch {}
-  }
+  try {
+    // Journal edits synchronously before the async transaction. Large drafts
+    // reuse durable image blobs instead of rewriting megabytes for a copy edit.
+    const snapshot =
+      large && unchangedImages
+        ? {
+            libraryId: paper.id,
+            pendingFields: initial ? undefined : fields,
+            pendingLibraryWrite: pending,
+          }
+        : { ...paper, pendingLibraryWrite: pending };
+    localStorage.setItem(paperKey, JSON.stringify(snapshot));
+    cached = true;
+  } catch {}
   try {
     await keepPaper(paper, initial);
   } catch {
     if (save !== latestSave) return;
     if (cached) throw Error("论文库暂不可用，本次草稿已保存在浏览器中。");
-    try {
-      localStorage.setItem(
-        paperKey,
-        JSON.stringify({ ...paper, pendingLibraryWrite: writeId }),
-      );
-    } catch {
-      throw Error("浏览器无法保存当前草稿，请下载宣传材料备份。");
-    }
-    throw Error("论文库暂不可用，本次草稿已保存在浏览器中。");
+    throw Error("浏览器无法保存当前草稿，请下载宣传材料备份。");
   }
   if (save !== latestSave) return;
-  if (cached && !initial) {
-    try {
-      const current = JSON.parse(localStorage.getItem(paperKey) || "null");
-      if (current?.pendingLibraryWrite === writeId)
-        localStorage.setItem(paperKey, JSON.stringify(paper));
-    } catch {
-      /* The committed snapshot can safely be replayed. */
+  try {
+    if (cached && !initial) {
+      // Another tab may already have made a different draft active.
+      const active = JSON.parse(localStorage.getItem(paperKey) || "null");
+      if (active?.pendingLibraryWrite !== writeId) return;
     }
-  } else if (!cached) {
-    try {
-      // Publish the pointer only once the whole paper is durable. Replacing the
-      // stale full copy prevents it from overwriting the new art on refresh.
+    if (large || !cached)
       localStorage.setItem(paperKey, JSON.stringify({ libraryId: paper.id }));
-    } catch {
-      throw Error("草稿已保存到论文库，可从「我的论文」重新打开。");
-    }
+    else if (!initial) localStorage.setItem(paperKey, JSON.stringify(paper));
+  } catch {
+    if (!cached) throw Error("草稿已保存到论文库，可从「我的论文」重新打开。");
   }
 }

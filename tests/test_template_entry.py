@@ -471,6 +471,49 @@ def test_paper_resumes_latest_library_copy_when_local_storage_is_full(studio):
     page.close()
 
 
+def test_large_paper_keeps_last_edit_and_figure_across_immediate_reload(studio):
+    import base64
+    from io import BytesIO
+
+    browser, url = studio
+    page = browser.new_page()
+    page.goto(url + "#papers")
+    page.wait_for_function("!!localStorage.getItem('posterlab.paper.v1')")
+    jpeg = BytesIO()
+    Image.effect_noise((1300, 1300), 92).convert("RGB").save(jpeg, format="JPEG", quality=90)
+    data = "data:image/jpeg;base64," + base64.b64encode(jpeg.getvalue()).decode()
+    assert 1_000_000 < len(data) < 2_400_000
+    page.evaluate("""async data => {
+      const source = JSON.parse(localStorage.getItem('posterlab.paper.v1'));
+      source.id = 'oversize-figure'; source.headline = '大稿恢复测试';
+      source.figure = {data, credit:'原图'};
+      const db = await new Promise((resolve, reject) => {
+        const r = indexedDB.open('posterlab-paper-library', 1);
+        r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+      });
+      const tx = db.transaction(['papers','index'], 'readwrite');
+      tx.objectStore('papers').put(source);
+      tx.objectStore('index').put({id:source.id,title:source.headline,saved:new Date().toISOString()});
+      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
+      db.close(); localStorage.setItem('posterlab.paper.v1', JSON.stringify({libraryId:source.id}));
+    }""", data)
+    page.reload()
+    expect(page.locator(".pr-userfig")).to_be_visible()
+    page.get_by_role("button", name="编辑", exact=True).click()
+    page.get_by_role("textbox", name="发布文案", exact=True).fill("大图稿的最后一次编辑")
+    page.get_by_role("button", name="保存文案").click()
+    page.reload()
+    expect(page.locator(".pub-copy")).to_contain_text("大图稿的最后一次编辑")
+    page.get_by_role("button", name="我的论文").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_role("button", name="M87 中心的亮环有多大？").click()
+    page.get_by_role("button", name="我的论文").click()
+    dialog.get_by_role("button", name="大稿恢复测试").click()
+    expect(page.locator(".pub-copy")).to_contain_text("大图稿的最后一次编辑")
+    assert page.locator(".pr-userfig").get_attribute("src") == data
+    page.close()
+
+
 def test_home_previews_show_files_from_downloaded_kits(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1440, "height": 960})

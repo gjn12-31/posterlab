@@ -17,7 +17,7 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { paperEntries, openPaper, resumePaper, savePaperDraft } from "./paper-library";
+import { paperEntries, openPaper, resumePaper, restoreLibraryDraft, savePaperDraft } from "./paper-library";
 import { writePaper } from "./outreach";
 import { generatePaperArtwork } from "./paper-artwork";
 import { extractSections } from "./paper-sections";
@@ -846,9 +846,9 @@ export default function PaperStudio() {
   useEffect(() => {
     if (!("libraryId" in resume)) return;
     let active = true;
-    openPaper(resume.libraryId)
+    restoreLibraryDraft(resume)
       .then((paper) => {
-        if (active) setResume({ paper });
+        if (active) setResume({ paper, pendingWrite: !!resume.pendingFields });
       })
       .catch(() => {
         if (active) setFailed(true);
