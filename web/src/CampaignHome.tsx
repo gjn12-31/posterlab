@@ -23,13 +23,14 @@ import {
   campaigns,
   chooseEdition,
   draftKey,
-  invitation,
   noticeFromBrief,
   parseNotice,
   readCampaign,
   changeNotice,
   type Draft,
 } from "./campaign-model";
+import CampaignReleasePlan from "./CampaignPlan";
+import { releasePlan } from "./campaign-plan";
 import { campaignTag } from "./campaign-design";
 import { makeCover } from "./cover";
 import { editions, type Edition } from "./editions";
@@ -39,6 +40,7 @@ import {
   labels,
   type Project,
   type Brief,
+  type CampaignPlan,
   type Format,
 } from "./model";
 import {
@@ -139,8 +141,12 @@ function campaignProject(
   edition: Edition,
   brief: Brief,
   concept?: Draft["concept"],
+  plan?: CampaignPlan,
+  workingId?: string,
 ) {
   const p = makeCover(edition, brief.title);
+  if (workingId) p.id = workingId;
+  p.current.campaignPlan = plan;
   p.current.layout = "campaign";
   p.current.campaignVersion = 2;
   p.current.displayTitle = concept?.tag || campaignTag(brief.title);
@@ -154,6 +160,7 @@ function campaignProject(
   return p;
 }
 export default function CampaignHome() {
+  const [planView, setPlanView] = useState(location.hash === "#campaign/plan");
   const [proofFormat, setProofFormat] = useState<Format | "all">("all");
 
   const [draft, setDraft] = useState<Draft>(readCampaign),
@@ -198,9 +205,13 @@ export default function CampaignHome() {
   }, []);
   const dirty = draft.raw.trim() !== draft.applied.trim();
   const [linked, setLinked] = useState<Project>();
-  const projectPending = !!draft.projectId && draft.projectId !== linked?.id;
+  const [requestedProject, setRequestedProject] = useState(() =>
+    new URLSearchParams(location.search).get("campaignProject"),
+  );
+  const activeId = requestedProject || draft.projectId;
+  const projectPending = !!activeId && activeId !== linked?.id;
   useEffect(() => {
-    const id = draft.projectId;
+    const id = activeId;
     if (!id) return;
     let current = true;
     async function restore() {
@@ -213,23 +224,32 @@ export default function CampaignHome() {
           edition = p.current.edition;
         setLinked(p);
         setDraft((d) => {
-          if (d.projectId !== id) return d;
-          if (
-            JSON.stringify(brief) === JSON.stringify(d.brief) &&
-            d.edition === edition
-          )
-            return d;
-          const applied = noticeFromBrief(brief);
+          const same = d.projectId === id;
+          const originalNotice =
+            same && JSON.stringify(d.brief) === JSON.stringify(brief);
+          const applied = originalNotice ? d.applied : noticeFromBrief(brief);
+          const copy = p.current.campaignCopy;
           return {
             ...d,
+            workingId: id!,
+            projectId: id!,
             brief,
             edition,
-            concept: p.current.campaignCopy ? d.concept : undefined,
+            plan: p.current.campaignPlan,
+            concept: copy
+              ? {
+                  ...copy,
+                  tag: p.current.displayTitle ?? campaignTag(brief.title),
+                  edition: same ? d.concept?.edition : edition,
+                }
+              : undefined,
             applied,
-            raw: d.raw === d.applied ? applied : d.raw,
-            previous: hasChanges(d.brief, brief)
-              ? schedule(d.brief)
-              : d.previous,
+            raw: same && d.raw !== d.applied ? d.raw : applied,
+            previous: same
+              ? hasChanges(d.brief, brief)
+                ? schedule(d.brief)
+                : d.previous
+              : undefined,
           };
         });
       } catch {
@@ -237,7 +257,18 @@ export default function CampaignHome() {
           setDraft((d) =>
             d.projectId === id ? { ...d, projectId: undefined } : d,
           );
-          setFeedback("已从本地通知恢复宣传套装。");
+          setFeedback(
+            requestedProject
+              ? "未找到该项目，已打开本地活动。"
+              : "已从本地通知恢复宣传套装。",
+          );
+        }
+      } finally {
+        if (current && requestedProject) {
+          const url = new URL(location.href);
+          url.searchParams.delete("campaignProject");
+          history.replaceState(history.state, "", url);
+          setRequestedProject(null);
         }
       }
     }
@@ -250,11 +281,25 @@ export default function CampaignHome() {
       current = false;
       window.removeEventListener("pageshow", shown);
     };
-  }, [draft.projectId]);
+  }, [activeId, requestedProject]);
   const project = useMemo(() => {
     if (linked && draft.projectId === linked.id) return linked;
-    return campaignProject(draft.edition, draft.brief, draft.concept);
-  }, [draft.edition, draft.brief, draft.concept, draft.projectId, linked]);
+    return campaignProject(
+      draft.edition,
+      draft.brief,
+      draft.concept,
+      draft.plan,
+      draft.workingId,
+    );
+  }, [
+    draft.edition,
+    draft.brief,
+    draft.concept,
+    draft.projectId,
+    draft.plan,
+    draft.workingId,
+    linked,
+  ]);
   const layouts = useMemo(
     () => ({
       portrait: renderPoster(project, "portrait"),
@@ -269,15 +314,24 @@ export default function CampaignHome() {
   const copy =
     copyTab === "update" && updateCopy
       ? updateCopy
-      : invitation(draft.brief, project.current.campaignCopy?.invitation);
+      : releasePlan(project)[0].copy;
   const allErrors = Object.values(layouts).flatMap((l) =>
     l.issues.filter((i) => i.level === "error"),
   );
   useEffect(() => {
     const title = document.title;
-    document.title = "PosterLab · 活动宣传制作台";
-    window.scrollTo(0, 0);
+    const navigate = () => {
+      const isPlan = location.hash === "#campaign/plan";
+      setPlanView(isPlan);
+      document.title = isPlan
+        ? "PosterLab · 活动发布计划"
+        : "PosterLab · 活动宣传制作台";
+      window.scrollTo(0, 0);
+    };
+    navigate();
+    window.addEventListener("hashchange", navigate);
     return () => {
+      window.removeEventListener("hashchange", navigate);
       document.title = title;
     };
   }, []);
@@ -331,7 +385,10 @@ export default function CampaignHome() {
         !edition && useModel && model
           ? await writeCampaign(brief, crypto.randomUUID())
           : undefined;
+      const continueDraft = !edition && brief.title === draft.brief.title;
       const next: Draft = {
+        workingId: continueDraft ? draft.workingId : crypto.randomUUID(),
+        plan: continueDraft ? project.current.campaignPlan : undefined,
         raw: text,
         applied: text,
         brief,
@@ -352,7 +409,13 @@ export default function CampaignHome() {
         } else {
           try {
             const saved = await saveCampaignProject(
-              campaignProject(next.edition, brief, next.concept),
+              campaignProject(
+                next.edition,
+                brief,
+                next.concept,
+                next.plan,
+                next.workingId,
+              ),
             );
             next.projectId = saved.id;
             setLinked(saved);
@@ -421,7 +484,11 @@ export default function CampaignHome() {
   }
   async function storeChanges(next: Draft) {
     if (linked && next.projectId === linked.id) {
-      const snap = { ...linked.current, brief: next.brief };
+      const snap = {
+        ...linked.current,
+        brief: next.brief,
+        campaignPlan: next.plan,
+      };
       if (next.concept) {
         snap.campaignCopy = {
           model: next.concept.model,
@@ -444,6 +511,32 @@ export default function CampaignHome() {
       setLinked(saved);
     }
     setDraft(next);
+  }
+  async function saveReleasePlan(plan: CampaignPlan) {
+    if (busyRef.current) return false;
+    busyRef.current = true;
+    setError("");
+    setBusy("plan");
+    try {
+      if (linked?.id === project.id) {
+        await storeChanges({ ...draft, plan });
+      } else {
+        const saved = await saveCampaignProject({
+          ...project,
+          current: { ...project.current, campaignPlan: plan },
+        });
+        setLinked(saved);
+        setDraft({ ...draft, plan, projectId: saved.id });
+      }
+      say("发布计划已保存");
+      return true;
+    } catch (e) {
+      setError((e as Error).message || "保存未完成，请重试。");
+      return false;
+    } finally {
+      busyRef.current = false;
+      setBusy("");
+    }
   }
   function saveFacts() {
     if (!editing.title.trim()) {
@@ -545,13 +638,12 @@ export default function CampaignHome() {
     }
   }
   const inactive = dirty || !!busy || projectPending;
-  return (
-    <div id="publicity-studio" className="campaign ds-workroom ds-campaign">
-      <CampaignNav active="home" />
+  function renderWorkspace() {
+    return (
       <main className="cp-shell">
         <header className="wx-campaign-title">
           <h1>活动宣传</h1>
-          <p>粘贴一条活动通知，制作三个画幅的海报与邀请文案。</p>
+          <p>从一条活动通知制作宣传海报，编排从预告到当天提醒的文案。</p>
         </header>
         <section className="cp-hero" aria-label="活动创作台">
           <div className="cp-intro">
@@ -884,10 +976,38 @@ export default function CampaignHome() {
                 )}
               </div>
               <textarea aria-label="发布文案" readOnly value={copy} />
+              <a className="release-link cp-textbutton" href="#campaign/plan">
+                打开活动发布计划 <ArrowRight size={15} />
+              </a>
             </div>
           </div>
         </section>
       </main>
+    );
+  }
+  return (
+    <div id="publicity-studio" className="campaign ds-workroom ds-campaign">
+      <CampaignNav active="home" />
+      {planView ? (
+        <CampaignReleasePlan
+          project={project}
+          layouts={layouts}
+          inactive={inactive}
+          name={name}
+          packDisabled={inactive || !!allErrors.length}
+          busy={busy}
+          dirty={dirty}
+          error={modal ? "" : error}
+          pack={pack}
+          png={png}
+          preview={preview}
+          schedule={() => openFacts("schedule")}
+          savePlan={saveReleasePlan}
+          notify={say}
+        />
+      ) : (
+        renderWorkspace()
+      )}
       <footer className="cp-footer cp-shell">
         <b>PosterLab</b>
         <span>活动宣传制作台</span>
@@ -913,7 +1033,7 @@ export default function CampaignHome() {
             {modal === "qr"
               ? "粘贴活动报名页的网址，保存后即可从宣传图扫码打开。清空网址会移除二维码。"
               : modal === "schedule"
-                ? "保存后，三张宣传图会一起更新，并生成一段可转发的改期通知。"
+                ? "保存后，海报、各阶段文案和建议发布日一起更新。"
                 : "标题、时间和地点用于宣传图。详细介绍保留在发布文案中。"}
           </p>
           <form
@@ -983,6 +1103,15 @@ export default function CampaignHome() {
             <Proof svg={layouts[selected].svg} />
           </div>
           <div className="cp-previewactions">
+            {!planView && (
+              <a
+                className="release-link cp-textbutton"
+                href="#campaign/plan"
+                onClick={() => setModal(null)}
+              >
+                发布计划 <ArrowRight size={14} />
+              </a>
+            )}
             <span>
               {formats[selected].width} × {formats[selected].height}
             </span>

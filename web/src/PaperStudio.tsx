@@ -3,7 +3,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
   type CSSProperties,
   type ClipboardEvent,
 } from "react";
@@ -24,12 +23,13 @@ import {
   ScanText,
   Sparkles,
   Upload,
-  X,
 } from "lucide-react";
 import { paperEntries, openPaper, keepPaper } from "./paper-library";
 import { ModelUnavailable, writePaper } from "./outreach";
 import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
+import Dialog from "./PaperDialog";
+import PaperStoryPanel from "./PaperStoryPanel";
 import { CampaignNav } from "./CampaignNav";
 import {
   channels,
@@ -78,41 +78,6 @@ function preserveLongPaste(
     event.preventDefault();
     update(pasted);
   }
-}
-function Dialog({
-  title,
-  close,
-  children,
-}: {
-  title: string;
-  close: () => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const d = ref.current!;
-    d.showModal();
-    return () => d.close();
-  }, []);
-  return (
-    <dialog
-      className="pr-dialog"
-      ref={ref}
-      onCancel={(e) => {
-        e.preventDefault();
-        close();
-      }}
-      aria-label={title}
-    >
-      <div className="pr-dialoghead">
-        <h2>{title}</h2>
-        <button aria-label="关闭" onClick={close}>
-          <X />
-        </button>
-      </div>
-      {children}
-    </dialog>
-  );
 }
 function Art({ paper, channel }: { paper: Paper; channel: Channel }) {
   const target = useRef<HTMLDivElement>(null);
@@ -1123,6 +1088,11 @@ export default function PaperStudio() {
             </div>
           </aside>
         </section>
+        <PaperStoryPanel
+          key={paper.id}
+          paper={paper}
+          apply={(story) => setPaper((current) => ({ ...current, story }))}
+        />
         <section className="pr-results" ref={result}>
           <div className="pr-resultshead">
             <div>

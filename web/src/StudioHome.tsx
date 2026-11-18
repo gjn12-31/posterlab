@@ -1,10 +1,22 @@
-import { useEffect, useRef } from "react";
-import { ArrowDown, ArrowUpRight, Layers3, Layers2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUpRight,
+  FolderOpen,
+  Layers3,
+  PanelsTopLeft,
+  SwatchBook,
+} from "lucide-react";
 import PublishedKits from "./PublishedKits";
+import StudioWorkbench from "./StudioWorkbench";
 import "./desktop.css";
 import "./showcase.css";
 
-const art = import.meta.env.BASE_URL + "showcase/";
+const sections = [
+  { id: "desk", label: "概览" },
+  { id: "workbench", label: "工作台" },
+  { id: "collection", label: "作品选集" },
+] as const;
 
 function Brand() {
   return (
@@ -15,72 +27,98 @@ function Brand() {
   );
 }
 
-const desks = [
-  {
-    name: "论文宣传",
-    action: "导入论文 PDF",
-    url: "#papers/import",
-    summary: "一篇论文，四个平台的文案与配图。",
-    theme: "research",
-    images: ["ponder-portrait", "ponder-wide"],
-  },
-  {
-    name: "活动宣传",
-    action: "制作活动海报",
-    url: "#campaign",
-    summary: "一条活动通知，三种画幅的海报。",
-    theme: "event",
-    images: ["bookfair-portrait", "bookfair-square"],
-  },
-] as const;
-
 export default function StudioHome() {
   const intro = useRef<HTMLElement>(null);
-  const desk = useRef<HTMLElement>(null);
+  const [active, setActive] = useState("desk");
+  const [compact, setCompact] = useState(false);
+  const [hidden, setHidden] = useState(false);
+
   useEffect(() => {
-    document.title = "PosterLab · 论文与活动宣传设计工作室";
-    const mast = intro.current!;
-    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    document.title = "PosterLab · 论文与活动宣传工作室";
+    const hero = intro.current!;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+    const targets = sections.map(({ id }) => document.getElementById(id)!);
     let frame = 0;
-    function paintScroll() {
+    let lastY = window.scrollY;
+    let highest = lastY;
+    let lowest = lastY;
+    function update() {
       frame = 0;
-      if (motion.matches) {
-        mast.style.removeProperty("--progress");
-        return;
-      }
-      const height = mast.offsetHeight || 1;
-      const progress = Math.min(
-        1,
-        Math.max(0, -mast.getBoundingClientRect().top / height),
+      const y = Math.max(0, window.scrollY);
+      const height = hero.offsetHeight || 1;
+      const progress = Math.min(1, y / height);
+      hero.style.setProperty(
+        "--scroll",
+        reduced.matches ? "0" : progress.toFixed(3),
       );
-      mast.style.setProperty("--progress", progress.toFixed(4));
+      setCompact(y > Math.min(500, height * 0.62));
+      if (reduced.matches || y < height + 180) setHidden(false);
+      else if (y > lastY && y - lowest > 70) setHidden(true);
+      else if (y < lastY && highest - y > 30) setHidden(false);
+      if (y > lastY) highest = y;
+      if (y < lastY) lowest = y;
+      lastY = y;
+      const current = targets
+        .filter((el) => el.getBoundingClientRect().top <= innerHeight * 0.36)
+        .at(-1);
+      setActive(current?.id || "desk");
     }
     function schedule() {
-      if (!frame) frame = requestAnimationFrame(paintScroll);
+      if (!frame) frame = requestAnimationFrame(update);
     }
-    // Hash routes mount lazily. Restore deep links once their target exists.
-    if (location.hash === "#workbench")
-      desk.current?.scrollIntoView({ behavior: "instant" });
-    else if (location.hash === "#collection")
-      document
-        .getElementById("collection")
-        ?.scrollIntoView({ behavior: "instant" });
-    else if (location.hash === "#desk")
-      window.scrollTo({ top: 0, behavior: "instant" });
-    paintScroll();
+    const destination = targets.find((el) => "#" + el.id === location.hash);
+    if (destination) destination.scrollIntoView({ behavior: "instant" });
+    update();
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
-    motion.addEventListener("change", schedule);
+    reduced.addEventListener("change", schedule);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", schedule);
       window.removeEventListener("resize", schedule);
-      motion.removeEventListener("change", schedule);
+      reduced.removeEventListener("change", schedule);
     };
   }, []);
 
   return (
     <div className="pl-home">
+      <header
+        className={
+          "pl-masthead" +
+          (compact ? " is-compact" : "") +
+          (hidden ? " is-hidden" : "")
+        }
+      >
+        <a
+          className="pl-corner-brand"
+          href="#desk"
+          aria-label="PosterLab 首页"
+          tabIndex={compact ? -1 : 0}
+        >
+          <Brand />
+        </a>
+        <nav className="pl-dock" aria-label="首页导航">
+          <span className="pl-dock-mark" aria-hidden="true">
+            <Layers3 size={23} />
+          </span>
+          {sections.map((s) => (
+            <a
+              key={s.id}
+              href={"#" + s.id}
+              aria-current={active === s.id ? "location" : undefined}
+            >
+              {s.label}
+            </a>
+          ))}
+        </nav>
+        <a
+          className="pl-personal"
+          href="?mode=templates#gallery"
+          tabIndex={compact ? -1 : 0}
+        >
+          <FolderOpen size={16} /> 我的作品
+        </a>
+      </header>
       <main>
         <section
           className="pl-intro"
@@ -88,102 +126,82 @@ export default function StudioHome() {
           ref={intro}
           aria-labelledby="pl-purpose"
         >
-          <header className="pl-masthead">
-            <Brand />
-            <a className="pl-mast-link" href="#collection">
-              作品选集 <ArrowUpRight size={15} />
-            </a>
-          </header>
-          <div className="pl-visual" aria-hidden="true">
-            <img
-              src={art + "ink-fold.webp"}
-              width="1536"
-              height="1024"
-              alt=""
-              fetchPriority="high"
-              draggable={false}
-            />
-          </div>
-          <div className="pl-intro-story">
-            <h1 id="pl-purpose">
-              <span>论文与活动的</span>
-              <span>宣传设计工作室</span>
-            </h1>
-            <p>把一篇论文或一份活动通知，做成可以编辑的文案与海报。</p>
-          </div>
-          <a className="pl-down" href="#workbench">
-            <span>
-              <ArrowDown aria-hidden="true" />
-            </span>{" "}
-            下滑进入工作台
-          </a>
-        </section>
-
-        <section
-          className="pl-work pl-shell"
-          id="workbench"
-          ref={desk}
-          aria-labelledby="pl-work-heading"
-          tabIndex={-1}
-        >
-          <div className="pl-heading">
-            <h2 id="pl-work-heading">工作台</h2>
-            <nav aria-label="创作导航">
-              <a href="#studio">
-                <Layers2 size={16} /> 海报设计室 <ArrowUpRight />
-              </a>
-              <a href="#create">
-                设计样张 <ArrowUpRight />
-              </a>
-              <a href="?mode=templates#gallery">
-                我的作品 <ArrowUpRight />
-              </a>
-            </nav>
-          </div>
-          <div className="pl-desks">
-            {desks.map(({ name, action, url, summary, theme, images }) => (
-              <a
-                key={theme}
-                className={"pl-desk pl-" + theme}
-                href={url}
-                aria-label={action}
-              >
-                <div className="pl-stage" aria-hidden="true">
-                  <img
-                    className="pl-back"
-                    src={art + images[1] + ".webp"}
-                    alt=""
-                    loading="lazy"
-                  />
-                  <img
-                    className="pl-front"
-                    src={art + images[0] + ".webp"}
-                    alt=""
-                    loading="lazy"
-                  />
-                </div>
-                <div className="pl-desk-info">
-                  <div>
-                    <h3>{name}</h3>
-                    <p>{summary}</p>
-                  </div>
-                  <span className="pl-open">
-                    {action} <ArrowUpRight aria-hidden="true" />
-                  </span>
-                </div>
-              </a>
-            ))}
+          <div className="pl-intro-shell pl-shell">
+            <div className="pl-intro-story">
+              <h1 id="pl-purpose">
+                <span lang="en">PosterLab</span>
+                <strong>论文与活动宣传工作室</strong>
+              </h1>
+              <p>从一篇论文到图解长帖，从一场活动到整套宣传计划。</p>
+              <div className="pl-hero-actions">
+                <a className="pl-down" href="#workbench">
+                  探索工作台 <ArrowDown size={17} />
+                </a>
+                <a href="#collection">
+                  看成品 <ArrowUpRight size={17} />
+                </a>
+              </div>
+            </div>
+            <div
+              className="pl-visual"
+              aria-hidden="true"
+              onPointerMove={(event) => {
+                if (
+                  event.pointerType !== "mouse" ||
+                  matchMedia("(prefers-reduced-motion: reduce)").matches
+                )
+                  return;
+                const node = event.currentTarget,
+                  rect = node.getBoundingClientRect();
+                node.style.setProperty(
+                  "--tilt-x",
+                  ((event.clientX - rect.left) / rect.width - 0.5).toFixed(2),
+                );
+                node.style.setProperty(
+                  "--tilt-y",
+                  ((event.clientY - rect.top) / rect.height - 0.5).toFixed(2),
+                );
+              }}
+              onPointerLeave={(event) => {
+                event.currentTarget.style.removeProperty("--tilt-x");
+                event.currentTarget.style.removeProperty("--tilt-y");
+              }}
+            >
+              <img
+                src={import.meta.env.BASE_URL + "showcase/print-prism.webp"}
+                width="1060"
+                height="1060"
+                fetchPriority="high"
+                alt=""
+                draggable={false}
+              />
+            </div>
           </div>
         </section>
+        <StudioWorkbench />
         <PublishedKits />
       </main>
       <footer className="pl-footer pl-shell">
         <a href="#desk" aria-label="回到首页">
           <Brand />
         </a>
-        <a href="#exhibitions">
-          浏览灵感档案 <ArrowUpRight />
-        </a>
+        <nav aria-label="更多设计工具">
+          <a href="#studio">
+            <PanelsTopLeft size={16} />
+            海报设计室
+          </a>
+          <a href="#create">
+            <SwatchBook size={16} />
+            设计样张
+          </a>
+          <a href="?mode=templates#gallery">
+            <FolderOpen size={16} />
+            我的作品
+          </a>
+          <a href="#exhibitions">
+            灵感档案 <ArrowUpRight size={15} />
+          </a>
+        </nav>
       </footer>
     </div>
   );

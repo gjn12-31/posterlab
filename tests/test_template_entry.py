@@ -1,5 +1,6 @@
 """Exercise the finished poster, direct manipulation, and export in a browser."""
 import json
+import re
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -141,7 +142,7 @@ def test_curated_detail_saved_crop_and_offline_folio(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
     page.goto(url)
-    page.get_by_role("link", name="浏览灵感档案").tap()
+    page.get_by_role("link", name="灵感档案").tap()
     page.get_by_role("button", name="放大观察富士山").tap()
     lightbox = page.get_by_role("dialog")
     expect(lightbox.locator("output")).to_have_text("300%")
@@ -225,6 +226,10 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
         assert snap["brief"]["venue"] == "南山植物园" and snap["layout"] == "campaign"
         assert "https://example.org/walk" in archive.read("发布文案.txt").decode()
         assert "望山公园 → 南山植物园" in archive.read("改期通知.txt").decode()
+        calendar = archive.read("发布计划/发布日历.ics").decode()
+        assert calendar.count("BEGIN:VEVENT") == 3
+        assert all("DTSTART;VALUE=DATE:" + day in calendar for day in ["20261129", "20261205", "20261206"])
+        assert "带上速写本" in archive.read("发布计划/2-行前提醒.txt").decode()
         sizes = []
         for name in archive.namelist():
             if name.endswith(".png"):
@@ -232,7 +237,20 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
                     sizes.append(image.size)
                     assert len(image.convert("RGB").resize((80, 80)).getcolors(6400)) > 200
         assert sorted(sizes) == [(1080, 1080), (1080, 1440), (1920, 1080)]
+    page.get_by_role("link", name="打开活动发布计划").click()
+    stages = page.get_by_role("group", name="发布阶段")
+    stages.get_by_role("button", name="行前提醒", exact=False).click()
+    page.get_by_role("button", name="编辑此阶段").click()
+    page.get_by_label("开场文案").fill("请把南山植物园的位置存进地图。")
+    page.get_by_label("配图", exact=True).select_option("landscape")
+    page.get_by_role("button", name="保存此阶段").click()
+    expect(page.get_by_label("发布文案")).to_have_value(re.compile("存进地图"))
     page.reload()
+    stages.get_by_role("button", name="行前提醒", exact=False).click()
+    expect(page.get_by_label("发布文案")).to_have_value(re.compile("存进地图"))
+    page.get_by_role("button", name="复制文案").click()
+    assert page.evaluate("navigator.clipboard.readText()") == page.get_by_label("发布文案").input_value()
+    page.get_by_role("link", name="活动制作台", exact=True).click()
     expect(page.get_by_role("heading", name="山野植物观察日")).to_be_visible()
     page.get_by_role("button", name="编辑画布").nth(1).click()
     art = page.locator(".cs-art")
@@ -310,12 +328,55 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     page.close()
 
 
+def test_paper_story_reorders_exports_and_restores_each_paper(studio):
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.route("**/api/status", lambda route: route.fulfill(json={"ai": False}))
+    page.goto(url + "#papers/story")
+    dialog = page.get_by_role("dialog", name="编排论文图解长帖")
+    dialog.get_by_role("button", name="03 发现").click()
+    dialog.get_by_label("卡片标题").fill("亮环角直径有多大？")
+    dialog.get_by_role("button", name="前移一页").click()
+    expect(dialog.get_by_role("heading", name="第 2 张 · 发现")).to_be_visible()
+    with page.expect_download() as dl:
+        dialog.get_by_role("button", name="下载图组 ZIP").click()
+    with ZipFile(dl.value.path()) as z:
+        pages = [name for name in z.namelist() if name.endswith(".png")]
+        assert pages == ["01-封面.png", "02-发现.png", "03-方法.png", "04-解读.png"]
+        for name in pages:
+            with Image.open(z.open(name)) as art:
+                assert art.format == "PNG" and art.size == (1080, 1440)
+        assert "02 / 亮环角直径有多大？" in z.read("发布文案.txt").decode()
+        sources = z.read("逐卡引文.txt").decode()
+        assert sources.index("diameter of 42 ± 3") < sources.index("a wavelength of 1.3")
+    dialog.get_by_role("button", name="关闭").click()
+    page.get_by_role("button", name="粘贴摘要").click()
+    intake = page.get_by_role("dialog", name="导入论文")
+    intake.get_by_label("论文标题").fill("Urban paths")
+    sentence = "The paths were observed during summer afternoons."
+    intake.get_by_label("摘要或论文原文").fill(sentence)
+    intake.get_by_role("button", name="生成四套本地摘录稿").click()
+    page.get_by_role("button", name="编辑第 2 张摘录卡").click()
+    expect(dialog.get_by_label("卡片解读")).to_have_value(sentence)
+    dialog.get_by_label("卡片标题").fill("夏日下午的观察")
+    dialog.get_by_role("button", name="关闭").click()
+    page.reload()
+    page.get_by_role("button", name="编辑第 2 张摘录卡").click()
+    expect(dialog.get_by_label("卡片标题")).to_have_value("夏日下午的观察")
+    dialog.get_by_role("button", name="关闭").click()
+    page.get_by_role("button", name="我的论文").click()
+    page.get_by_role("button", name="黑洞的阴影，是怎样拍到的？").click()
+    page.get_by_role("button", name="编辑第 2 张发现卡").click()
+    expect(dialog.get_by_label("卡片标题")).to_have_value("亮环角直径有多大？")
+    page.close()
+
+
 def test_home_previews_show_files_from_downloaded_kits(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     page.goto(url)
-    intro = page.get_by_role("region", name="论文与活动的",exact=False)
-    expect(intro.get_by_role("heading", level=1)).to_contain_text("宣传设计工作室")
+    intro = page.locator("section#desk")
+    expect(intro.get_by_role("heading", level=1)).to_contain_text("论文与活动宣传工作室")
     expect(intro.get_by_role("link",name="导入论文 PDF")).to_have_count(0)
     paper = page.get_by_role("link", name="导入论文 PDF")
     expect(paper).not_to_be_in_viewport()
@@ -327,6 +388,26 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     page.goto(url+"#workbench")
     page.reload()
     expect(page.get_by_role("heading",name="工作台",exact=True)).to_be_in_viewport()
+    research = page.get_by_role("button", name="论文宣传", exact=True)
+    research.click()
+    research.focus()
+    for _ in range(5):
+        page.keyboard.press("Tab")
+    expect(page.get_by_role("button", name="下一张论文图解")).to_be_visible()
+    page.get_by_role("button", name="下一张论文图解").click()
+    expect(page.locator(".pl-sample-controls")).to_contain_text("02")
+    page.get_by_role("button", name="活动宣传", exact=True).click()
+    page.get_by_role("button", name="当天", exact=True).click()
+    expect(page.locator(".pl-plan-page")).to_contain_text("10.24")
+    with page.expect_download() as calendar:
+        page.get_by_role("link", name="下载示例日历").click()
+    assert calendar.value.path().read_bytes().count(b"BEGIN:VEVENT") == 3
+    research.click()
+    expect(page.locator(".pl-sample-controls")).to_contain_text("02")
+    with page.expect_download() as story:
+        page.get_by_role("link", name="下载图组").click()
+    with ZipFile(story.value.path()) as z:
+        assert len([name for name in z.namelist() if name.endswith(".png")]) == 4
     for case_name, title, channel, filename in [
         ("秋夜设计书展", "秋夜设计书展", "社交方图", "发布文案.txt"),
         ("PonderLM", "把思考藏进一次预测里", "小红书", "小红书/发布文案.txt"),

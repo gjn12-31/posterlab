@@ -1,3 +1,4 @@
+import { releaseCalendar, releasePlan } from "./campaign-plan";
 import { invitation } from "./campaign-model";
 import { renderCover } from "./cover";
 import { escapeXml, wrap } from "./poster-text";
@@ -402,10 +403,31 @@ export async function exportPack(
   }
   if (updateCopy) zip.file("改期通知.txt", updateCopy);
   zip.file("project.posterlab.json", JSON.stringify(p, null, 2));
-  zip.file(
-    "发布文案.txt",
-    invitation(p.current.brief, p.current.campaignCopy?.invitation),
-  );
+  if (p.current.layout === "campaign") {
+    const entries = releasePlan(p);
+    const schedule = entries.map((entry, index) => {
+      const filename = `${index + 1}-${entry.name}.txt`;
+      zip.file("发布计划/" + filename, entry.copy);
+      return [
+        entry.name,
+        "建议发布：" + [entry.date, entry.relative].filter(Boolean).join(" · "),
+        "配图：" + formats[entry.format].name + ".png",
+        "文案：" + filename,
+      ].join("\n");
+    });
+    zip.file(
+      "发布计划/发布清单.txt",
+      [p.current.brief.title, ...schedule].join("\n\n"),
+    );
+    const calendar = releaseCalendar(p, entries);
+    if (calendar) zip.file("发布计划/发布日历.ics", calendar);
+    zip.file("发布文案.txt", entries[0].copy);
+  } else {
+    zip.file(
+      "发布文案.txt",
+      invitation(p.current.brief, p.current.campaignCopy?.invitation),
+    );
+  }
   zip.file(
     "使用说明.txt",
     "此包包含三种尺寸海报、可重新导入的项目与发布文案。活动信息由创作者提供，请在发布前确认。图片和字体请遵守各自许可。",

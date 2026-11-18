@@ -3,3 +3,5 @@ data/sources/** -text
 resources/fonts/*.otf -text
 *.png -text
 *.jpg -text
+# RFC 5545 calendars require CRLF line endings.
+*.ics -text whitespace=cr-at-eol

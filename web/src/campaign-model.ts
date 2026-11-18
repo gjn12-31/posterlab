@@ -1,4 +1,9 @@
-import { briefSchema, type Brief } from "./model";
+import {
+  briefSchema,
+  campaignPlanSchema,
+  type Brief,
+  type CampaignPlan,
+} from "./model";
 import { isEdition, type Edition } from "./editions";
 
 export const campaigns = [
@@ -121,6 +126,15 @@ export function parseNotice(raw: string): Brief {
       free = free.replace(b.url, "");
     }
   }
+  // A booking window belongs in the description. Its date is not the event date.
+  const bookingNotes: string[] = [];
+  free = free.replace(
+    /(?:^|(?<=[\n，,。；;！!]))[ \t]*(?:(?:报名|预约|售票|购票)(?:截止|截至|时间|日期|开启|开始|结束|开放)|截止报名)[^\n，,。；;！!]*/gm,
+    (match) => {
+      bookingNotes.push(trim(match));
+      return "";
+    },
+  );
   const timeText = [b.date, b.time, free].filter(Boolean).join(" ");
   const dateMatch = timeText.match(datePattern)?.[0] ?? "";
   const relative =
@@ -188,7 +202,11 @@ export function parseNotice(raw: string): Brief {
     )
     .replace(/^(?:我们)?(?:将于|将)(?=[\s，,。；;！!]|$)/, "");
   if (!b.title) throw Error("请把活动名称写在第一行，再生成宣传图。");
-  b.description = [b.description, ...free.split(/\n+/).map(trim)]
+  b.description = [
+    b.description,
+    ...free.split(/\n+/).map(trim),
+    ...bookingNotes,
+  ]
     .filter(Boolean)
     .join("\n");
   const parsed = briefSchema.safeParse(b);
@@ -231,6 +249,8 @@ export function invitation(b: Brief, lead?: string) {
 }
 type Schedule = Pick<Brief, "date" | "time" | "venue">;
 export type Draft = {
+  workingId: string;
+  plan?: CampaignPlan;
   concept?: {
     edition?: Edition;
     invitation: string;
@@ -270,11 +290,19 @@ export function readCampaign(): Draft {
         )
       )
         delete s.concept;
+      if (
+        typeof s.workingId !== "string" ||
+        !/^[a-zA-Z0-9-]{1,100}$/.test(s.workingId)
+      )
+        s.workingId = s.projectId || crypto.randomUUID();
+      const plan = campaignPlanSchema.safeParse(s.plan);
+      s.plan = plan.success ? plan.data : undefined;
       return s;
     }
   } catch {}
   const sample = campaigns[0];
   return {
+    workingId: crypto.randomUUID(),
     raw: sample.notice,
     applied: sample.notice,
     edition: sample.edition,

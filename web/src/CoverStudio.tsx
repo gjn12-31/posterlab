@@ -299,7 +299,13 @@ export default function CoverStudio(p: Props) {
       <header className="cs-top">
         <a
           className="cs-wordmark"
-          href={import.meta.env.BASE_URL + "#campaign"}
+          href={
+            import.meta.env.BASE_URL +
+            (s.layout === "campaign"
+              ? "?campaignProject=" + encodeURIComponent(p.project.id)
+              : "") +
+            "#campaign"
+          }
           title="返回宣传制作台"
         >
           <Asterisk /> PosterLab

@@ -1,5 +1,6 @@
 import twitterText from "twitter-text";
 import { z } from "zod";
+import { storySchema } from "./paper-story-model";
 
 export const platforms = {
   x: { name: "X", type: "短帖串", width: 1600, height: 900, ratio: "16:9" },
@@ -74,6 +75,7 @@ export const paperSchema = z.object({
     )
     .min(1)
     .max(5),
+  story: storySchema.optional(),
   edits: z.partialRecord(
     z.enum(["x", "red", "moments", "wechat"]),
     z.string().max(18000),

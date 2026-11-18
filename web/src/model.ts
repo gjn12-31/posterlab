@@ -124,6 +124,21 @@ export const brandSchema = z.object({
 });
 export type Brand = z.infer<typeof brandSchema>;
 const id = z.string().min(1).max(100);
+export const releaseStages = ["announce", "prepare", "arrive"] as const;
+export type ReleaseStage = (typeof releaseStages)[number];
+export const campaignPlanSchema = z.object({
+  announceDays: z.number().int().min(0).max(365).optional(),
+  stages: z
+    .partialRecord(
+      z.enum(releaseStages),
+      z.object({
+        intro: z.string().max(6000).optional(),
+        format: z.enum(["portrait", "square", "landscape"]).optional(),
+      }),
+    )
+    .optional(),
+});
+export type CampaignPlan = z.infer<typeof campaignPlanSchema>;
 export const snapshotSchema = z.object({
   id,
   created: z.string(),
@@ -134,6 +149,7 @@ export const snapshotSchema = z.object({
   composition: z.literal("cover").optional(),
   layout: z.literal("campaign").optional(),
   campaignVersion: z.literal(2).optional(),
+  campaignPlan: campaignPlanSchema.optional(),
   campaignCopy: z
     .object({
       invitation: z.string().max(900),

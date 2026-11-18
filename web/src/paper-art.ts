@@ -1,3 +1,5 @@
+import { samplePaperImage } from "./paper-image";
+import { addStoryToZip } from "./paper-story-art";
 import { loadFonts } from "./render";
 import {
   channels,
@@ -8,19 +10,6 @@ import {
   type Channel,
   type Paper,
 } from "./paper-model";
-let photo: Promise<HTMLImageElement> | undefined;
-async function image() {
-  photo ??= (async () => {
-    const img = new Image();
-    img.src = import.meta.env.BASE_URL + "papers/m87.jpg";
-    await img.decode();
-    return img;
-  })().catch((e) => {
-    photo = undefined;
-    throw e;
-  });
-  return photo;
-}
 const paperFont = 'PosterCommon, PosterSans, "PingFang SC", sans-serif';
 function rows(ctx: CanvasRenderingContext2D, text: string, w: number) {
   const out: string[] = [];
@@ -163,7 +152,7 @@ export async function drawPaper(p: Paper, c: Channel) {
       img.height * scale,
     );
   } else if (warm) {
-    const img = await image();
+    const img = await samplePaperImage();
     const size = wide ? h * 1.27 : w * 0.84,
       cx = wide ? w * 0.77 : w * 0.5,
       cy = wide ? h * 0.5 : h * 0.32;
@@ -276,5 +265,6 @@ export async function paperPack(p: Paper) {
     zip.file(folder + "发布文案.txt", channelCopy(p, c));
   }
   zip.file("原文与引文.txt", evidenceText(p));
+  await addStoryToZip(zip.folder("论文图解长帖")!, p);
   return zip.generateAsync({ type: "blob" });
 }

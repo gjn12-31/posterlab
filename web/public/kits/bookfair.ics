@@ -1,0 +1,39 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//PosterLab//Campaign Plan//ZH
+CALSCALE:GREGORIAN
+BEGIN:VEVENT
+UID:a2342fe3-cedd-42c3-bb6c-f6250b16c307.announce@posterlab.local
+DTSTAMP:20261118T185524Z
+DTSTART;VALUE=DATE:20261017
+DTEND;VALUE=DATE:20261018
+SUMMARY:发布活动预告｜秋夜设计书展
+DESCRIPTION:配图：竖版海报.png\n\n秋夜设计书展\n秋夜翻阅
+ 独立设计刊物，比较不同纸张的纹理，近看裸脊线装与
+ 锁线胶装的样本。欢迎现场翻阅。\n2026-10-24 18:00–21:00\n
+ 地点：纸间书房 · 二层展厅
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:a2342fe3-cedd-42c3-bb6c-f6250b16c307.prepare@posterlab.local
+DTSTAMP:20261118T185524Z
+DTSTART;VALUE=DATE:20261023
+DTEND;VALUE=DATE:20261024
+SUMMARY:发布行前提醒｜秋夜设计书展
+DESCRIPTION:配图：社交方图.png\n\n明日提醒｜秋夜设计书展\
+ n请先查好前往活动地点的路线，把海报留在手边。\n时
+ 间：2026-10-24 18:00–21:00\n地点：纸间书房 · 二层展厅
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:a2342fe3-cedd-42c3-bb6c-f6250b16c307.arrive@posterlab.local
+DTSTAMP:20261118T185524Z
+DTSTART;VALUE=DATE:20261024
+DTEND;VALUE=DATE:20261025
+SUMMARY:发布当天到场｜秋夜设计书展
+DESCRIPTION:配图：社交方图.png\n\n今日活动｜秋夜设计书展\
+ n地点：纸间书房 · 二层展厅\n时间：2026-10-24 18:00–21:00\
+ n欢迎现场翻阅
+TRANSP:TRANSPARENT
+END:VEVENT
+END:VCALENDAR

@@ -10,11 +10,13 @@ const Assistant = lazy(() => import("./Generator"));
 function renderer() {
   if (new URLSearchParams(location.search).get("mode") === "templates")
     return "editor";
-  if (["#papers", "#papers/import"].includes(location.hash)) return "papers";
+  if (["#papers", "#papers/import", "#papers/story"].includes(location.hash))
+    return "papers";
   if (location.hash === "#studio") return "ai";
   if (location.hash === "#create") return "templates";
   if (
     location.hash === "#campaign" ||
+    location.hash === "#campaign/plan" ||
     location.hash === "#home" ||
     (!location.hash &&
       new URLSearchParams(location.search).get("view") === "campaign")
