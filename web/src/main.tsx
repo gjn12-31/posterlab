@@ -28,6 +28,7 @@ function renderer() {
     return "campaign";
   if (
     !location.hash ||
+    location.hash.startsWith("#collection/") ||
     ["#desk", "#workbench", "#collection"].includes(location.hash)
   )
     return "desk";

@@ -1,24 +1,35 @@
 /* A source, a live proof, and a deliverable share the same visual hierarchy. */
 #publicity-studio {
-  --wx-ink: #202233;
-  --wx-muted: #606477;
-  --wx-blue: #3543bb;
-  --wx-line: #dcdde5;
-  --wx-page: #f7f7fa;
-  background: var(--wx-page);
-  color: var(--wx-ink);
+  --wx-ink: #222039;
+  --wx-muted: #59576f;
+  --wx-blue: #5740b7;
+  --wx-line: #d9d7e8;
+  --wx-shell-ink: #f3f2fc;
+  --wx-shell-muted: #c3c2d8;
+  --wx-shell-line: #45445f;
+  --wx-panel: #1b1b30;
+  --wx-panel-raised: #29283d;
+  --wx-lilac: #c4b5fd;
+  --wx-cta: linear-gradient(116deg, #5146bc, #6c43b3);
+  background:
+    radial-gradient(ellipse 78% 500px at 58% 0, #242d50 0%, transparent 78%),
+    radial-gradient(ellipse 50% 650px at 7% 24%, #292143 0%, transparent 79%),
+    #0d0e1b;
+  color: var(--wx-shell-ink);
+  min-height: 100vh;
 }
 #publicity-studio .cp-shell {
   width: min(1512px, 90%);
 }
 #publicity-studio :is(a, button, textarea, select, input):focus-visible {
-  outline-color: var(--wx-blue);
+  outline: 3px solid #9682f7;
+  outline-offset: 3px;
 }
 #publicity-studio .wx-campaign-title,
 #publicity-studio.pr-page .pr-hero {
   margin: 0;
   background: transparent;
-  color: var(--wx-ink);
+  color: var(--wx-shell-ink);
   border-radius: 0;
   padding: clamp(32px, 4vw, 64px) 0 clamp(23px, 2.5vw, 45px);
 }
@@ -36,17 +47,28 @@
 }
 #publicity-studio.pr-page .pr-hero h1,
 #publicity-studio .wx-campaign-title h1 {
-  font: 660 clamp(38px, 3.8vw, 64px)/1.11 var(--studio-type);
+  font: 760 clamp(42px, 4.1vw, 68px)/1.1 var(--studio-type);
   letter-spacing: -0.072em;
   margin: 0;
-  color: var(--wx-ink);
+  width: fit-content;
+  color: #f1efff;
+}
+@supports (background-clip: text) {
+  #publicity-studio.pr-page .pr-hero h1,
+  #publicity-studio .wx-campaign-title h1,
+  #publicity-studio .release-page .release-heading h1 {
+    width: fit-content;
+    background: linear-gradient(120deg, #fff 4%, #e2e1ff 48%, #b9adff 92%);
+    background-clip: text;
+    color: transparent;
+  }
 }
 #publicity-studio .wx-campaign-title p,
 #publicity-studio .pr-hero-copy p {
   max-width: 650px;
   font-size: 15px;
   line-height: 1.65;
-  color: var(--wx-muted);
+  color: var(--wx-shell-muted);
   margin: 13px 0 0;
 }
 #publicity-studio .pr-actions {
@@ -57,23 +79,29 @@
 #publicity-studio :is(.cp-primary, .pr-import):enabled:hover,
 #publicity-studio .pr-dialog .pr-action {
   color: white;
-  background: var(--wx-blue);
-  border: 1px solid var(--wx-blue);
-  border-radius: 9px;
+  background: var(--wx-cta);
+  border: 1px solid #8871de;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 #ffffff18,
+    0 4px 14px #2c166d22;
 }
 #publicity-studio .pr-hero .pr-paste {
-  background: white;
-  color: var(--wx-ink);
-  border-color: var(--wx-line);
-  border-radius: 9px;
+  background: #ffffff0a;
+  color: var(--wx-shell-ink);
+  border: 1px solid var(--wx-shell-line);
+  border-radius: 10px;
 }
 #publicity-studio .wx-paper-source {
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 18px;
-  border-left: 1px solid var(--wx-line);
-  padding: 10px 0 10px clamp(18px, 3vw, 56px);
+  padding: 15px clamp(14px, 1.9vw, 30px);
+  border: 1px solid #a29bce3c;
+  border-radius: 17px;
+  background: linear-gradient(120deg, #9290c518, #8686a40c);
+  box-shadow: inset 0 1px 0 #ffffff08;
 }
 .wx-paper-source > div:last-child {
   min-width: 0;
@@ -83,8 +111,8 @@
 #publicity-studio .wx-source-image {
   display: grid;
   place-items: center;
-  width: 90px;
-  height: 108px;
+  width: 77px;
+  height: 93px;
   flex: none;
   background: linear-gradient(145deg, #e7e9ff, #c3c7f2);
   color: var(--wx-blue);
@@ -101,14 +129,14 @@
 }
 .wx-paper-source :is(span, small, a) {
   font-size: 12px;
-  color: var(--wx-muted);
+  color: var(--wx-shell-muted);
 }
 .wx-paper-source a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   width: fit-content;
-  border-bottom: 1px solid #bdc0cc;
+  border-bottom: 1px solid #9b92b77d;
 }
 .wx-paper-source strong {
   font-size: clamp(16px, 1.27vw, 22px);
@@ -121,7 +149,7 @@
 }
 #publicity-studio .pr-results,
 #publicity-studio .cp-delivery {
-  border-top: 1px solid var(--wx-line);
+  border-top: 1px solid var(--wx-shell-line);
   padding-top: clamp(22px, 2.6vw, 42px);
   padding-bottom: 40px;
 }
@@ -133,7 +161,7 @@
 }
 #publicity-studio .pr-results .pr-eyebrow,
 #publicity-studio .cp-delivery .cp-kicker {
-  color: var(--wx-muted);
+  color: var(--wx-shell-muted);
   letter-spacing: 0;
   font-size: 12px;
 }
@@ -141,19 +169,20 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #7481ed;
+  background: #b09aff;
 }
 #publicity-studio :is(.pr-resultshead h2, .cp-sectionhead h2) {
   margin: 5px 0 0;
   font-size: clamp(23px, 2.3vw, 39px);
   line-height: 1.26;
-  color: var(--wx-ink);
+  color: var(--wx-shell-ink);
 }
 #publicity-studio .pr-action,
 #publicity-studio .cp-dark {
-  background: #24273c;
+  background: var(--wx-cta);
   color: white;
-  border-radius: 8px;
+  border: 1px solid #8871de;
+  border-radius: 10px;
 }
 #publicity-studio .pr-tabs {
   display: flex;
@@ -195,12 +224,15 @@
   :is(.pr-vis, .pr-writing, .pr-source, .cp-files, .cp-message) {
   border-color: var(--wx-line);
   border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 4px 18px #34385806;
+  background: #fcfbff;
+  color: var(--wx-ink);
+  box-shadow: 0 8px 22px #0806191a;
 }
 #publicity-studio .pr-source {
   margin-top: 16px;
-  background: #f0f1f6;
+  border: 1px solid #48435d;
+  background: var(--wx-panel);
+  color: var(--wx-shell-ink);
 }
 #publicity-studio .pr-mat {
   background-color: #e5e7f0 !important;
@@ -227,20 +259,20 @@
 }
 #publicity-studio .pr-dialog,
 #publicity-studio .cp-dialog {
-  background: #fff;
-  border: 1px solid #e0e2ed;
+  background: linear-gradient(180deg, #f4f0ff 0, #fdfcff 105px, #fff 100%);
+  border: 1px solid #c8bfeb;
   border-radius: 16px;
   color: var(--wx-ink);
-  box-shadow: 0 20px 110px #1f244239;
+  box-shadow: 0 25px 110px #07040d64;
 }
 #publicity-studio :is(.pr-dialog, .cp-dialog)::backdrop {
-  background: #1c20398f;
-  backdrop-filter: blur(5px);
+  background: #070916ba;
+  backdrop-filter: blur(7px);
 }
 #publicity-studio .pr-dialog .wx-attachment {
-  border: 1.5px dashed #aeb5df;
+  border: 1.5px dashed #9f91d6;
   border-radius: 12px;
-  background: #f3f4fc;
+  background: #f2effc;
   color: var(--wx-ink);
   padding: 24px 18px;
   min-height: 122px;
@@ -248,7 +280,7 @@
 #publicity-studio .pr-dialog .wx-attachment:hover,
 #publicity-studio .pr-dialog .wx-attachment.drag {
   border-color: var(--wx-blue);
-  background: #e9ecff;
+  background: #ebe5fc;
 }
 .wx-attachment .wx-drop-icon,
 .wx-attachment .wx-file-icon {
@@ -310,7 +342,7 @@
 }
 #publicity-studio .cp-hero {
   background: none;
-  color: var(--wx-ink);
+  color: var(--wx-shell-ink);
   margin: 0 0 clamp(26px, 3.4vw, 52px);
   padding: 0;
   display: grid;
@@ -321,8 +353,8 @@
 #publicity-studio .cp-intro {
   padding: 0;
   border: 1px solid var(--wx-line);
-  border-radius: 14px;
-  background: #fff;
+  border-radius: 18px;
+  background: #fdfcff;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -397,16 +429,21 @@
 }
 #publicity-studio .cp-samples button[aria-pressed="true"] {
   border-color: #a7b1df;
-  background: #e9ecff;
+  background: #ebe5fc;
   color: #29399b;
 }
 #publicity-studio .cp-board {
-  border: 1px solid #c4c9de;
-  box-shadow: none;
-  border-radius: 14px;
+  border: 1px solid #625981;
+  box-shadow:
+    inset 0 1px 0 #efdcff18,
+    0 12px 32px #08081842;
+  border-radius: 18px;
   aspect-ratio: 1.63;
-  color: #31364b;
-  background: radial-gradient(ellipse at 24% 18%, #edf0fc, #c8cde2 84%);
+  color: var(--wx-shell-ink);
+  background:
+    radial-gradient(ellipse at 12% 18%, #493655 0, transparent 52%),
+    radial-gradient(ellipse at 90% 45%, #334761 0, transparent 60%),
+    linear-gradient(145deg, #29263f, #141626);
 }
 #publicity-studio .cp-board:before,
 #publicity-studio .cp-board:after {
@@ -414,14 +451,14 @@
 }
 #publicity-studio .cp-board .cp-board-head button,
 #publicity-studio .cp-board .cp-board-foot button {
-  color: #333952;
+  color: var(--wx-shell-ink);
 }
 #publicity-studio .cp-board-head i {
-  background: #5668cd;
+  background: #b5a9ff;
 }
 #publicity-studio .cp-board .cp-board-foot button {
-  background: #f6f7fc;
-  border: 1px solid #c4c9df;
+  background: #191929;
+  border: 1px solid #615976;
   border-radius: 7px;
 }
 .wx-views {
@@ -429,7 +466,7 @@
   max-width: 100%;
   align-items: center;
   border-radius: 8px;
-  background: #ffffff91;
+  background: #141524b8;
   padding: 3px;
   gap: 2px;
 }
@@ -441,7 +478,7 @@
 }
 #publicity-studio .cp-board .wx-views button[aria-pressed="true"] {
   color: white;
-  background: var(--wx-blue);
+  background: #5e4989;
 }
 .wx-proof-single {
   container-type: size;
@@ -483,9 +520,7 @@
     grid-template-columns: 1fr;
   }
   #publicity-studio .wx-paper-source {
-    padding: 12px 0;
-    border-left: 0;
-    border-top: 1px solid var(--wx-line);
+    padding: 12px 15px;
   }
   #publicity-studio .wx-source-image {
     width: 56px;
@@ -526,12 +561,32 @@
   }
 }
 
-#publicity-studio .pl-toolnav nav a[aria-current="page"],
+/* Dark gallery chrome keeps the source, proof and production controls together. */
+#publicity-studio header.pl-toolnav {
+  background: #0c0d16ee;
+  border-bottom: 1px solid #ffffff19;
+  backdrop-filter: blur(16px);
+}
+#publicity-studio .pl-toolnav .cp-logo {
+  color: var(--wx-shell-ink);
+}
 #publicity-studio .pl-toolnav .cp-logo > span {
-  color: var(--wx-blue);
+  color: var(--wx-lilac);
+}
+#publicity-studio .pl-toolnav nav a {
+  color: var(--wx-shell-muted);
+}
+#publicity-studio .pl-toolnav nav a:hover,
+#publicity-studio .pl-toolnav nav a[aria-current="page"] {
+  color: #fff;
 }
 #publicity-studio .pl-toolnav nav a[aria-current="page"]:after {
-  background: var(--wx-blue);
+  background: linear-gradient(90deg, #9a83ff, #d58bb8);
+}
+#publicity-studio .pl-toolnav .cp-projects {
+  color: var(--wx-shell-ink);
+  background: #ffffff08;
+  border: 1px solid #494655;
 }
 .wx-board-actions {
   display: flex;
@@ -540,24 +595,56 @@
 }
 #publicity-studio .wx-board-actions > button:first-child:not(:only-child) {
   padding: 6px 10px;
-  background: #fff;
-  border: 1px solid #c4c9df;
+  background: #171829b8;
+  border: 1px solid #655b79;
   border-radius: 7px;
-  color: var(--wx-blue);
+  color: #ebe4ff;
 }
-
+#publicity-studio .pr-source p,
+#publicity-studio .cp-footer {
+  color: var(--wx-shell-muted);
+}
+#publicity-studio .pr-source a,
+#publicity-studio .pr-source > svg,
+#publicity-studio .cp-footer b {
+  color: var(--wx-lilac);
+}
+#publicity-studio .cp-footer {
+  border-color: var(--wx-shell-line);
+}
+#publicity-studio .cp-sectionhead .ce-backup {
+  background: var(--wx-panel);
+  color: var(--wx-shell-ink);
+  border-color: var(--wx-shell-line);
+}
+#publicity-studio .cp-delivery > :is(.cp-state, .cp-error) {
+  color: #ffccae;
+}
+#publicity-studio .release-page > .release-back,
+#publicity-studio .release-page .release-heading p,
+#publicity-studio .release-schedule {
+  color: var(--wx-shell-muted);
+}
+#publicity-studio .release-work,
+#publicity-studio .release-secondary {
+  color: var(--wx-ink);
+}
+#publicity-studio .release-schedule > button {
+  color: var(--wx-lilac);
+}
+#publicity-studio .release-artwork {
+  background: radial-gradient(ellipse at 15% 15%, #4e4266, #272a43 70%);
+}
+#publicity-studio .release-work {
+  border-color: #605977;
+}
 @media (min-width: 851px) {
-  #publicity-studio header.pl-toolnav {
-    background: linear-gradient(110deg, #f5f3fccc, #fafaffeb);
-    border-bottom: 1px solid #dcdce6;
-    backdrop-filter: blur(18px);
-  }
   #publicity-studio .pl-toolnav .cp-shell {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 16px;
-    height: 70px;
+    height: 65px;
   }
   #publicity-studio .pl-toolnav .cp-logo {
     justify-self: start;
@@ -566,27 +653,43 @@
     justify-self: end;
   }
   #publicity-studio .pl-toolnav nav {
-    align-self: center;
-    gap: 3px;
-    padding: 4px;
-    border: 1px solid #dddded;
-    border-radius: 30px;
-    background: #ecebf4;
+    align-self: stretch;
+    gap: 24px;
   }
   #publicity-studio .pl-toolnav nav a {
-    padding: 7px 15px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    padding: 0 3px;
+    border-radius: 0;
     line-height: 18px;
-    border-radius: 20px;
-    color: #4f5062;
-  }
-  #publicity-studio .pl-toolnav nav a:hover {
-    background: #ffffffbd;
-  }
-  #publicity-studio .pl-toolnav nav a[aria-current="page"] {
-    background: #333247;
-    color: white;
   }
   #publicity-studio .pl-toolnav nav a[aria-current="page"]:after {
-    display: none;
+    bottom: 9px;
+    left: 3px;
+    right: 3px;
+  }
+}
+
+#publicity-studio .cp-files :is(.cp-textbutton, .cp-qrlink),
+#publicity-studio .cp-message :is(.cp-textbutton, .release-link),
+#publicity-studio .release-work .cp-textbutton {
+  color: var(--wx-blue);
+}
+@media (max-width: 360px) {
+  #publicity-studio .cp-nav.pl-toolnav .cp-shell {
+    width: 96%;
+    gap: 6px;
+  }
+  #publicity-studio .cp-nav.pl-toolnav nav {
+    gap: 7px;
+  }
+}
+@media (forced-colors: active) {
+  #publicity-studio.pr-page .pr-hero h1,
+  #publicity-studio .wx-campaign-title h1,
+  #publicity-studio .release-page .release-heading h1 {
+    color: CanvasText;
+    background: none;
   }
 }

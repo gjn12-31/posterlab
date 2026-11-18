@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, Expand, Pencil, X } from "lucide-react";
+import { ArrowDownToLine, Check, Expand, Pencil, X } from "lucide-react";
 import {
   kits,
   kitBase as base,
@@ -8,6 +8,9 @@ import {
   type PreviewFile,
 } from "./published-kits";
 import type { Format } from "./model";
+import "./published-gallery.css";
+
+const galleryArt = import.meta.env.BASE_URL + "showcase/gallery-";
 function KitPreview({
   kit,
   index,
@@ -29,7 +32,7 @@ function KitPreview({
   }, []);
   return (
     <dialog
-      className="ds-kit-dialog"
+      className="pg-dialog"
       aria-label={kit.title}
       ref={dialog}
       onCancel={close}
@@ -40,7 +43,7 @@ function KitPreview({
           <X />
         </button>
       </header>
-      <div className="ds-kit-formats">
+      <div className="pg-formats">
         {kit.formats.map((f, i) => (
           <button key={f} aria-pressed={index === i} onClick={() => select(i)}>
             {f}
@@ -48,7 +51,7 @@ function KitPreview({
         ))}
       </div>
       {files[index] ? (
-        <div className="ds-kit-body">
+        <div className="pg-dialog-body ds-kit-body">
           <img src={files[index].url} alt={kit.formats[index] + "配图"} />
           <div>
             <h3>发布文案</h3>
@@ -59,13 +62,13 @@ function KitPreview({
         <p role="status">正在读取成品…</p>
       )}
       {kit.id === "bookfair" && (
-        <footer className="ds-kit-credit">
+        <footer className="pg-credit">
           示例活动 · DeepSeek 撰写邀请，Seedream 4.5 生成主视觉，三种画幅在
           PosterLab 内排版。
         </footer>
       )}
       {kit.id === "ponder-live" && (
-        <footer className="ds-kit-credit">
+        <footer className="pg-credit">
           Kimi-K3.1-Pro 撰写四个平台的初稿。方法图依据论文图 2
           重绘，署名和引文经原文校订。{" "}
           <a
@@ -78,7 +81,7 @@ function KitPreview({
         </footer>
       )}
       {kit.id === "paper" && (
-        <footer className="ds-kit-credit">
+        <footer className="pg-credit">
           本文案经原句校订。图像由 EHT Collaboration 提供，配图经过裁切。{" "}
           <a
             href="https://www.eso.org/public/images/eso1907a/"
@@ -97,6 +100,13 @@ function KitPreview({
           </a>
         </footer>
       )}
+      <a
+        className="pg-download"
+        href={base + kit.id + ".zip"}
+        download={kit.title + "-宣传材料.zip"}
+      >
+        <ArrowDownToLine size={16} /> 下载整套
+      </a>
     </dialog>
   );
 }
@@ -154,11 +164,16 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
   }
   const item = files[index];
   return (
-    <div className={"pl-proof pl-proof-" + kit.id}>
-      <div className="pl-proof-image">
+    <div
+      id="pl-kit-details"
+      className={"pg-proof pg-proof-" + kit.id}
+      role="region"
+      aria-label={kit.label + "成品详情"}
+    >
+      <div className="pg-art">
         {item ? (
           <button
-            className="pl-enlarge"
+            className="pg-enlarge"
             onClick={() => setOpen(true)}
             aria-label={"预览" + kit.title}
           >
@@ -168,15 +183,15 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
             </span>
           </button>
         ) : (
-          <div className="pl-proof-loading" role="status">
-            {!error && <img src={base + kit.id + ".webp"} alt="" />}
+          <div className="pg-loading" role="status">
+            {!error && <img src={galleryArt + kit.id + ".webp"} alt="" />}
             {error || "正在打开可放大的成品…"}
             {error && <button onClick={retry}>重试</button>}
           </div>
         )}
       </div>
-      <div className="pl-proof-editor">
-        <div className="pl-proof-formats" aria-label="选择预览画幅">
+      <div className="pg-editor">
+        <div className="pg-formats" role="group" aria-label="选择预览画幅">
           {kit.formats.map((f, i) => (
             <button
               key={f}
@@ -187,7 +202,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
             </button>
           ))}
         </div>
-        <div className="pl-proof-copy">
+        <div className="pg-copy">
           <h3>{kit.title}</h3>
           {item && (
             <p>
@@ -197,10 +212,10 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
             </p>
           )}
         </div>
-        <div className="pl-proof-actions">
+        <div className="pg-actions">
           {"editable" in kit && (
             <button
-              className="pl-kit-edit"
+              className="pg-edit"
               disabled={!projectFile || opening}
               onClick={editCopy}
             >
@@ -225,7 +240,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
           </p>
         )}
         {kit.id === "paper" && (
-          <small className="pl-credit">
+          <small className="pg-credit">
             图像由 EHT Collaboration 提供 ·{" "}
             <a
               href="https://www.eso.org/public/images/eso1907a/"
@@ -249,8 +264,22 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
     </div>
   );
 }
+function gallerySelection() {
+  if (location.hash === "#collection") return 0;
+  return kits.findIndex((kit) => location.hash === "#collection/" + kit.id);
+}
 export default function PublishedKits() {
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(() =>
+    Math.max(0, gallerySelection()),
+  );
+  useEffect(() => {
+    const selectFromUrl = () => {
+      const index = gallerySelection();
+      if (index >= 0) setSelected(index);
+    };
+    window.addEventListener("hashchange", selectFromUrl);
+    return () => window.removeEventListener("hashchange", selectFromUrl);
+  }, []);
   const [ready, setReady] = useState(false);
   const section = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -270,22 +299,56 @@ export default function PublishedKits() {
     <section
       ref={section}
       id="collection"
-      className="pl-collection pl-shell"
+      className="pg-gallery pl-shell"
       aria-labelledby="pl-collection-title"
     >
-      <div className="pl-heading">
-        <h2 id="pl-collection-title">作品选集</h2>
-        <div className="pl-kit-switch" aria-label="选择成品案例">
-          {kits.map((kit, i) => (
-            <button
-              key={kit.id}
-              aria-pressed={i === selected}
-              onClick={() => setSelected(i)}
-            >
-              {kit.label}
-            </button>
-          ))}
-        </div>
+      <h2 id="pl-collection-title" tabIndex={-1}>
+        作品选集
+      </h2>
+      <div className="pg-cards" role="group" aria-label="选择成品案例">
+        {kits.map((kit, i) => (
+          <button
+            type="button"
+            key={kit.id}
+            className="pg-card"
+            aria-label={kit.label}
+            aria-controls="pl-kit-details"
+            aria-pressed={i === selected}
+            onClick={() => {
+              setSelected(i);
+              history.replaceState(history.state, "", "#collection/" + kit.id);
+              const details = document.getElementById("pl-kit-details");
+              details?.scrollIntoView({
+                block: "nearest",
+                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                  ? "instant"
+                  : "smooth",
+              });
+            }}
+          >
+            <span className="pg-cover">
+              <img
+                src={galleryArt + kit.id + ".webp"}
+                width={600}
+                height={800}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+              {selected === i && (
+                <span className="pg-selected" aria-hidden="true">
+                  <Check size={15} />
+                </span>
+              )}
+            </span>
+            <span className="pg-label">{kit.label}</span>
+            <span className="pg-meta">
+              {"editable" in kit
+                ? "活动宣传 · 3 种画幅"
+                : "论文宣传 · 4 个平台"}
+            </span>
+          </button>
+        ))}
       </div>
       <Proof key={kits[selected].id} kit={kits[selected]} ready={ready} />
     </section>

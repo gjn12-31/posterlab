@@ -2,14 +2,12 @@
 #publicity-studio .pub-desk {
   display: grid;
   grid-template-columns: clamp(164px, 14.5vw, 215px) minmax(0, 1fr);
-  border: 1px solid #d4d6df;
+  border: 1px solid #55506d;
   border-radius: 19px;
   overflow: hidden;
   color: #262637;
-  background: #fff;
-  box-shadow:
-    0 8px 26px #29294009,
-    0 1px 3px #29294006;
+  background: #fdfcff;
+  box-shadow: 0 13px 38px #07060f3b;
   --channel-ink: #8a354b;
 }
 #publicity-studio .pub-desk[data-channel="x"] {
@@ -23,8 +21,8 @@
 }
 .pub-rail {
   padding: 23px 12px;
-  background: #f3f3f8;
-  border-right: 1px solid #dedee8;
+  background: linear-gradient(160deg, #25243a, #1b1d30);
+  border-right: 1px solid #ffffff12;
 }
 .pub-rail h3 {
   display: flex;
@@ -34,7 +32,7 @@
   margin: 0 0 20px;
   font-size: 13px;
   font-weight: 650;
-  color: #67677b;
+  color: #d0cbdc;
 }
 #publicity-studio .pub-channels.pr-tabs {
   display: grid;
@@ -54,16 +52,16 @@
   padding: 11px 9px;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: #4a4b59;
+  color: #e0ddeb;
 }
 #publicity-studio .pub-channels.pr-tabs > button:hover {
-  background: #ffffffaa;
+  background: #ffffff0c;
 }
 #publicity-studio .pub-channels.pr-tabs > button[aria-pressed="true"] {
-  background: #fff;
-  color: #1f2030;
-  border-color: #dcdde8;
-  box-shadow: 0 2px 6px #2222390c;
+  background: linear-gradient(110deg, #474062, #373449);
+  color: #fff;
+  border-color: #8876aa;
+  box-shadow: inset 0 1px 0 #ffffff12;
 }
 #publicity-studio .pub-channels .pub-channel-label {
   display: grid;
@@ -72,7 +70,7 @@
   font-size: 15px;
 }
 .pub-channel-label small {
-  color: #6c6c7d;
+  color: #bfbbcf;
   font-size: 11px;
   font-weight: 400;
 }
@@ -84,19 +82,22 @@
   height: 30px;
   border-radius: 9px;
 }
-.pub-mark.is-red {
+#publicity-studio .pub-channels button .pub-mark svg {
+  color: inherit;
+}
+#publicity-studio .pub-desk .pub-mark.is-red {
   background: #ffe6e9;
   color: #a33c54;
 }
-.pub-mark.is-x {
+#publicity-studio .pub-desk .pub-mark.is-x {
   background: #292c31;
   color: white;
 }
-.pub-mark.is-moments {
+#publicity-studio .pub-desk .pub-mark.is-moments {
   background: #d5f1e2;
   color: #277557;
 }
-.pub-mark.is-wechat {
+#publicity-studio .pub-desk .pub-mark.is-wechat {
   background: #dbf1eb;
   color: #257266;
 }
@@ -132,7 +133,9 @@
 .pub-head {
   justify-content: space-between;
   padding: 17px clamp(15px, 2vw, 32px);
-  border-bottom: 1px solid #e1e2ea;
+  color: var(--wx-shell-ink);
+  background: #232335;
+  border-bottom: 1px solid #454054;
 }
 .pub-head-title {
   gap: 10px;
@@ -160,10 +163,10 @@
   background: #f9f9fc;
 }
 #publicity-studio .pub-button.pub-deliver {
-  background: #282837;
-  color: white;
+  background: #e6dfff;
+  color: #332650;
   padding: 9px 13px;
-  border-color: #282837;
+  border-color: #e6dfff;
 }
 .pub-columns {
   display: grid;
@@ -174,8 +177,11 @@
   display: flex;
   flex-direction: column;
   padding: 20px clamp(15px, 1.8vw, 30px) 13px;
-  background: linear-gradient(140deg, #e9e8f1, #f5f5f8);
-  border-right: 1px solid #dfdfe8;
+  background:
+    radial-gradient(ellipse at 20% 10%, #50415a, transparent 60%),
+    radial-gradient(ellipse at 85% 85%, #303b55, transparent 70%), #26283d;
+  border-right: 1px solid #49475b;
+  color: var(--wx-shell-ink);
 }
 #publicity-studio .pub-proof {
   position: relative;
@@ -211,16 +217,24 @@
   justify-content: space-between;
   margin: 14px 0 10px;
   font-size: 11px;
-  color: #656879;
+  color: #d2ccdf;
   font-variant-numeric: tabular-nums;
 }
 .pub-media-tools {
   justify-content: space-between;
   flex-wrap: wrap;
-  border-top: 1px solid #d8d8e1;
+  border-top: 1px solid #ffffff25;
   padding-top: 8px;
 }
+#publicity-studio .pub-media-tools button {
+  color: #f4f0fc;
+}
+#publicity-studio .pub-media-tools button:hover {
+  background: #ffffff0f;
+}
 .pub-writing {
+  color: var(--wx-ink);
+  background: #fdfcff;
   min-width: 0;
   display: flex;
   flex-direction: column;

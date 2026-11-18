@@ -12,7 +12,15 @@ Lusion 的作品目录与三维叙事、宇树 G1 产品页的分段演示，是
 蓝紫丝网印刷纸样用于上一版首页，为项目原创 ImageGen 图像。工作台论文纸样取自 Kimi-K3.1-Pro 实际撰写的 PonderLM 四平台稿，研究示意图依据论文图 2 重绘，引用和署名经过校订。活动纸样取自 PosterLab 为虚构活动「秋夜设计书展」导出的 PNG，主视觉由并行智算云上的 Doubao-Seedream-4.5 生成，活动文字由 DeepSeek-V4-Pro-0813 撰写，最终在工作台校样。可从作品选集下载完整画幅与可编辑项目。
 
 
-## 当前首页图像与交互
+## 首页海报墙与作品选集
+
+首页的七张海报均来自 PosterLab。四份 `gallery-*.webp` 分别取自 `web/public/kits` 中书展、PonderLM、M87 和咖啡日的实际导出 PNG。M87 图片由 EHT Collaboration 提供，按 CC BY 4.0 使用；海报中进行了裁切和排版。[ESO 图像出处](https://www.eso.org/public/images/eso1907a/) · [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+
+`wall-afterglow.webp`、`wall-bloom.webp`、`wall-launch.webp` 和 `wall-nature.webp` 由工作室的设计样张经同一个 PNG 导出器生成，随后缩小为 WebP。[样张图像来源](../editions/SOURCES.md)
+
+深色背景上的错落悬浮海报、渐变标题和图像优先的画廊布局参考 PosterCraft 项目页。本站展示的案例均可通过预览进入对应的成品或编辑器。[PosterCraft 项目页](https://ephemeral182.github.io/PosterCraft/)
+
+## 先前版本的印版主视觉
 
 印版主视觉 `print-prism.webp` 由内置 ImageGen 生成并优化为 WebP。工作台直接从 `kits/paper.zip` 和 `kits/bookfair.zip` 读取 PNG 原图和发布文案。M87 原图来自 EHT Collaboration，保留 CC BY 4.0 署名。活动案例为工作室创作的秋夜设计书展。
 

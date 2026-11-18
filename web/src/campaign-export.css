@@ -83,8 +83,8 @@
   min-width: 0;
 }
 .ce-card[data-checked="true"] {
-  border-color: #6672cd;
-  box-shadow: inset 0 0 0 1px #6672cd;
+  border-color: #735bbc;
+  box-shadow: inset 0 0 0 1px #735bbc;
 }
 .ce-card[data-disabled="true"],
 .ce-extras label:has(:disabled),
@@ -114,7 +114,7 @@
   place-items: center;
   height: 106px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #e7e9f2, #f2f2f6);
+  background: radial-gradient(ellipse at 30% 10%, #564b70, #2a2c43 85%);
 }
 .ce-thumb > span {
   width: 80%;
@@ -144,8 +144,8 @@
   border-radius: 50%;
 }
 .ce-card[data-checked="true"] .ce-thumb i {
-  border-color: #414eaa;
-  background: #414eaa;
+  border-color: #6549a9;
+  background: #6549a9;
 }
 .ce-card strong,
 .ce-card small {
@@ -183,9 +183,9 @@
   padding: 7px 13px;
 }
 .ce-types input:checked + span {
-  border-color: #3c4895;
-  color: #313c86;
-  background: #f0f1fc;
+  border-color: #7962af;
+  color: #4a3485;
+  background: #f1ebff;
 }
 .ce-extras {
   gap: 11px 20px;
@@ -200,7 +200,7 @@
 .ce-extras input {
   width: 16px;
   height: 16px;
-  accent-color: #4858ac;
+  accent-color: var(--wx-blue);
   margin: 0;
 }
 .ce-extras small {
@@ -211,7 +211,7 @@
   flex-direction: column;
   min-width: 0;
   border-radius: 12px;
-  background: #f2f3f7;
+  background: #f1eff7;
   padding: 16px 14px;
 }
 .ce-summary h3,
