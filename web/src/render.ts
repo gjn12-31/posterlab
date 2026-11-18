@@ -1,3 +1,6 @@
+import { renderCover } from "./cover";
+import { escapeXml, wrap } from "./poster-text";
+export { escapeXml, wrap } from "./poster-text";
 import QRCode from "qrcode";
 import commonGlyphs from "./common-glyphs.txt?raw";
 import "./poster-fonts.css";
@@ -17,18 +20,6 @@ export type Issue = {
   field?: Field;
   message: string;
 };
-export const escapeXml = (s: string) =>
-  s.replace(
-    /[<>&"']/g,
-    (c) =>
-      ({
-        "<": "&lt;",
-        ">": "&gt;",
-        "&": "&amp;",
-        '"': "&quot;",
-        "'": "&apos;",
-      })[c]!,
-  );
 const compactGlyphs = new Set(commonGlyphs);
 function fontFamilyFor(text: string) {
   return Array.from(text).every(
@@ -45,27 +36,12 @@ export async function loadFonts(text = "") {
     ),
   );
 }
-const canvas = document.createElement("canvas"),
-  ctx = canvas.getContext("2d")!;
-export function wrap(text: string, size: number, width: number, bold = false) {
-  ctx.font = `${bold ? 700 : 400} ${size}px PosterCommon, PosterSans, sans-serif`;
-  const out: string[] = [];
-  for (const para of text.split("\n")) {
-    let line = "";
-    for (const c of para) {
-      if (ctx.measureText(line + c).width > width && line) {
-        out.push(line);
-        line = c;
-      } else line += c;
-    }
-    out.push(line);
-  }
-  return out;
-}
 export function renderPoster(
   project: Project,
   format: Format,
 ): { svg: string; issues: Issue[] } {
+  if (project.current.composition === "cover" && project.current.edition)
+    return renderCover(project, format);
   const s = project.current,
     b = s.brief,
     t = themes[s.theme];
@@ -85,7 +61,7 @@ export function renderPoster(
       });
     }
 
-  for (const field of ["title", "date", "time", "venue"] as Field[])
+  for (const field of ["title"] as Field[])
     if (!b[field].trim())
       issues.push({ level: "error", field, message: `请填写${labels[field]}` });
   const qr = !!b.url;
@@ -351,6 +327,9 @@ export async function exportBlob(
 ) {
   const text = [
     project.current.brand.name,
+    project.current.displayTitle || "",
+    project.current.creditLine || "",
+    ...(project.current.notes || []).map((note) => note.text),
     ...Object.values(project.current.brief),
     ...Object.values(labels),
     "写下你的好想法",

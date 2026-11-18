@@ -131,6 +131,32 @@ export const snapshotSchema = z.object({
   brief: briefSchema,
   locked: z.array(z.enum(fields)).max(8),
   edition: z.enum(editionIds).optional(),
+  composition: z.literal("cover").optional(),
+  creditLine: z.string().max(80).optional(),
+  displayTitle: z.string().max(90).optional(),
+  notes: z
+    .array(
+      z.object({
+        id: z.string().regex(/^note-[a-zA-Z0-9-]{1,70}$/),
+        text: z.string().max(240),
+      }),
+    )
+    .max(8)
+    .optional(),
+  layerStyles: z
+    .partialRecord(
+      z.enum(["portrait", "square", "landscape"]),
+      z.record(
+        z.string().max(80),
+        z.object({
+          x: z.number().min(0).max(1).optional(),
+          y: z.number().min(0).max(1).optional(),
+          scale: z.number().min(0.45).max(2).optional(),
+          color: hex.optional(),
+        }),
+      ),
+    )
+    .optional(),
   theme: z.enum(["violet", "mint", "orange", "paper", "blue", "night"]),
   titleScale: z.number().min(0.65).max(1.4),
   align: z.enum(["left", "center"]),
@@ -154,6 +180,7 @@ export type Asset = z.infer<typeof assetSchema>;
 export const projectSchema = z
   .object({
     schemaVersion: z.literal("2.0"),
+    lastFormat: z.enum(["portrait", "square", "landscape"]).optional(),
     id,
     created: z.string(),
     updated: z.string(),

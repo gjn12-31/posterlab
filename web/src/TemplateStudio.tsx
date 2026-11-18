@@ -81,6 +81,8 @@ import {
 } from "./render";
 import { status, aiSuggestion, request, type Service } from "./api";
 import "./style.css";
+import CoverStudio from "./CoverStudio";
+import { makeCover, changeText, layerText } from "./cover";
 import { editions, editionIds, editionImage, isEdition } from "./editions";
 const clone = <T,>(x: T): T => structuredClone(x);
 function Modal({
@@ -134,6 +136,16 @@ function App() {
     [project, setProject] = useState<Project>(() => {
       if (!fromDiscovery) return createProject();
       const params = new URLSearchParams(entry.slice(5));
+      const template = params.get("edition");
+      if (isEdition(template)) {
+        const cover = makeCover(
+          template,
+          (params.get("title") ?? "").slice(0, 180),
+        );
+        const f = params.get("format");
+        cover.lastFormat = f === "landscape" || f === "square" ? f : "portrait";
+        return cover;
+      }
       const project = createProject({
         title: (params.get("title") || "").slice(0, 180),
         speaker: "",
@@ -143,8 +155,6 @@ function App() {
         description: "",
         cta: "",
       });
-      const edition = params.get("edition");
-      if (isEdition(edition)) project.current.edition = edition;
       const theme = params.get("theme") || "paper";
       project.current.theme = Object.hasOwn(themes, theme)
         ? (theme as Theme)
@@ -166,9 +176,7 @@ function App() {
     [modal, setModal] = useState<
       "brief" | "history" | "export" | "settings" | "import" | "explore" | null
     >(null),
-    [briefText, setBriefText] = useState(
-      "标题：设计的无限可能\n主讲人：林溪\n日期：2026-11-08\n时间：14:00–16:00\n地点：创意空间 · 一层展厅\n介绍：一场关于设计、技术与想象力的开放分享。",
-    ),
+    [briefText, setBriefText] = useState(""),
     [command, setCommand] = useState(""),
     [suggestion, setSuggestion] = useState<Suggestion | null>(null),
     [busy, setBusy] = useState(""),
@@ -300,7 +308,9 @@ function App() {
       .filter((issue) => issue.level === "error")
       .map((issue) => ({ ...issue, format: result.format })),
   );
+  const [repair, setRepair] = useState<{ field: Field } | null>(null);
   function focusField(field: Field) {
+    setRepair({ field });
     setMobilePanel("editor");
     setTab("content");
     setSelectedField(field);
@@ -309,14 +319,14 @@ function App() {
     );
   }
   function edit(fn: (s: Snapshot) => void) {
-    setProject((p) => {
-      setUndo((u) => [clone(p.current), ...u].slice(0, 40));
-      setRedo([]);
-      const next = clone(p);
-      fn(next.current);
-      next.updated = now();
-      return next;
-    });
+    const p = currentRef.current;
+    const next = clone(p);
+    fn(next.current);
+    next.updated = now();
+    currentRef.current = next;
+    setUndo((u) => [clone(p.current), ...u].slice(0, 40));
+    setRedo([]);
+    setProject(next);
   }
   function apply(next: Project, label: string) {
     setUndo((u) => [clone(project.current), ...u].slice(0, 40));
@@ -339,8 +349,14 @@ function App() {
     setPage(next);
     window.scrollTo(0, 0);
   }
+  function resizeCover(f: Format) {
+    setFormat(f);
+    setProject((previous) => ({ ...previous, lastFormat: f }));
+  }
   function newProject() {
-    const next = createProject();
+    const next = makeCover("afterglow");
+    next.lastFormat = "landscape";
+    setFormat("landscape");
     next.current.brand = clone(brand);
     next.current.brand.enabled = false;
     setProject(next);
@@ -377,8 +393,61 @@ function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [persist, message]);
-  async function assistant() {
+  const [layerRewrite, setLayerRewrite] = useState<{
+    id: string;
+    field: Field;
+    preview: Project;
+    label: string;
+  } | null>(null);
+  async function rewriteLayer(id: string, label: string) {
+    if (!service?.ai || busy) return;
+    const requested = project;
+    const preview = clone(project);
+    const field: Field = fields.includes(id as Field)
+      ? (id as Field)
+      : "description";
+    const original = layerText(project.current, id);
+    const limit =
+      id === "display"
+        ? 90
+        : id === "credit"
+          ? 80
+          : id.startsWith("note-")
+            ? 240
+            : undefined;
+    preview.current.brief[field] = original;
+    setBusy("正在润色文字");
+    try {
+      const proposal = await aiSuggestion(
+        preview,
+        `请润色海报中的「${label}」，让表达简洁、有画面感。保留原语言和所有活动事实，仅返回 fields.${field} 的新文字。${limit ? "最多" + limit + "字。" : ""}`,
+      );
+      const next = proposal.fields[field]?.trim();
+      if (
+        currentRef.current.id !== requested.id ||
+        currentRef.current.updated !== requested.updated
+      )
+        throw Error("作品已更改，请基于最新内容重新请求");
+      if (!next || next === original) throw Error("本次没有文字修改建议");
+      if (limit && next.length > limit)
+        throw Error("建议超出图层字数限制，请重新请求");
+      setLayerRewrite({ id, field, preview, label });
+      setSuggestion({
+        ...proposal,
+        fields: { [field]: next },
+        theme: undefined,
+        titleScale: undefined,
+      });
+    } catch (error) {
+      message((error as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+  const assistant = () => requestSuggestion(command, selectedField);
+  async function requestSuggestion(command: string, selectedField: Field) {
     if (!command.trim()) return;
+    setLayerRewrite(null);
     const requested = project;
     setBusy("正在准备修改建议");
     try {
@@ -406,6 +475,7 @@ function App() {
   }
   async function extract(useAI: boolean) {
     if (!briefText.trim()) return;
+    setLayerRewrite(null);
     const requested = project;
     setBusy("正在提取活动信息");
     try {
@@ -452,8 +522,18 @@ function App() {
       setBusy("");
     }
   }
-  async function runExport() {
+  async function runExport(kind: typeof exportKind = exportKind) {
     if (!ready || fontError) return;
+    if (
+      (kind === "pack"
+        ? allIssues
+        : allIssues.filter((r) => r.format === format)
+      ).some((r) => r.issues.some((i) => i.level === "error"))
+    ) {
+      setExportKind(kind);
+      setModal("export");
+      return;
+    }
     setBusy("正在准备导出");
     try {
       const frozen = clone(project),
@@ -461,15 +541,15 @@ function App() {
           frozen.current.brief.title
             .replace(/[<>:"/\\|?*\x00-\x1f]/g, "")
             .slice(0, 40) || "我的海报";
-      if (exportKind === "pack") {
+      if (kind === "pack") {
         const blob = await exportPack(frozen, (n) =>
           setBusy(`正在打包 ${n}/3 张海报`),
         );
         download(blob, `${name}-活动物料包.zip`);
       } else {
         download(
-          await exportBlob(frozen, format, exportKind),
-          `${name}-${formats[format].ratio.replace(":", "x")}.${exportKind}`,
+          await exportBlob(frozen, format, kind),
+          `${name}-${formats[format].ratio.replace(":", "x")}.${kind}`,
         );
       }
       setProject((p) => ({ ...p, lastExport: frozen.updated }));
@@ -531,6 +611,7 @@ function App() {
         p.current.label = "导入的副本";
         await persist(p);
         setProject(p);
+        setFormat(p.lastFormat ?? "portrait");
         setUndo([]);
         setRedo([]);
         setPage("studio");
@@ -541,74 +622,90 @@ function App() {
       message(e instanceof Error ? e.message : "导入失败");
     }
   }
+  const coverOpen =
+    page === "studio" &&
+    project.current.composition === "cover" &&
+    !!project.current.edition;
+  function projectWithSuggestion(s: Suggestion, unlock: boolean) {
+    const next = { ...project, current: clone(project.current) };
+    if (layerRewrite) {
+      changeText(next.current, layerRewrite.id, s.fields[layerRewrite.field]!);
+      return next;
+    }
+    if (unlock)
+      next.current.locked = next.current.locked.filter((k) => !(k in s.fields));
+    const updated = applySuggestion(next, s);
+    updated.current.locked = clone(project.current.locked);
+    return updated;
+  }
+  const matchingProjects = projects.filter((p) =>
+    (p.current.brief.title + " " + p.current.brief.venue)
+      .toLocaleLowerCase()
+      .includes(query.trim().toLocaleLowerCase()),
+  );
   const motionOn = !reduced && motionLevel > 0;
   return (
     <>
       <div className="grain" aria-hidden="true" />
-      <header className="topbar">
-        <a
-          className="brand"
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("home");
-          }}
-        >
-          <span className="brandmark" />
-          <b>PosterLab</b>
-          <sup>STUDIO</sup>
-        </a>
-        <nav aria-label="主导航">
-          <a href={import.meta.env.BASE_URL} className="template-home-link">
-            返回首页
+      {!coverOpen && (
+        <header className="topbar">
+          <a className="brand" href={import.meta.env.BASE_URL}>
+            <span className="brandmark" />
+            <b>PosterLab</b>
+            <sup>STUDIO</sup>
           </a>
-          <button
-            className={page === "studio" ? "active" : ""}
-            onClick={() => navigate("studio")}
-          >
-            创作空间
-          </button>
-          <button
-            className={page === "gallery" ? "active" : ""}
-            onClick={() => navigate("gallery")}
-          >
-            我的作品
-          </button>
-          <button
-            className={page === "brand" ? "active" : ""}
-            onClick={() => navigate("brand")}
-          >
-            品牌空间
-          </button>
-        </nav>
-        <div className="top-actions">
-          <span className="service-badge">
-            <i />
-            {service?.ai ? "AI 已连接" : "本地创作"}
-          </span>
-          <button
-            className="icon"
-            aria-label={motionLevel ? "暂停动态效果" : "恢复动态效果"}
-            onClick={() => {
-              const n = motionLevel ? 0 : 2;
-              setMotionLevel(n);
-              setting("motion", n).catch(() => {});
-            }}
-          >
-            {motionLevel ? <Pause size={16} /> : <Play size={16} />}
-          </button>
-          <button
-            className="icon"
-            aria-label="服务设置"
-            onClick={() => setModal("settings")}
-          >
-            <Settings2 size={17} />
-          </button>
-          <button className="outline small" onClick={newProject}>
-            新建作品 <Plus size={15} />
-          </button>
-        </div>
-      </header>
+          <nav aria-label="主导航">
+            <a href={import.meta.env.BASE_URL} className="template-home-link">
+              返回首页
+            </a>
+            <button
+              className={page === "studio" ? "active" : ""}
+              onClick={() => navigate("studio")}
+            >
+              创作空间
+            </button>
+            <button
+              className={page === "gallery" ? "active" : ""}
+              onClick={() => navigate("gallery")}
+            >
+              我的作品
+            </button>
+            <button
+              className={page === "brand" ? "active" : ""}
+              onClick={() => navigate("brand")}
+            >
+              品牌空间
+            </button>
+          </nav>
+          <div className="top-actions">
+            <span className="service-badge">
+              <i />
+              {service?.ai ? "AI 已连接" : "本地创作"}
+            </span>
+            <button
+              className="icon"
+              aria-label={motionLevel ? "暂停动态效果" : "恢复动态效果"}
+              onClick={() => {
+                const n = motionLevel ? 0 : 2;
+                setMotionLevel(n);
+                setting("motion", n).catch(() => {});
+              }}
+            >
+              {motionLevel ? <Pause size={16} /> : <Play size={16} />}
+            </button>
+            <button
+              className="icon"
+              aria-label="服务设置"
+              onClick={() => setModal("settings")}
+            >
+              <Settings2 size={17} />
+            </button>
+            <button className="outline small" onClick={newProject}>
+              新建作品 <Plus size={15} />
+            </button>
+          </div>
+        </header>
+      )}
       {page === "home" && (
         <main className="home">
           <section className="hero">
@@ -763,7 +860,35 @@ function App() {
           </footer>
         </main>
       )}
-      {page === "studio" && (
+      {coverOpen && (
+        <CoverStudio
+          key={project.id}
+          project={project}
+          format={format}
+          resize={resizeCover}
+          svg={rendered.svg}
+          edit={edit}
+          undo={() => travel("undo")}
+          redo={() => travel("redo")}
+          canUndo={undo.length > 0}
+          canRedo={redo.length > 0}
+          saved={saved}
+          busy={busy}
+          ready={ready}
+          live={!!service?.ai}
+          png={() => runExport("png")}
+          more={() => setModal("export")}
+          history={() => setModal("history")}
+          files={() => navigate("gallery")}
+          notice={() => setModal("brief")}
+          upload={upload}
+          assist={requestSuggestion}
+          rewrite={rewriteLayer}
+          settings={() => setModal("settings")}
+          repair={repair}
+        />
+      )}
+      {page === "studio" && !coverOpen && (
         <main className="workspace">
           <div className="workspace-bar">
             <div>
@@ -909,9 +1034,9 @@ function App() {
                       >
                         <span>
                           {labels[field]}
-                          {["title", "date", "time", "venue"].includes(
-                            field,
-                          ) && <small className="required-field">必填</small>}
+                          {field === "title" && (
+                            <small className="required-field">必填</small>
+                          )}
                           <button
                             className="lock-button"
                             type="button"
@@ -1423,7 +1548,7 @@ function App() {
           <div className="section-title">
             <div>
               <p className="eyebrow">YOUR CREATIVE COLLECTION</p>
-              <h1>每个好想法，都有归处。</h1>
+              <h1>我的作品</h1>
               <p>保存在当前浏览器。导出项目备份，可以带到另一台设备。</p>
             </div>
             <div className="button-row">
@@ -1447,66 +1572,72 @@ function App() {
             />
           </label>
           <div className="gallery-grid">
-            {projects
-              .filter((p) =>
-                (p.current.brief.title + p.current.brief.venue).includes(query),
-              )
-              .map((p) => (
-                <article className="work-card" key={p.id}>
+            {matchingProjects.map((p) => (
+              <article className="work-card" key={p.id}>
+                <button
+                  className="work-preview"
+                  aria-label={"打开作品 " + p.current.brief.title}
+                  onClick={() => {
+                    setProject(p);
+                    setFormat(p.lastFormat ?? "portrait");
+                    setUndo([]);
+                    setRedo([]);
+                    setPage("studio");
+                  }}
+                >
+                  {ready && (
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: renderPoster(p, p.lastFormat ?? "portrait").svg,
+                      }}
+                    />
+                  )}
+                </button>
+                <div className="work-meta">
+                  <div>
+                    <h3>{p.current.brief.title}</h3>
+                    <p>
+                      {themes[p.current.theme].name} ·{" "}
+                      {new Date(p.updated).toLocaleDateString("zh-CN")}
+                    </p>
+                  </div>
                   <button
-                    className="work-preview"
-                    aria-label={"打开作品 " + p.current.brief.title}
-                    onClick={() => {
-                      setProject(p);
-                      setUndo([]);
-                      setRedo([]);
-                      setPage("studio");
+                    className="icon"
+                    aria-label={"复制作品 " + p.current.brief.title}
+                    onClick={async () => {
+                      const next = clone(p);
+                      next.id = crypto.randomUUID();
+                      next.current.brief.title =
+                        next.current.brief.title.slice(0, 176) + " 副本";
+                      next.updated = now();
+                      try {
+                        await persist(next);
+                        setProjects(await listProjects());
+                        message("已创建独立副本");
+                      } catch {
+                        message("副本保存失败，请检查浏览器存储或导出备份");
+                      }
                     }}
                   >
-                    {ready && (
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: renderPoster(p, "portrait").svg,
-                        }}
-                      />
-                    )}
+                    <Copy size={16} />
                   </button>
-                  <div className="work-meta">
-                    <div>
-                      <h3>{p.current.brief.title}</h3>
-                      <p>
-                        {themes[p.current.theme].name} ·{" "}
-                        {new Date(p.updated).toLocaleDateString("zh-CN")}
-                      </p>
-                    </div>
-                    <button
-                      className="icon"
-                      aria-label={"复制作品 " + p.current.brief.title}
-                      onClick={async () => {
-                        const next = clone(p);
-                        next.id = crypto.randomUUID();
-                        next.current.brief.title =
-                          next.current.brief.title.slice(0, 176) + " 副本";
-                        next.updated = now();
-                        try {
-                          await persist(next);
-                          setProjects(await listProjects());
-                          message("已创建独立副本");
-                        } catch {
-                          message("副本保存失败，请检查浏览器存储或导出备份");
-                        }
-                      }}
-                    >
-                      <Copy size={16} />
-                    </button>
-                  </div>
-                </article>
-              ))}
+                </div>
+              </article>
+            ))}
           </div>
+          {projects.length > 0 && !matchingProjects.length && (
+            <div className="empty">
+              <Search size={30} />
+              <h2>没有找到匹配的作品</h2>
+              <button className="outline" onClick={() => setQuery("")}>
+                清除搜索
+              </button>
+            </div>
+          )}
           {!projects.length && (
             <div className="empty">
               <FolderOpen size={42} />
-              <h2>你的作品集，从这里开始。</h2>
+              <h2>还没有保存的海报</h2>
               <button className="primary" onClick={newProject}>
                 制作第一张海报 <ArrowRight size={16} />
               </button>
@@ -1595,13 +1726,14 @@ function App() {
             aria-label="活动通知"
             rows={10}
             maxLength={12000}
+            placeholder={"标题：春日艺术节\n日期：2027-03-20\n地点：城市艺术馆"}
             value={briefText}
             onChange={(e) => setBriefText(e.target.value)}
           />
           <div className="button-row">
             <button
               className="outline"
-              disabled={!!busy}
+              disabled={!!busy || !briefText.trim()}
               onClick={() => extract(false)}
             >
               <ScanText size={16} />
@@ -1609,7 +1741,7 @@ function App() {
             </button>
             <button
               className="primary"
-              disabled={!service?.ai || !!busy}
+              disabled={!service?.ai || !!busy || !briefText.trim()}
               onClick={() => extract(true)}
             >
               <Sparkles size={16} />
@@ -1625,24 +1757,32 @@ function App() {
       )}
       {suggestion && (
         <SuggestionModal
-          project={project}
+          project={layerRewrite?.preview ?? project}
+          preview={
+            coverOpen
+              ? (unlock) =>
+                  [project, projectWithSuggestion(suggestion, unlock)].map(
+                    (p, i) =>
+                      renderPoster({ ...p, id: p.id + "-review-" + i }, format)
+                        .svg,
+                  )
+              : undefined
+          }
+          fieldLabel={layerRewrite?.label}
           suggestion={suggestion}
           close={() => setSuggestion(null)}
           confirm={(s, unlock) => {
             try {
-              const next = clone(project);
-              if (unlock)
-                next.current.locked = next.current.locked.filter(
-                  (k) => !(k in s.fields),
-                );
-              const applied = applySuggestion(next, s);
-              applied.current.locked = clone(project.current.locked);
+              const applied = projectWithSuggestion(s, unlock);
               apply(
                 applied,
-                "应用" + (s.source === "local" ? "本地" : "AI") + "建议",
+                layerRewrite
+                  ? "AI 润色" + layerRewrite.label
+                  : "应用" + (s.source === "local" ? "本地" : "AI") + "建议",
               );
               setSuggestion(null);
-              message("修改已应用到全部画幅，可撤销");
+              setLayerRewrite(null);
+              message("修改已应用，可撤销");
             } catch (e) {
               message((e as Error).message);
             }
@@ -1689,6 +1829,18 @@ function App() {
       )}
       {modal === "history" && (
         <Modal title="版本时间线" close={() => setModal(null)}>
+          {coverOpen && (
+            <button
+              className="outline"
+              onClick={() => {
+                setProject(checkpoint(project, "手动版本"));
+                message("已保存版本快照");
+              }}
+            >
+              <Plus size={15} />
+              存为版本
+            </button>
+          )}
           <p className="muted">
             恢复会创建新版本，当前内容会被保留。最多保留20个快照。
           </p>
@@ -1795,7 +1947,7 @@ function App() {
           <button
             className="primary full"
             disabled={!!busy || !ready || exportErrors.length > 0}
-            onClick={runExport}
+            onClick={() => runExport()}
           >
             {busy ? (
               <LoaderCircle className="spin" size={17} />
@@ -1934,17 +2086,27 @@ function App() {
   );
 }
 function SuggestionModal({
+  preview,
+  fieldLabel,
   project,
   suggestion,
   close,
   confirm,
 }: {
   project: Project;
+  preview?: (unlock: boolean) => string[];
+  fieldLabel?: string;
   suggestion: Suggestion;
   close: () => void;
   confirm: (s: Suggestion, unlock: boolean) => void;
 }) {
   const [allowLocked, setAllowLocked] = useState(false);
+  let comparison: string[] = [];
+  try {
+    comparison = preview?.(allowLocked) ?? [];
+  } catch {
+    /* Field validation remains available when applying the suggestion. */
+  }
   const extraction =
     suggestion.reason.includes("导入") || suggestion.reason.includes("提取");
   const locked = Object.keys(suggestion.fields).some((k) =>
@@ -1959,11 +2121,21 @@ function SuggestionModal({
         {suggestion.source === "stepfun" ? "AI 建议" : "本地规则"} ·{" "}
         {suggestion.reason}
       </p>
+      {!!comparison.length && (
+        <div className="cs-comparison">
+          {comparison.map((svg, i) => (
+            <figure key={i}>
+              <div dangerouslySetInnerHTML={{ __html: svg }} />
+              <figcaption>{i === 0 ? "当前海报" : "建议效果"}</figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
       <div className="diff-list">
         {Object.entries(suggestion.fields).map(([k, v]) => (
           <div key={k}>
             <span>
-              {labels[k as Field] || k}
+              {fieldLabel || labels[k as Field] || k}
               {project.current.locked.includes(k as Field) && (
                 <LockKeyhole size={12} />
               )}

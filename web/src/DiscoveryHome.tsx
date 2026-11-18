@@ -7,14 +7,10 @@ import {
   Check,
   ImageOff,
   Images,
-  Layers,
   Menu,
-  Palette,
   Pause,
   Play,
   Search,
-  Sparkles,
-  WandSparkles,
   X,
 } from "lucide-react";
 import {
@@ -26,9 +22,8 @@ import {
 } from "./inspiration";
 import type { Conversation, Job } from "./chat-model";
 import "./discovery.css";
-import PrintProof from "./PrintProof";
-import { editions, type Edition } from "./editions";
-import { formats, type Format } from "./model";
+import Showroom, { startCover } from "./Showroom";
+import { type Edition } from "./editions";
 
 type Props = {
   onCreate: (prompt: string) => void;
@@ -47,33 +42,8 @@ const categories = [
   "全部",
   ...new Set(inspirations.map((item) => item.category)),
 ];
-const suggestions = ["周末咖啡市集", "独立音乐现场", "毕业艺术展"];
-const templateColors: Record<string, string> = {
-  复古未来: "orange",
-  柔和梦境: "paper",
-  大胆撞色: "violet",
-  自然叙事: "mint",
-};
 const mats = ["#e8cfad", "#d6dfd4", "#dfb9ab", "#d5cada", "#bdcebf", "#e4d4a7"];
 const templatesUrl = "?mode=templates";
-function openTemplate(
-  title: string,
-  item?: Inspiration,
-  edition?: Edition,
-  format: Format = "portrait",
-) {
-  const params = new URLSearchParams({
-    title: title.trim(),
-    theme: item
-      ? templateColors[item.category]
-      : edition
-        ? editions[edition].theme
-        : "paper",
-    format,
-  });
-  if (edition) params.set("edition", edition);
-  location.assign(templatesUrl + "#new?" + params);
-}
 function Mark() {
   return (
     <span className="pl-mark" aria-hidden="true">
@@ -177,7 +147,6 @@ export default function DiscoveryHome({
   onCreate,
   onResume,
   onOpen,
-  onGuide,
   threads,
   jobs,
   blocked,
@@ -186,44 +155,7 @@ export default function DiscoveryHome({
   motion,
   onMotion,
 }: Props) {
-  const [aiBrief, setAiBrief] = useState(false);
-  const [edition, setEdition] = useState<Edition>("bloom"),
-    [format, setFormat] = useState<Format>("portrait");
-  const local = !aiBrief || demo || localTemplates;
-  const draftKey = local
-    ? "posterlab.discovery.title"
-    : "posterlab.discovery.draft";
-  const [drafts, setDrafts] = useState<Record<string, string>>(() => {
-    try {
-      return Object.fromEntries(
-        ["posterlab.discovery.title", "posterlab.discovery.draft"].map(
-          (key) => [key, localStorage.getItem(key) || ""],
-        ),
-      );
-    } catch {
-      return {};
-    }
-  });
-  const prompt = drafts[draftKey] || "";
-  const proofTitle = drafts["posterlab.discovery.title"] || "";
-  const startProof = () =>
-    openTemplate(
-      proofTitle.trim() || editions[edition].title,
-      undefined,
-      edition,
-      format,
-    );
-  const [draftWarning, setDraftWarning] = useState(false);
-  const field = useRef<HTMLTextAreaElement>(null);
-  function edit(value: string) {
-    setDrafts((old) => ({ ...old, [draftKey]: value }));
-    try {
-      localStorage.setItem(draftKey, value);
-      setDraftWarning(false);
-    } catch {
-      setDraftWarning(true);
-    }
-  }
+  const local = demo || localTemplates;
   const [filter, setFilter] = useState("全部"),
     [search, setSearch] = useState("");
   const [detail, setDetail] = useState<Inspiration | null>(null),
@@ -239,12 +171,25 @@ export default function DiscoveryHome({
     .sort((a, b) => b.updated.localeCompare(a.updated))
     .slice(0, 4);
   const useArt = (item: Inspiration) =>
-    local ? openTemplate(prompt, item) : onCreate(inspirationPrompt(item));
+    local
+      ? startCover(
+          (
+            {
+              复古未来: "coffee",
+              柔和梦境: "bloom",
+              大胆撞色: "vinyl",
+              自然叙事: "bloom",
+            } as Record<string, Edition>
+          )[item.category] || "afterglow",
+          "portrait",
+          item.title,
+        )
+      : onCreate(inspirationPrompt(item));
   const navLinks = (
     <>
+      <a href="#templates">模板精选</a>
       <a href="#inspiration">灵感画廊</a>
-      <a href={templatesUrl + "#gallery"}>模板作品</a>
-      <a href="#recent">{demo ? "创作案例" : "最近对话"}</a>
+      <a href={templatesUrl + "#gallery"}>我的作品</a>
     </>
   );
   return (
@@ -295,120 +240,7 @@ export default function DiscoveryHome({
         )}
       </header>
       <main id="main-content">
-        <section className="pl-shell pl-hero" aria-labelledby="hero-title">
-          <div className="pl-intro">
-            <p className="pl-kicker">
-              <span /> POSTERLAB PRINT STUDIO
-            </p>
-            <h1 id="hero-title">
-              让灵感，
-              <br />
-              <em>成为海报。</em>
-            </h1>
-            <p className="pl-lead">
-              {local
-                ? "写下标题，看看它在三种视觉风格里的样子。选中喜欢的一版，继续编辑并导出。"
-                : "写下活动主题，让 AI 设计初稿，再逐版打磨。"}
-            </p>
-            {!demo && !localTemplates && (
-              <div className="proof-mode" role="group" aria-label="创作方式">
-                <button aria-pressed={local} onClick={() => setAiBrief(false)}>
-                  模板试印
-                </button>
-                <button aria-pressed={!local} onClick={() => setAiBrief(true)}>
-                  AI 简报
-                </button>
-              </div>
-            )}
-            <form
-              className="pl-composer"
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (local) startProof();
-                else if (!blocked) onCreate(prompt);
-              }}
-            >
-              <label htmlFor="poster-idea">
-                {local ? <Palette size={15} /> : <Sparkles size={15} />}{" "}
-                {local ? "海报主题" : "创作简报"}
-              </label>
-              <textarea
-                ref={field}
-                id="poster-idea"
-                rows={2}
-                maxLength={local ? 180 : 5000}
-                value={prompt}
-                onChange={(e) => edit(e.target.value)}
-                placeholder={
-                  local
-                    ? "输入海报标题，例如「周末咖啡市集」"
-                    : "想做一张什么海报？写下主题、时间或风格…"
-                }
-              />
-              <div className="pl-compose-foot">
-                {local ? (
-                  <span>
-                    <Layers size={15} /> {editions[edition].name} ·{" "}
-                    {formats[format].ratio}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    className="pl-guide"
-                    disabled={blocked}
-                    onClick={() => onGuide(prompt)}
-                  >
-                    <WandSparkles size={15} /> 完善想法
-                  </button>
-                )}
-                <button
-                  className="pl-primary"
-                  disabled={!local && blocked}
-                  type="submit"
-                >
-                  {local ? "开始排版" : "开始创作"}
-                  <ArrowUpRight size={16} />
-                </button>
-              </div>
-            </form>
-            <div className="pl-suggestions">
-              <span>试试</span>
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    edit(s);
-                    if (local)
-                      setEdition(
-                        s === suggestions[0]
-                          ? "coffee"
-                          : s === suggestions[1]
-                            ? "vinyl"
-                            : "bloom",
-                      );
-                    field.current?.focus();
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-            {draftWarning && (
-              <p role="status">草稿暂时无法保存，请复制后再离开。</p>
-            )}
-            {!local && blocked && (
-              <p role="status">有任务等待完成，可在 AI 工作台查看。</p>
-            )}
-          </div>
-          <PrintProof
-            title={proofTitle}
-            edition={edition}
-            format={format}
-            select={setEdition}
-            resize={setFormat}
-            start={startProof}
-          />
-        </section>
+        <Showroom />
         <section
           className="pl-gallery"
           id="inspiration"
