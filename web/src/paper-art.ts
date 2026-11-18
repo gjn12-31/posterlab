@@ -62,13 +62,15 @@ function editorialCover(
   g.fillStyle = palette[0];
   g.fillRect(0, 0, w, h);
   const method = p.title.match(/^([A-Za-z][A-Za-z0-9 -]{1,22})[:：]/)?.[1];
-  const visualX = wide ? w * 0.72 : w * 0.67,
+  // On stacked layouts the complete, rotated deck must end above the title.
+  // Limit its size by height as well as width for square and portrait exports.
+  const sw = wide ? short * 0.27 : Math.min(w * 0.19, h * 0.14),
+    sh = sw * 1.34;
+  const visualX = wide ? w * 0.72 : w - pad - sw * 1.65,
     visualY = wide ? h * 0.27 : h * 0.075;
   g.save();
   g.translate(visualX, visualY);
   g.rotate(-0.12);
-  const sw = short * (wide ? 0.27 : 0.24),
-    sh = sw * 1.34;
   for (let i = 3; i >= 0; i--) {
     g.fillStyle = i === 0 ? palette[1] : palette[0];
     g.strokeStyle = palette[1];

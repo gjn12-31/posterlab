@@ -59,6 +59,7 @@ import {
   localSuggestion,
   applySuggestion,
   parseProject,
+  importProjectCopy,
   parseCsv,
   now,
   type Project,
@@ -606,10 +607,7 @@ function App() {
         setPage("gallery");
         message(`已导入 ${imports.length} 个活动，请逐项核对信息`);
       } else {
-        const p = parseProject(await file.text());
-        p.id = crypto.randomUUID();
-        p.updated = now();
-        p.current.label = "导入的副本";
+        const p = importProjectCopy(await file.text());
         await persist(p);
         setProject(p);
         setFormat(p.lastFormat ?? "portrait");
@@ -1288,7 +1286,11 @@ function App() {
                       }
                     />
                     <div>
-                      <span>{service?.ai ? "StepFun AI" : "本地排版指令"}</span>
+                      <span>
+                        {service?.ai
+                          ? service.provider || "AI 助手"
+                          : "本地排版指令"}
+                      </span>
                       <button
                         aria-label="发送创作指令"
                         disabled={!command.trim() || !!busy}
@@ -1828,7 +1830,7 @@ function App() {
             <div>
               <b>
                 {service?.ai
-                  ? "StepFun 服务已就绪"
+                  ? (service.provider || "模型") + "服务已就绪"
                   : service
                     ? "本地服务已启动，AI 未配置"
                     : "独立前端模式"}
@@ -1977,7 +1979,7 @@ function SuggestionModal({
       close={close}
     >
       <p className="muted">
-        {suggestion.source === "stepfun" ? "AI 建议" : "本地规则"} ·{" "}
+        {suggestion.source !== "local" ? "AI 建议" : "本地规则"} ·{" "}
         {suggestion.reason}
       </p>
       {!!comparison.length && (

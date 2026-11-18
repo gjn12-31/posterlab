@@ -5,7 +5,6 @@ import asyncio
 import base64
 import hashlib
 import json
-import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -13,8 +12,7 @@ from typing import Literal
 import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
-from .design_policy import MODES, model_options
-from .model_catalog import resolve_model
+from .design_policy import MODES
 
 RUBRIC_VERSION = '2026-10-29.2'
 RUBRIC = [
@@ -82,9 +80,9 @@ def revision_instruction(report, ids, note='', mode='redesign'):
     # The edit prompt is constructed here, never trusted as a client-supplied replacement brief.
     return '根据真实图片评测进行设计优化。优先解决以下已选问题，允许联动调整相关视觉元素：\n'+'\n'.join(lines)+'\n'+('用户补充：'+note+'\n' if note else '')+MODES[mode]+'\n标题、日期、时间、地点、价格、联系方式和全部事实原文不变；不要补造信息，不要把评测分数或评语印在海报上。已选素材继续融入，艺术风格可根据新要求重新解释。变化应有设计目的，不以局部数值微调冒充明显改版。'
 
-def register_evaluation(app, ledger, key, transport, store, enqueue):
+def register_evaluation(app, ledger, gateway, transport, store, enqueue):
     router=APIRouter(prefix='/api')
-    model=os.getenv('STEP_VISION_MODEL','step-5-preview')
+    model=gateway.defaults['review']
     with ledger.connect() as db:
         db.execute('CREATE TABLE IF NOT EXISTS evaluations (id TEXT PRIMARY KEY, generation_id TEXT NOT NULL, request_key TEXT UNIQUE NOT NULL, data TEXT NOT NULL)')
         for id,raw in db.execute('SELECT id,data FROM evaluations').fetchall():
@@ -103,9 +101,13 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
     @router.get('/evaluations/for/{generation_id}')
     def for_generation(generation_id:str,model:str | None=None):
         store.get(generation_id)
-        if model:resolve_model(model,model,'review')
+        if model:gateway.select(model,'review')
         with ledger.connect() as db:rows=db.execute('SELECT data FROM evaluations WHERE generation_id=? ORDER BY rowid DESC',(generation_id,)).fetchall()
-        return next((json.loads(row[0]) for row in rows if not model or json.loads(row[0])['model']==model),None)
+        for row in rows:
+            report = json.loads(row[0])
+            if report.get('provider', 'StepFun') == gateway.name and (not model or report['model'] == model):
+                return report
+        return None
     @router.get('/evaluations/{id}')
     def get_review(id:str):return get(id)
     async def run(item,job,call_key):
@@ -117,7 +119,7 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
             messages=[{'role':'system','content':SYSTEM},{'role':'user','content':[{'type':'text','text':json.dumps(context,ensure_ascii=False)},{'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(png).decode(),'detail':'high'}}]}]
             async with httpx.AsyncClient(timeout=httpx.Timeout(300,connect=10),transport=transport,follow_redirects=False) as client:
                 dispatched=True
-                response=await client.post('https://api.stepfun.com/v1/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':model,'messages':messages,**model_options(model,'review'),'stream':False,'response_format':{'type':'json_object'}})
+                response=await gateway.complete(client,model,messages,'review')
             check_provider(response)
             raw=provider_document(response)
             diagnostic=store.root/job['id']/('evaluation-'+item['id']+'.json')
@@ -140,8 +142,8 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
             ledger.finish(call_key,'unknown' if failure.uncertain else 'invalid',cost)
     @router.post('/evaluations',status_code=202)
     async def evaluate(data:RequestReview,request:Request,tasks:BackgroundTasks):
-        selected_model=resolve_model(data.model,model,'review')
-        if not key:raise HTTPException(503,'请先连接 AI 服务')
+        selected_model=gateway.select(data.model,'review')
+        if not gateway.api_key:raise HTTPException(503,'请先连接 AI 服务')
         request_key=request.headers.get('idempotency-key','')
         if not re.fullmatch(r'[A-Za-z0-9_-]{8,80}',request_key):raise HTTPException(400,'缺少有效请求标识')
         job=store.get(data.generation_id)
@@ -149,15 +151,18 @@ def register_evaluation(app, ledger, key, transport, store, enqueue):
         with ledger.connect() as db:
             old=db.execute('SELECT generation_id,data FROM evaluations WHERE request_key=?',(request_key,)).fetchone()
             if old:
-                if old[0]!=data.generation_id or json.loads(old[1])['model']!=selected_model:raise HTTPException(409,'请求标识已用于其他作品或模型')
-                return json.loads(old[1])
+                previous = json.loads(old[1])
+                if (old[0] != data.generation_id or previous['model'] != selected_model
+                        or previous.get('provider', 'StepFun') != gateway.name):
+                    raise HTTPException(409,'请求标识已用于其他作品或模型')
+                return previous
             rows=db.execute('SELECT data FROM evaluations WHERE generation_id=? ORDER BY rowid DESC',(job['id'],)).fetchall()
             for row in rows:
                 cached=json.loads(row[0])
-                if cached['state'] in ('evaluating','complete') and cached['rubric_version']==RUBRIC_VERSION and cached['model']==selected_model:return cached
+                if cached['state'] in ('evaluating','complete') and cached['rubric_version']==RUBRIC_VERSION and cached['model']==selected_model and cached.get('provider','StepFun')==gateway.name:return cached
         fingerprint=hashlib.sha256((data.generation_id+RUBRIC_VERSION+selected_model).encode()).hexdigest()
-        ledger.reserve('review-'+request_key,fingerprint)
-        item={'id':uuid.uuid4().hex,'generation_id':job['id'],'state':'evaluating','model':selected_model,'rubric_version':RUBRIC_VERSION,'created':datetime.now(timezone.utc).isoformat(),'image_sha256':hashlib.sha256((store.root/job['id']/'poster.png').read_bytes()).hexdigest(),'basis':'rendered-image','cost':None}
+        ledger.reserve('review-'+request_key,gateway.identity(selected_model, fingerprint))
+        item={'id':uuid.uuid4().hex,'generation_id':job['id'],'state':'evaluating','provider':gateway.name,'model':selected_model,'rubric_version':RUBRIC_VERSION,'created':datetime.now(timezone.utc).isoformat(),'image_sha256':hashlib.sha256((store.root/job['id']/'poster.png').read_bytes()).hexdigest(),'basis':'rendered-image','cost':None}
         with ledger.connect() as db:db.execute('INSERT INTO evaluations VALUES(?,?,?,?)',(item['id'],job['id'],request_key,json.dumps(item,ensure_ascii=False)))
         tasks.add_task(run,item,job,'review-'+request_key)
         return item

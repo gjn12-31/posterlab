@@ -9,21 +9,39 @@ if [[ ! -f site/index.html ]]; then
   echo "请先构建网页：cd web && npm ci && npm run build"
   exit 1
 fi
-echo "PosterLab Studio: http://127.0.0.1:8787"
 PYTHONPATH="$PWD/src${PYTHONPATH:+:$PYTHONPATH}" .venv/bin/python -c '
-import os, json, getpass, urllib.request
+import os, json, getpass, threading, time, urllib.request, webbrowser
 from dotenv import load_dotenv
 load_dotenv(".env")
+from posterlab.gateway import StudioGateway
+gateway = StudioGateway.configured()
+url = "http://127.0.0.1:" + str(int(os.getenv("POSTERLAB_PORT","8787")))
+print("PosterLab Studio:", url)
 try:
-    status=json.load(urllib.request.urlopen("http://127.0.0.1:8787/api/status",timeout=2))
+    status=json.load(urllib.request.urlopen(url + "/api/status",timeout=2))
 except Exception:
     status=None
 if status is not None:
-    print("PosterLab is already running: http://127.0.0.1:8787")
+    if status.get("provider","StepFun") != gateway.name:
+        raise SystemExit("该端口正在运行另一个模型服务。请在 .env 中设置不同的 POSTERLAB_PORT。")
+    print("PosterLab is already running:", url)
     print("AI connected:", status.get("ai",False))
+    webbrowser.open(url)
 else:
-    if not os.getenv("STEP_API_KEY"):
-        os.environ["STEP_API_KEY"]=getpass.getpass("StepFun API key (hidden, not saved): ").strip()
+    if not gateway.api_key:
+        variable = "PARATERA_API_KEY" if gateway.name == "Paratera" else "STEP_API_KEY"
+        os.environ[variable] = getpass.getpass(gateway.name + " API key (hidden; Enter for local mode): ").strip()
+    def open_when_ready():
+        for _ in range(50):
+            try:
+                with urllib.request.urlopen(url + "/api/status", timeout=1) as response:
+                    if json.load(response).get("provider") == gateway.name:
+                        webbrowser.open(url)
+                        return
+            except (OSError, ValueError):
+                pass
+            time.sleep(0.2)
     from posterlab.server import main
+    threading.Thread(target=open_when_ready, daemon=True).start()
     main()
 '

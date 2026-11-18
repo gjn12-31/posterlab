@@ -1,3 +1,4 @@
+import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { prepareText } from "./paper-model";
 
 // Only match section names at a line boundary. Numbers in citations and
@@ -11,17 +12,156 @@ const nextSection =
 const metadata =
   /\n[ \t]*(?:keywords|key words|index terms|关键词|doi[ \t]*[:：])[ \t:：]*/i;
 
-// A first-page teaser between Abstract and Introduction is outside the abstract.
+// Keep the last abstract sentence even when the plot starts before its caption.
 export function abstractBeforeFigure(section: string) {
   const caption =
     /\n[ \t]*(?:fig(?:ure)?\.?\s*\d+|图\s*\d+)[ \t]*[.|:：丨｜—–-]/iu.exec(
       section,
     );
-  if (!caption) return section;
-  const before = section.slice(0, caption.index).trimEnd();
-  const prose = /[。！？.!?][”"’')）\]]?(?=\s*\n|$)/g;
-  const last = [...before.matchAll(prose)].at(-1);
-  return last ? before.slice(0, last.index! + last[0].length) : before;
+  const before = caption ? section.slice(0, caption.index).trimEnd() : section;
+  // Both a tick sequence and an axis label are needed. Units in prose stay intact.
+  const axes =
+    /\n[ \t]*(?:[-+]?\d+(?:\.\d+)?[kKMBGT%µμ]*[ \t]+){2,}[-+]?\d+(?:\.\d+)?[kKMBGT%µμ]*[ \t]*\n[ \t]*(?:#\w+|[^\n]{1,32}\((?:log|linear) scale\))/i.exec(
+      before,
+    );
+  return (axes ? before.slice(0, axes.index) : before).trimEnd();
+}
+
+// Use the page geometry before flattening PDF.js runs into text. Footnote
+// indices and mathematical exponents often contain the very same characters.
+export function pdfPageText(
+  items: TextItem[],
+  view: number[],
+  pageNumber: number,
+) {
+  const lines: string[] = [];
+  const pageHeight = view[3] - view[1];
+  const center = (view[2] + view[0]) / 2;
+  let previous: TextItem | undefined;
+  const visible = items.filter((item) => item.str.trim());
+  const captionStart = /^(?:Fig(?:ure)?\.?\s*\d+|图\s*\d+)\s*[.:：|丨｜—–-]/iu;
+  const hidden = new Set<TextItem>();
+  const anchors = new Map<TextItem, string>();
+  let footerY = -Infinity;
+  let footerHeight = 0;
+  for (let i = 1; i < visible.length; i++) {
+    const item = visible[i],
+      prev = visible[i - 1];
+    const note =
+      /corresponding author|equal contribution|full author list|work (?:performed|done)|(?:the )?code is available/i;
+    const marked =
+      /^(?:[∗*†‡]|\d{1,2})$/.test(prev.str.trim()) &&
+      prev.height < item.height * 0.82;
+    if (
+      item.transform[5] < view[1] + pageHeight * 0.14 &&
+      note.test(item.str) &&
+      (marked || /^[∗*†‡]/.test(item.str.trim()))
+    ) {
+      footerY = Math.max(
+        footerY,
+        marked ? prev.transform[5] + 1 : item.transform[5] + 1,
+      );
+      footerHeight = Math.max(footerHeight, item.height);
+    }
+    const label = captionStart.exec(prev.str.trim());
+    if (pageNumber <= 1 || !label) continue;
+    // A floated caption can fall between two halves of a paragraph at a page break.
+    // Only exclude it if a separate lower-case continuation follows its closing sentence.
+    for (let j = i; j < Math.min(visible.length, i + 100); j++) {
+      const before = visible[j - 1],
+        after = visible[j];
+      if (
+        Math.abs(before.transform[5] - after.transform[5]) <=
+        Math.max(before.height, after.height) * 1.65
+      )
+        continue;
+      if (
+        /[.!?。！？][”"')\]]?$/.test(before.str.trim()) &&
+        /^\p{Ll}/u.test(after.str.trim())
+      ) {
+        anchors.set(prev, label[0]);
+        visible.slice(i, j).forEach((run) => hidden.add(run));
+      }
+      break;
+    }
+  }
+  for (const item of items) {
+    const text = item.str.trim();
+    const [x, y] = item.transform.slice(4);
+    if (
+      (y <= footerY && item.height <= footerHeight * 1.03) ||
+      hidden.has(item)
+    )
+      continue;
+    if (
+      text === String(pageNumber) &&
+      y < view[1] + pageHeight * 0.08 &&
+      Math.abs(x + item.width / 2 - center) < (view[2] - view[0]) * 0.04
+    )
+      continue;
+    if (
+      y > view[3] - pageHeight * 0.09 &&
+      /^Published as a conference paper at\b/i.test(text)
+    )
+      continue;
+    if (!text) {
+      if (item.hasEOL) lines.push("\n");
+      else if (item.str) lines.push(" ");
+      continue;
+    }
+    if (
+      previous &&
+      /^[0-9]{1,2}$/.test(text) &&
+      /[.!?。！？]$/.test(previous.str.trim()) &&
+      item.height < previous.height * 0.82 &&
+      y > previous.transform[5] + previous.height * 0.16 &&
+      y < previous.transform[5] + previous.height * 0.8 &&
+      Math.abs(x - previous.transform[4] - previous.width) <
+        previous.height * 0.25
+    )
+      continue;
+    const dy = previous ? previous.transform[5] - y : 0;
+    if (previous && Math.abs(dy) > Math.max(3, item.height * 0.6))
+      lines.push("\n");
+    lines.push(anchors.get(item) || item.str);
+    if (item.hasEOL) lines.push("\n");
+    previous = item;
+  }
+  return stripDiagramLabels(lines.join("").replace(/ *\n+ */g, "\n"));
+}
+
+// Unwrap typeset English lines while retaining paragraph/section breaks and
+// punctuation in the source that the author can review in the import form.
+export function pdfProse(text: string) {
+  return text
+    .replace(/([^\n])\n(?=([A-Za-z0-9“‘(]))/g, (match, end: string) =>
+      /[a-zA-Z0-9,;:–—”’)]/.test(end) ? end + " " : match,
+    )
+    .trim();
+}
+
+export function unwrapPdfWords(text: string) {
+  // Prefer the spelling printed elsewhere in the same extract. Productive
+  // compound prefixes retain their hyphens; TeX syllable splits are rejoined.
+  const spellings = new Set(text.toLowerCase().match(/[a-z]+(?:-[a-z]+)+/g));
+  return text
+    .replace(/([a-z]+)-\n([a-z]+)/gi, (_, left: string, right: string) => {
+      const hyphenated = left + "-" + right;
+      if (
+        /^[A-Z]/.test(right) ||
+        spellings.has(hyphenated.toLowerCase()) ||
+        /^(?:high|low|self|semi|human|test|model|fine|open|large|small|long|short|end|non|multi|cross|well)$/i.test(
+          left,
+        )
+      )
+        return hyphenated;
+      return left + right;
+    })
+    .replace(/([A-Za-z0-9])[-‐]\n(?=\d)/g, "$1-")
+    .replace(
+      /(\d\.)\n(?=\d{1,4}(?:[kKMBGT](?![A-Za-z])|\s*(?:%|mm\b|cm\b|nm\b|ms\b|eV\b)))/g,
+      "$1",
+    );
 }
 
 // PDF readers sometimes interleave the labels and pseudocode inside a diagram
@@ -49,10 +189,7 @@ export function stripDiagramLabels(page: string) {
 }
 
 export function extractSections(raw: string, titleHint = "") {
-  const text = raw
-    .replace(/\r/g, "")
-    .replace(/(\p{Script=Latin})-\n(?!\p{Ll}+[-‐])(?=\p{Ll})/gu, "$1")
-    .trim();
+  const text = raw.replace(/\r/g, "").trim();
   const front = prepareText(text, titleHint);
   const intro = introductionHeading.exec(text);
   const before = intro ? text.slice(0, intro.index) : text;

@@ -4,7 +4,6 @@ import asyncio
 import hashlib
 import io
 import json
-import os
 import re
 import uuid
 import time
@@ -22,8 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from typing import Literal
 from .html_contract import validate_html, extract_html
 from .library import CATALOG, ROOT as LIBRARY_ROOT, select_assets
-from .model_catalog import resolve_model
-from .design_policy import MODES, model_options, supports_images, image_part, estimate_cost, visual_delta
+from .design_policy import MODES, image_part, visual_delta
 from .design_repair import normalize_design
 from .failures import Failure, check_provider, provider_document, clean_usage, classify, interrupted
 
@@ -74,8 +72,12 @@ def facts_from_brief(brief):
 
 def parse_design(content):
     content=content.strip()
-    if content.startswith('```') and content.endswith('```'):
-        content=content.split('\n',1)[1].rsplit('```',1)[0].strip()
+    # Some providers surround their single deliverable with an explanation.
+    # Isolate one explicit fenced document before applying the full HTML contract.
+    if content.count('```') == 2:
+        block = re.search(r'(?im)^[ \t]*```(?:html|json)?[ \t]*\r?\n([\s\S]*?)\r?\n[ \t]*```[ \t]*(?=\r?$)', content)
+        if block:
+            content = block[1].strip()
     # Read older JSON-shaped model outputs too; new designs use native HTML to avoid escaping long SVG/CSS code.
     if content.startswith('{'):return json.loads(content)
     html=extract_html(content)
@@ -178,24 +180,48 @@ class GenerationStore:
                     retry_not_before=time.time()+failure.retry_after if failure.retry_after else None)
         self.put(item)
 
+    def recoverable_design(self,item):
+        if item['state']!='failed':
+            return None
+        folder=self.root/item['id']
+        code=(item.get('failure') or {}).get('code')
+        if code not in ('design_invalid','layout_invalid','repair_exhausted'):
+            try:
+                result=json.loads((folder/'model-response.json').read_text())
+                extract_html(result['html'])
+                return result
+            except (OSError,ValueError,TypeError,KeyError,AttributeError):
+                pass
+        if code=='layout_invalid':
+            return None
+        # A previous parser may have rejected a complete answer before saving
+        # model-response.json. Recheck the original paid reply locally. Skip
+        # attempts that already reached layout or content validation.
+        for index,attempt in enumerate(item.get('attempts',[]),1):
+            if attempt.get('state')!='invalid' or (folder/f'attempt-{index}-design.json').exists():
+                continue
+            try:
+                raw=json.loads((folder/f'attempt-{index}-response.json').read_text())
+                choice=raw['choices'][0]
+                if choice.get('finish_reason')!='stop':
+                    continue
+                result=parse_design(choice['message']['content'])
+                html,_=normalize_design(result['html'],facts_from_brief(item['brief']))
+                validate_generated(html,item['brief'],item.get('asset_ids',[]))
+                return result
+            except (OSError,ValueError,TypeError,IndexError,KeyError,AttributeError):
+                continue
+        return None
+
     def public(self,item):
         folder=self.root/item['id']
         if item['state']=='complete' and any(not (folder/name).is_file() for name in ('poster.png','poster.html')):
             self.fail(item,Failure('artifact_missing','作品文件缺失，暂时无法下载。','可以先本地恢复已保存的设计，无需再次调用模型。',stage='delivery'))
-        can_rerender=False
-        if item['state']=='failed':
-            try:
-                result=json.loads((folder/'model-response.json').read_text())
-                extract_html(result['html'])
-                can_rerender=True
-            except (OSError,ValueError,TypeError,KeyError):pass
-            if (item.get('failure') or {}).get('code') in ('design_invalid','layout_invalid','repair_exhausted'):
-                can_rerender=False
+        can_rerender=self.recoverable_design(item) is not None
         return {**{k:v for k,v in item.items() if k not in ('raw_html',)},'can_rerender':can_rerender}
 
 
-def register_generation(app,ledger,key,model,transport=None,renderer=render_document):
-    design_model=os.getenv('STEP_DESIGN_MODEL','step-5-preview')
+def register_generation(app,ledger,gateway,transport=None,renderer=render_document):
     store=GenerationStore(ledger);router=APIRouter(prefix='/api');root=Path(__file__).resolve().parents[2]
     render_slots=asyncio.Semaphore(1)
     async def deliver(item, result):
@@ -273,11 +299,12 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
     async def rerender(id:str,tasks:BackgroundTasks):
         item=store.get(id);folder=store.root/id
         if item['state']!='failed':raise HTTPException(409,'仅可重新检查尚未成功的作品')
-        if not store.public(item)['can_rerender']:raise HTTPException(400,'没有可恢复的完整设计，请按原需求重新生成')
+        result=store.recoverable_design(item)
+        if result is None:raise HTTPException(400,'没有可恢复的完整设计，请按原需求重新生成')
         item.update(state='checking',error=None,failure=None,rerender_count=item.get('rerender_count',0)+1);store.put(item)
         async def recover():
             try:
-                result=json.loads((folder/'model-response.json').read_text())
+                (folder/'model-response.json').write_text(json.dumps(result,ensure_ascii=False))
                 await deliver(item,result)
             except asyncio.CancelledError:
                 store.fail(item,Failure('interrupted','本地恢复被中断。','可再次本地恢复，不调用模型。',stage='rendering'))
@@ -332,12 +359,12 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
                   '素材使用':'已选素材须清晰融入画面。你可以同时自主绘制与主题相关的SVG插画，不能把现有素材当作创作能力的边界。素材使用img data-asset=素材id、src=清单path。',
                   '内容原则':'只保留用户确认的事实；允许重写视觉结构。每个事实有唯一data-field，文字逐字一致，容器只放该字段原文。不得把内部标记、路径或设计说明印上海报。'}
             content=json.dumps(user,ensure_ascii=False)
-            if previous and supports_images(design_model):
+            if previous and gateway.sees_images(design_model):
                 content=[{'type':'text','text':content},image_part(store.root/data.revision_of/'poster.png')]
             messages=[{'role':'system','content':system},{'role':'user','content':content}]
             # Persist the exact prompt separately from credentials and embedded image bytes.
             folder=store.root/id;folder.mkdir(exist_ok=True)
-            (folder/'design-request.json').write_text(json.dumps({'model':design_model,'system':system,'user':user,'reference_image':data.revision_of if previous and supports_images(design_model) else None},ensure_ascii=False))
+            (folder/'design-request.json').write_text(json.dumps({'model':design_model,'system':system,'user':user,'reference_image':data.revision_of if previous and gateway.sees_images(design_model) else None},ensure_ascii=False))
             attempts=[]
             item['attempts']=attempts
             # The original design plus at most two targeted repairs. Each call has
@@ -355,10 +382,10 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
                 try:
                     async with httpx.AsyncClient(timeout=httpx.Timeout(600,connect=10),transport=transport,follow_redirects=False) as client:
                         dispatched=True
-                        response=await client.post('https://api.stepfun.com/v1/chat/completions',headers={'Authorization':'Bearer '+key},json={'model':design_model,'messages':messages,**model_options(design_model),'stream':False})
+                        response=await gateway.complete(client,design_model,messages,'design')
                     check_provider(response)
                     raw=provider_document(response);usage=clean_usage(raw)
-                    spent=estimate_cost(design_model,usage)
+                    spent=gateway.cost(design_model,usage)
                     record.update(usage=usage,cost=spent,provider_response_id=raw.get('id'))
                     item.update(usage={name:sum(r.get('usage',{}).get(name,0) for r in attempts) for name in ('prompt_tokens','completion_tokens','total_tokens')},
                                 cost=sum(r['cost'] for r in attempts) if all(r.get('cost') is not None for r in attempts) else None,
@@ -380,6 +407,8 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
                     if choice.get('finish_reason') not in ('stop','length'):
                         raise Failure('provider_refused','模型未返回可交付的设计。','请调整需求或选择其他模型后重试。')
                     if choice.get('finish_reason')=='length':
+                        if not content.strip():
+                            raise Failure('design_truncated','模型用完输出额度，尚未返回海报代码。','本次已停止。请改用其他设计模型，或精简画面要求后重新生成。',stage='checking')
                         raise Failure('design_truncated','模型设计输出被截断。','请等待自动纠错；仍不完整时可调整需求。',stage='checking',repairable=True,details='输出未完整结束，请返回完整HTML，减少重复装饰代码并保留设计概念。')
                     try:
                         result=parse_design(content)
@@ -389,7 +418,7 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
                     item['state']='checking';store.put(item)
                     (folder/'model-response.json').write_text(json.dumps(result,ensure_ascii=False))
                     (folder/f'attempt-{attempt+1}-design.json').write_text(json.dumps(result,ensure_ascii=False))
-                    item['reference_image_used']=bool(previous and supports_images(design_model))
+                    item['reference_image_used']=bool(previous and gateway.sees_images(design_model))
                     await deliver(item,result)
                     record['state']='complete';store.put(item)
                     return
@@ -415,12 +444,13 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
             store.fail(item,exc,item.get('state','internal'))
 
     async def enqueue(data:GenerateRequest,request_key:str,tasks:BackgroundTasks):
-        selected_model=resolve_model(data.model,design_model,'design')
+        selected_model=gateway.select(data.model,'design')
         data=data.model_copy(update={'model':selected_model})
         select_assets(data.asset_ids)
-        if not key:raise HTTPException(503,'AI服务尚未配置，请配置服务端密钥后再生成。模板工具仍可独立使用。')
+        if not gateway.api_key:raise HTTPException(503,'AI服务尚未配置，请配置服务端密钥后再生成。模板工具仍可独立使用。')
         if not re.fullmatch(r'[A-Za-z0-9_-]{8,100}',request_key):raise HTTPException(400,'缺少有效请求标识')
         fingerprint=hashlib.sha256(json.dumps(data.model_dump(),sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        fingerprint=gateway.identity(selected_model, fingerprint)
         with ledger.connect() as db:existing=db.execute('SELECT fingerprint,data FROM generations WHERE request_key=?',(request_key,)).fetchone()
         if existing:
             if existing[0]!=fingerprint:raise HTTPException(409,'请求标识已用于其他内容')
@@ -433,7 +463,7 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
         if len((data.brief+data.instruction+prior).encode())>350000:raise HTTPException(400,'通知与原作品内容过长，请精简后再生成')
         ledger.reserve(request_key,fingerprint)
         id=uuid.uuid4().hex
-        item={'id':id,'state':'queued','created':datetime.now(timezone.utc).isoformat(),'brief':data.brief,'style':data.style,'style_name':PRESETS[data.style]['name'],'format':data.format,'instruction':data.instruction,'original_request':data.original_request,'revision_of':data.revision_of,'evaluation_id':data.evaluation_id,'asset_ids':data.asset_ids,'model':selected_model,'revision_mode':data.revision_mode,'preset_version':PRESET_VERSION,'preset_prompt':PRESETS[data.style]['prompt']}
+        item={'id':id,'state':'queued','created':datetime.now(timezone.utc).isoformat(),'brief':data.brief,'style':data.style,'style_name':PRESETS[data.style]['name'],'format':data.format,'instruction':data.instruction,'original_request':data.original_request,'revision_of':data.revision_of,'evaluation_id':data.evaluation_id,'asset_ids':data.asset_ids,'provider':gateway.name,'model':selected_model,'revision_mode':data.revision_mode,'preset_version':PRESET_VERSION,'preset_prompt':PRESETS[data.style]['prompt']}
         with ledger.connect() as db:db.execute('INSERT INTO generations VALUES(?,?,?,?)',(id,request_key,fingerprint,json.dumps(item,ensure_ascii=False)))
         tasks.add_task(run,id,data,request_key)
         return store.public(item)
@@ -450,7 +480,7 @@ def register_generation(app,ledger,key,model,transport=None,renderer=render_docu
         return await enqueue(data,request.headers.get('idempotency-key',''),tasks)
     app.include_router(router)
     from .chat import register_chat
-    register_chat(app,ledger,key,model,transport,enqueue,store)
+    register_chat(app,ledger,gateway,transport,enqueue,store)
     from .evaluation import register_evaluation
-    register_evaluation(app,ledger,key,transport,store,enqueue)
+    register_evaluation(app,ledger,gateway,transport,store,enqueue)
     return store

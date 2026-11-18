@@ -9,6 +9,7 @@ import {
   Download,
   Expand,
   LayoutTemplate,
+  ImagePlus,
   LoaderCircle,
   MessageCircle,
   MousePointer2,
@@ -48,8 +49,16 @@ import {
   renderPoster,
 } from "./render";
 import { getProject, saveCampaignProject } from "./storage";
-import { connectedModel, writeCampaign } from "./outreach";
+import { writeCampaign } from "./outreach";
+import { STATIC_DEMO, studioFetch } from "./studio-api";
+import {
+  applyCampaignArtwork,
+  clearArtworkRequest,
+  prepareArtworkRequest,
+  type ArtworkRequest,
+} from "./campaign-artwork";
 import { CampaignNav } from "./CampaignNav";
+import "./publicity-workroom.css";
 
 const channels: {
   id: Format;
@@ -145,6 +154,8 @@ function campaignProject(
   return p;
 }
 export default function CampaignHome() {
+  const [proofFormat, setProofFormat] = useState<Format | "all">("all");
+
   const [draft, setDraft] = useState<Draft>(readCampaign),
     [fontRev, setFontRev] = useState(0);
   const [modal, setModal] = useState<
@@ -158,15 +169,29 @@ export default function CampaignHome() {
     [copied, setCopied] = useState(false),
     [copyTab, setCopyTab] = useState<"invite" | "update">("invite");
   const textarea = useRef<HTMLTextAreaElement>(null),
+    artworkRequest = useRef<ArtworkRequest | null>(null),
     busyRef = useRef(false),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [model, setModel] = useState(""),
+  const [checkingModel, setCheckingModel] = useState(!STATIC_DEMO),
+    [model, setModel] = useState(""),
+    [artworkModel, setArtworkModel] = useState(""),
     [useModel, setUseModel] = useState(true);
   useEffect(() => {
     let current = true;
-    connectedModel().then((s) => {
-      if (current) setModel(s);
-    });
+    if (!STATIC_DEMO) {
+      studioFetch("/status", { signal: AbortSignal.timeout(8000) })
+        .then(async (response) => {
+          if (!response.ok) return;
+          const info = await response.json();
+          if (!current || !info.ai) return;
+          setModel(info.campaign_model || info.model || "");
+          setArtworkModel(info.artwork_model || "");
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (current) setCheckingModel(false);
+        });
+    }
     return () => {
       current = false;
     };
@@ -289,6 +314,7 @@ export default function CampaignHome() {
     }, 3500);
   }
   function generate(text: string, edition?: Edition) {
+    if (!edition && checkingModel) return;
     run("generate", async () => {
       let brief: Brief;
       try {
@@ -340,6 +366,52 @@ export default function CampaignHome() {
       setCopied(false);
       setCopyTab("invite");
       say(message);
+    });
+  }
+  function generateArtwork() {
+    if (!artworkModel || dirty || projectPending) return;
+    run("artwork", async () => {
+      const body = JSON.stringify({
+        title: draft.brief.title,
+        description: draft.brief.description,
+        edition: draft.edition,
+      });
+      const request = await prepareArtworkRequest(
+        draft.projectId,
+        body,
+        artworkRequest.current,
+      );
+      artworkRequest.current = request;
+      const response = await studioFetch("/outreach/artwork", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": request.key,
+        },
+        body,
+      });
+      const image = await response.json().catch(() => null);
+      if (!response.ok || typeof image?.data_url !== "string") {
+        if (response.headers.get("X-PosterLab-Reusable") !== "1") {
+          clearArtworkRequest(request);
+          artworkRequest.current = null;
+        }
+        throw new Error(
+          typeof image?.detail === "string"
+            ? image.detail
+            : "未取得主视觉，当前配图已保留。",
+        );
+      }
+      const next = await applyCampaignArtwork(project, image.data_url);
+      const saved = await saveCampaignProject(
+        next,
+        linked?.id === project.id ? linked.updated : undefined,
+      );
+      setLinked(saved);
+      setDraft((d) => ({ ...d, projectId: saved.id }));
+      clearArtworkRequest(request);
+      artworkRequest.current = null;
+      say("主视觉已应用到三种画幅");
     });
   }
   function openFacts(mode: "schedule" | "facts" | "qr") {
@@ -474,15 +546,15 @@ export default function CampaignHome() {
   }
   const inactive = dirty || !!busy || projectPending;
   return (
-    <div className="campaign ds-workroom ds-campaign">
+    <div id="publicity-studio" className="campaign ds-workroom ds-campaign">
       <CampaignNav active="home" />
       <main className="cp-shell">
-        <section className="cp-hero">
+        <header className="wx-campaign-title">
+          <h1>活动宣传</h1>
+          <p>粘贴一条活动通知，制作三个画幅的海报与邀请文案。</p>
+        </header>
+        <section className="cp-hero" aria-label="活动创作台">
           <div className="cp-intro">
-            <h1>活动宣传</h1>
-            <p className="cp-lead">
-              粘贴活动通知，制作竖版海报、社交方图、横幅与邀请文案。
-            </p>
             <form
               className="cp-form"
               onSubmit={(e) => {
@@ -502,7 +574,7 @@ export default function CampaignHome() {
                 id="cp-notice"
                 disabled={!!busy}
                 maxLength={4000}
-                rows={3}
+                rows={5}
                 placeholder={
                   "活动叫什么？什么时候、在哪里举办？\n可直接粘贴通知，第一行写活动名称。"
                 }
@@ -521,8 +593,8 @@ export default function CampaignHome() {
                     onChange={(e) => setUseModel(e.target.checked)}
                   />
                   <span>
-                    StepFun 创意编排
-                    <small>将活动信息发送给模型，用于选版和撰写邀请文案</small>
+                    使用模型编排
+                    <small>根据通知选择版式并撰写邀请文案</small>
                   </span>
                 </label>
               )}
@@ -541,23 +613,29 @@ export default function CampaignHome() {
                 <button
                   className="cp-primary"
                   disabled={
+                    checkingModel ||
                     !draft.raw.trim() ||
                     !!busy ||
                     projectPending ||
                     (!dirty && !!allErrors.length)
                   }
                 >
-                  {busy === "generate"
-                    ? "正在生成…"
-                    : model && useModel
-                      ? "用 StepFun 生成海报"
-                      : "生成并预览"}{" "}
+                  {busy === "generate" && (
+                    <LoaderCircle className="wx-spin" size={16} />
+                  )}
+                  {checkingModel
+                    ? "正在连接服务…"
+                    : busy === "generate"
+                      ? "正在生成…"
+                      : model && useModel
+                        ? "生成宣传套装"
+                        : "生成并预览"}{" "}
                   <ArrowRight size={16} />
                 </button>
               </div>
             </form>
-            <div className="cp-samples">
-              <span>试个示例</span>
+            <div className="cp-samples" aria-label="活动示例">
+              <span>试用示例</span>
               {campaigns.map((c) => (
                 <button
                   key={c.edition}
@@ -581,24 +659,69 @@ export default function CampaignHome() {
                 <i />
                 {dirty ? "上次生成的预览" : "成品预览"}
               </span>
-              <button onClick={() => preview("portrait")}>
-                <Expand size={14} /> 放大查看
-              </button>
-            </div>
-            <div className="cp-spread" aria-label="三种画幅的实际成品">
-              {channels.map((c) => (
+              <div className="wx-board-actions">
+                {artworkModel && (
+                  <button
+                    type="button"
+                    disabled={inactive}
+                    onClick={generateArtwork}
+                  >
+                    {busy === "artwork" ? (
+                      <LoaderCircle className="wx-spin" size={15} />
+                    ) : (
+                      <ImagePlus size={15} />
+                    )}
+                    {busy === "artwork" ? "正在生成主视觉…" : "生成主视觉"}
+                  </button>
+                )}
                 <button
-                  key={c.id}
-                  className={"cp-sheet cp-" + c.id}
-                  aria-label={"放大" + c.name}
-                  onClick={() => preview(c.id)}
+                  onClick={() =>
+                    preview(proofFormat === "all" ? "portrait" : proofFormat)
+                  }
                 >
-                  <Proof svg={layouts[c.id].svg} />
+                  <Expand size={14} /> 放大查看
                 </button>
-              ))}
+              </div>
+            </div>
+            <div
+              className={
+                "cp-spread" + (proofFormat === "all" ? "" : " wx-proof-single")
+              }
+              aria-label="画幅预览"
+            >
+              {channels
+                .filter((c) => proofFormat === "all" || c.id === proofFormat)
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    className={"cp-sheet cp-" + c.id}
+                    aria-label={"放大" + c.name}
+                    onClick={() => preview(c.id)}
+                  >
+                    <Proof svg={layouts[c.id].svg} />
+                  </button>
+                ))}
             </div>
             <div className="cp-board-foot">
-              <span>三种画幅 · 同一场活动</span>
+              <div className="wx-views" role="group" aria-label="选择预览画幅">
+                <button
+                  type="button"
+                  aria-pressed={proofFormat === "all"}
+                  onClick={() => setProofFormat("all")}
+                >
+                  全套
+                </button>
+                {channels.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={proofFormat === c.id}
+                    onClick={() => setProofFormat(c.id)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
               <button onClick={() => openFacts("schedule")} disabled={inactive}>
                 <CalendarClock size={15} /> 改时间地点
               </button>
@@ -614,7 +737,7 @@ export default function CampaignHome() {
             <div>
               <div className="cp-kicker">
                 {project.current.campaignCopy
-                  ? "StepFun · " + project.current.campaignCopy.model
+                  ? "模型初稿 · " + project.current.campaignCopy.model
                   : "发布材料"}
               </div>
               <h2 id="cp-delivery-title">{draft.brief.title}</h2>
@@ -720,7 +843,7 @@ export default function CampaignHome() {
               </div>
               {draft.concept && draft.concept.edition === draft.edition && (
                 <p className="ds-style-reason">
-                  <b>StepFun 选版理由</b> {draft.concept.reason}
+                  <b>选版说明</b> {draft.concept.reason}
                 </p>
               )}
             </div>

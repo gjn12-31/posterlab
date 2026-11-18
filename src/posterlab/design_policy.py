@@ -25,16 +25,13 @@ def model_options(model, purpose='design'):
     if model == 'step-3.7-flash':options['reasoning_effort']='medium'
     return options
 
-def supports_images(model):
-    return model in ('step-5-preview','step-3.7-flash')
-
 def image_part(path):
     return {'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(path.read_bytes()).decode(),'detail':'high'}}
 
 def estimate_cost(model, usage):
     # Do not apply the older text-model tariff to another model.
     incoming,outgoing=usage.get('prompt_tokens'),usage.get('completion_tokens')
-    if type(incoming) is not int or type(outgoing) is not int:return None
+    if type(incoming) is not int or type(outgoing) is not int or min(incoming, outgoing) < 0:return None
     if model == 'step-3.5-flash':return (incoming*.7+outgoing*2.1)/1e6
     return None
 

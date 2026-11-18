@@ -25,7 +25,7 @@ def build(tmp_path,monkeypatch,handler,renderer=fake_render,design_model='step-3
  import posterlab.generation as g
  # register_generation default is bound at import; inject the test renderer explicitly.
  original=g.register_generation
- monkeypatch.setattr(g,'register_generation',lambda app,ledger,key,model,transport:original(app,ledger,key,model,transport,renderer))
+ monkeypatch.setattr(g,'register_generation',lambda app,ledger,gateway,transport:original(app,ledger,gateway,transport,renderer))
  return create_app(tmp_path,api_key='test-only',transport=httpx.MockTransport(handler),serve_site=False)
 
 def test_generated_html_is_not_a_local_template_and_is_saved_once(tmp_path,monkeypatch):
@@ -171,6 +171,46 @@ def test_local_rerender_recovers_transient_renderer_failure_without_another_api_
   assert c.post('/api/generations/'+id+'/rerender',json={}).status_code==409
 
 
+def test_local_rerender_recovers_a_complete_raw_reply_after_parser_upgrade(tmp_path,monkeypatch):
+ import posterlab.generation as generation
+ requests=[]
+ def provider(request):
+  requests.append(request)
+  answer=result().json()
+  answer['choices'][0]['message']['content']='设计如下\n```html\n'+HTML+'\n```'
+  return httpx.Response(200,json=answer)
+ def previous_parser(content):
+  raise ValueError('缺少完整 HTML 文档或含额外说明')
+ with TestClient(build(tmp_path,monkeypatch,provider)) as client:
+  with monkeypatch.context() as old:
+   old.setattr(generation,'parse_design',previous_parser)
+   id=client.post('/api/generations',json=REQUEST,headers=HEADERS).json()['id']
+   path='/api/generations/'+id
+   assert client.get(path).json()['failure']['code']=='repair_exhausted'
+   assert not client.get(path).json()['can_rerender']
+  assert not (tmp_path/'generations'/id/'model-response.json').exists()
+  assert client.get(path).json()['can_rerender']
+  calls=len(requests)
+  assert client.post(path+'/rerender',json={}).status_code==202
+  assert client.get(path).json()['state']=='complete'
+  assert client.get(path+'/image').status_code==200
+  assert len(requests)==calls
+
+
+def test_reasoning_limit_without_artwork_stops_before_another_paid_attempt(tmp_path,monkeypatch):
+ calls=[]
+ def provider(request):
+  calls.append(request)
+  answer=result(finish='length').json()
+  answer['choices'][0]['message']={'content':'', 'reasoning_content':'unfinished planning'}
+  return httpx.Response(200,json=answer)
+ with TestClient(build(tmp_path,monkeypatch,provider)) as client:
+  id=client.post('/api/generations',json=REQUEST,headers=HEADERS).json()['id']
+  job=client.get('/api/generations/'+id).json()
+  assert job['state']=='failed' and job['failure']['code']=='design_truncated'
+  assert not job['can_rerender'] and len(calls)==1
+
+
 def test_native_html_output_retains_vector_code_without_json_escaping():
  from posterlab.generation import parse_design
  html=HTML.replace('</head>','<meta name="posterlab-plan" content="大胆重构主视觉"><meta name="posterlab-summary" content="原创插画"><meta name="posterlab-change" content="改用宋体标题"></head>')
@@ -178,3 +218,16 @@ def test_native_html_output_retains_vector_code_without_json_escaping():
  assert parsed['html']==html and parsed['design_plan']=='大胆重构主视觉'
  assert parsed['changes']==['改用宋体标题']
  assert parse_design(json.dumps({'html':HTML}))['html']==HTML
+
+
+def test_single_fenced_deliverable_accepts_provider_commentary_but_not_two_designs():
+ from posterlab.generation import parse_design
+ enclosed = "以下是设计。\n```html\n" + HTML + "\n```\n保留了标题和活动信息。"
+ assert parse_design(enclosed)['html'] == HTML
+ with pytest.raises(ValueError):
+  parse_design(enclosed+"\n"+enclosed)
+
+
+def test_static_svg_shadow_is_supported_in_a_generated_poster():
+ html = HTML.replace('<h1 ', '<svg viewBox="0 0 80 80"><defs><filter id="shadow"><feDropShadow dx="2" dy="4" stdDeviation="3"/></filter></defs><circle cx="30" cy="30" r="20" filter="url(#shadow)"/></svg><h1 ')
+ assert 'shadow' in validate_generated(html, BRIEF)

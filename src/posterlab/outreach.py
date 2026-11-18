@@ -1,4 +1,4 @@
-"""Generate and validate a complete outreach kit with the configured StepFun service."""
+"""Generate and validate a complete outreach kit with the configured model service."""
 import hashlib
 import json
 from typing import Annotated, Literal
@@ -7,7 +7,7 @@ import httpx
 from fastapi import HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
-from .outreach_strategy import build_messages
+from .outreach_strategy import build_messages, publication_text
 from .server import Brief
 
 Channel = Literal['x', 'red', 'moments', 'wechat']
@@ -83,20 +83,26 @@ def checked_result(kind, result, payload):
             raise ValueError('No usable platform copy')
         title = result.get('headline')
         drafts['headline'] = (title.strip() if isinstance(title, str) and title.strip() else payload['title'])[:180]
-        return {**drafts, 'evidence_ids': {}}
-    kit = PaperKit.model_validate(result)
-    if set(kit.evidence_ids) != {'x', 'red', 'moments', 'wechat'}:
-        raise ValueError('Missing channel evidence')
-    for refs in kit.evidence_ids.values():
-        if not refs or max(refs) > len(payload['evidence']):
-            raise ValueError('Invalid evidence reference')
-    return kit.model_dump()
+        drafts['evidence_ids'] = {}
+    else:
+        kit = PaperKit.model_validate(result)
+        if set(kit.evidence_ids) != {'x', 'red', 'moments', 'wechat'}:
+            raise ValueError('Missing channel evidence')
+        for refs in kit.evidence_ids.values():
+            if not refs or max(refs) > len(payload['evidence']):
+                raise ValueError('Invalid evidence reference')
+        drafts = kit.model_dump()
+    for channel in ('red', 'wechat'):
+        if channel in drafts:
+            drafts[channel] = publication_text(channel, drafts[channel], drafts['headline'], payload['title'])
+    return drafts
 
 
-def register_outreach(app, ledger, key, model, transport):
+def register_outreach(app, ledger, gateway, transport):
     async def generate(kind, data, request):
-        if not key:
-            raise HTTPException(503, 'StepFun 尚未配置，可选择本地排版。')
+        model = gateway.defaults[kind]
+        if not gateway.api_key:
+            raise HTTPException(503, f'{gateway.name} 尚未配置，可选择本地排版。')
         token = request.headers.get('idempotency-key', '')
         if not 8 <= len(token) <= 100 or not all(c.isalnum() or c in '-_' for c in token):
             raise HTTPException(400, '请求标识无效')
@@ -104,25 +110,20 @@ def register_outreach(app, ledger, key, model, transport):
         payload = data.model_dump()
         messages = build_messages(kind, payload)
         fingerprint = hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode()).hexdigest()
-        cached = ledger.reserve(token, fingerprint)
+        cached = ledger.reserve(token, gateway.identity(model, fingerprint))
         if cached is not None:
             return cached
         cost = None
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(90, connect=10), transport=transport) as client:
-                response = await client.post('https://api.stepfun.com/v1/chat/completions',
-                    headers={'Authorization': 'Bearer ' + key},
-                    json={'model': model, 'messages': messages, 'max_tokens': 8192 if kind == 'paper' else 4096, 'stream': False,
-                          'response_format': {'type': 'json_object'}})
+            async with httpx.AsyncClient(timeout=httpx.Timeout(300 if gateway.name == 'Paratera' else 90, connect=10), transport=transport) as client:
+                response = await gateway.complete(client, model, messages, kind)
             if response.status_code != 200:
                 certain = response.status_code < 500
                 ledger.finish(token, 'rejected' if certain else 'unknown', 0 if certain else None)
-                raise HTTPException(502, f'StepFun 返回 HTTP {response.status_code}，原稿已保留。')
+                raise HTTPException(502, f'{gateway.name} 返回 HTTP {response.status_code}，原稿已保留。')
             raw = response.json()
             counts = raw.get('usage', {})
-            inp, out = counts.get('prompt_tokens'), counts.get('completion_tokens')
-            if type(inp) is int and type(out) is int and min(inp, out) >= 0:
-                cost = (inp * .7 + out * 2.1) / 1_000_000
+            cost = gateway.cost(model, counts)
             choice = raw['choices'][0]
             if choice.get('finish_reason') == 'length':
                 ledger.finish(token, 'invalid', cost)
@@ -133,14 +134,14 @@ def register_outreach(app, ledger, key, model, transport):
             if content.startswith('```') and content.endswith('```'):
                 content = content.partition('\n')[2].removesuffix('```').strip()
             result = checked_result(kind, json.loads(content), payload)
-            result.update(provider='StepFun', model=model)
+            result.update(provider=gateway.name, model=model)
             ledger.finish(token, 'complete', cost, result)
             return result
         except HTTPException:
             raise
         except httpx.TransportError:
             ledger.finish(token, 'unknown')
-            raise HTTPException(502, 'StepFun 连接中断，原稿已保留。') from None
+            raise HTTPException(502, f'{gateway.name} 连接中断，原稿已保留。') from None
         except (ValueError, KeyError, TypeError, IndexError, AttributeError):
             ledger.finish(token, 'invalid', cost)
             raise HTTPException(502, '模型回复中没有可读取的发布稿。输入已保留，可重试或选择本地排版。') from None

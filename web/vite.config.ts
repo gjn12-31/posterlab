@@ -39,6 +39,8 @@ function paperAssets(): Plugin {
     },
   };
 }
+const backend =
+  "http://127.0.0.1:" + Number(process.env.POSTERLAB_API_PORT || 8787);
 export default defineConfig({
   plugins: [react(), paperAssets()],
   base: "./",
@@ -51,8 +53,8 @@ export default defineConfig({
               "http://127.0.0.1:" + Number(process.env.POSTERLAB_OUTREACH_PORT),
           }
         : {}),
-      "/api": "http://127.0.0.1:8787",
-      "/legacy": "http://127.0.0.1:8787",
+      "/api": backend,
+      "/legacy": backend,
     },
   },
 });

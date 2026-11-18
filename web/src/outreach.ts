@@ -9,7 +9,10 @@ import {
   type Paper,
 } from "./paper-model";
 
-const provenance = { provider: z.literal("StepFun"), model: z.string().min(1) };
+const provenance = {
+  provider: z.enum(["StepFun", "Paratera"]),
+  model: z.string().min(1),
+};
 const kitSchema = z.object({
   ...provenance,
   headline: z.string().min(1).max(180),

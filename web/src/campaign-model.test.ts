@@ -43,6 +43,16 @@ describe("活动通知", () => {
   it.each(["2026-02-30", "14月29日"])("无效日期 %s 可被纠正", (day) => {
     expect(() => parseNotice("新年跑步\n" + day)).toThrow("日期无效");
   });
+  it("邀请的末句已经包含行动号召时只发布一次", () => {
+    const b = { ...parseNotice("秋夜设计书展"), cta: "欢迎现场翻阅" };
+    expect(
+      invitation(b, "独立设计刊物展出。欢迎现场翻阅！").match(/欢迎现场翻阅/g),
+    ).toHaveLength(1);
+    expect(invitation(b, "独立设计刊物展出。")).toContain("\n欢迎现场翻阅");
+    expect(invitation({ ...b, cta: "入场" }, "提前预约后入场。")).toContain(
+      "\n入场",
+    );
+  });
   it("独立保留邀请文案、报名网址和改期通知", () => {
     const original = parseNotice(
       "冬日共读\n2026-12-06 14:00，地点：栖云书店。每人带一本书。\nhttps://example.org/join",

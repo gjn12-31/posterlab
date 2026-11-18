@@ -10,8 +10,40 @@ import {
   publicationVoice,
   recoverPaper,
   threadPosts,
+  updateBibliography,
 } from "./paper-model";
 describe("论文宣传", () => {
+  it("校对书目只更新系统附上的出处，保留手写正文和核对原句", () => {
+    const p = examplePaper();
+    p.title = "LM: P";
+    p.source = "https://example.org/old";
+    p.byline = "";
+    p.edits = {
+      x: "1/2 A custom opening.\n\n2/2 " + p.source,
+      red: "LM: P 是我的手写正文。\n\n原文：" + p.source,
+      moments: "我手工排的出处：" + p.source,
+      wechat: "原稿中引用了 LM: P。\n\nLM: P\n" + p.source,
+    };
+    p.evidenceIds = { wechat: [1] };
+    const next = updateBibliography(p, {
+      title: "PonderLM",
+      byline: "Boyi Zeng et al.",
+      source: "https://example.org/new",
+    });
+    expect(next.edits).toEqual({
+      x: "1/2 A custom opening.\n\n2/2 https://example.org/new",
+      red: "LM: P 是我的手写正文。\n\n原文：https://example.org/new",
+      moments: p.edits.moments,
+      wechat:
+        "原稿中引用了 LM: P。\n\nPonderLM\nBoyi Zeng et al.\nhttps://example.org/new",
+    });
+    expect(updateBibliography(next, { ...next, source: "" }).edits.x).toBe(
+      "1/1 A custom opening.",
+    );
+    expect(next.evidenceIds).toEqual({ wechat: [1] });
+    expect(evidenceText(next)).toContain("PonderLM\n\nBoyi Zeng et al.");
+    expect(p.title).toBe("LM: P");
+  });
   it("标出所引原句缺少依据的首次、确定性和比较措辞", () => {
     const paper = examplePaper();
     paper.edits.red = "首次拍到，通量比超过10:1，结果完全吻合。";
@@ -127,4 +159,32 @@ describe("论文宣传", () => {
       ),
     ).toThrow("原文链接");
   });
+});
+
+it("selects complete, verbatim abstract evidence without an interrupted two-page introduction", () => {
+  const abstract =
+    "We compare two decoder models. On 9 benchmarks, PonderPythia-2.8B surpasses Pythia-6.9B and rivals Pythia-12B. We use Fig. 2 and Eq. 3. The mean was 1.3 ± 0.2 mm (p = 0.05).";
+  const intro =
+    "Earlier work considered these methods. Furthermore the models achieve";
+  const p = createPaper(
+    abstract + "\n\n" + intro,
+    "PonderLM",
+    "",
+    "",
+    abstract,
+  );
+  expect(p.body).toContain("Furthermore the models achieve");
+  const quotes = p.evidence.map((e) => e.quote);
+  expect(quotes).toContain(
+    "On 9 benchmarks, PonderPythia-2.8B surpasses Pythia-6.9B and rivals Pythia-12B.",
+  );
+  expect(quotes).toContain("We use Fig. 2 and Eq. 3.");
+  expect(quotes).toContain("The mean was 1.3 ± 0.2 mm (p = 0.05).");
+  expect(quotes.every((q) => abstract.includes(q) && p.body.includes(q))).toBe(
+    true,
+  );
+  const limited = createPaper(intro, "Title", "");
+  expect(limited.evidence.map((e) => e.quote)).toEqual([
+    "Earlier work considered these methods.",
+  ]);
 });

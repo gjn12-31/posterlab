@@ -20,7 +20,10 @@ function renderer() {
       new URLSearchParams(location.search).get("view") === "campaign")
   )
     return "campaign";
-  if (!location.hash || ["#desk", "#workbench"].includes(location.hash))
+  if (
+    !location.hash ||
+    ["#desk", "#workbench", "#collection"].includes(location.hash)
+  )
     return "desk";
   return "gallery";
 }

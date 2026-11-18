@@ -23,7 +23,7 @@ def extract_html(text):
 def validate_html(html, task, creative=False):
     errors=[]; soup=BeautifulSoup(html,'html.parser')
     # Product mode supports static vector illustration; the legacy research contract stays unchanged.
-    svg_tags={'svg','g','path','rect','circle','ellipse','line','polyline','polygon','defs','lineargradient','radialgradient','stop','clippath','mask','filter','fegaussianblur','feoffset','fecolormatrix','feblend','femerge','femergenode','feturbulence','fedisplacementmap','fecomposite','feflood','text','tspan','pattern','desc'}
+    svg_tags={'svg','g','path','rect','circle','ellipse','line','polyline','polygon','defs','lineargradient','radialgradient','stop','clippath','mask','filter','fegaussianblur','fedropshadow','feoffset','fecolormatrix','feblend','femerge','femergenode','feturbulence','fedisplacementmap','fecomposite','feflood','text','tspan','pattern','desc'}
     allowed=ALLOWED | (svg_tags | {'i','u','hr','figure','figcaption','label'} if creative else set())
     if len(soup.select('#poster'))!=1: errors.append('需要唯一 #poster 根节点')
     if len(soup.find_all('html'))!=1 or not soup.head or not soup.body: errors.append('html/head/body 必须完整')

@@ -189,6 +189,11 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
     page = context.new_page()
     page.goto(url)
     page.get_by_role("link", name="制作活动海报").click()
+    views = page.get_by_role("group", name="选择预览画幅")
+    views.get_by_role("button", name="社交方图").click()
+    expect(page.locator(".cp-spread .cp-sheet")).to_have_count(1)
+    expect(page.locator(".cp-spread .cp-square")).to_be_visible()
+    views.get_by_role("button", name="全套").click()
     page.get_by_label("活动通知").fill(
         "山野植物观察日\n2026年12月5日 09:30，地点：望山公园。\n带上速写本，观察冬日植物。"
     )
@@ -265,7 +270,7 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     dialog.get_by_role("button",name="查看或修改提取内容").click()
     expect(dialog.get_by_label("论文标题")).to_have_value("Urban shade observations")
     assert "Introduction" not in dialog.get_by_label("摘要或论文原文").input_value()
-    dialog.get_by_role("button", name="生成四套宣传材料").click()
+    dialog.get_by_role("button", name="生成四套本地摘录稿").click()
     expect(page.locator(".pr-generic")).to_be_visible()
     page.get_by_role("button",name="选取论文插图").click()
     dialog.get_by_label("论文页码").select_option("2")
@@ -309,9 +314,9 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     page.goto(url)
-    intro = page.get_by_role("region", name="把论文和活动",exact=False)
-    expect(intro.get_by_role("heading", level=1)).to_contain_text("文案与海报")
-    expect(intro.get_by_role("link")).to_have_count(1)
+    intro = page.get_by_role("region", name="论文与活动的",exact=False)
+    expect(intro.get_by_role("heading", level=1)).to_contain_text("宣传设计工作室")
+    expect(intro.get_by_role("link",name="导入论文 PDF")).to_have_count(0)
     paper = page.get_by_role("link", name="导入论文 PDF")
     expect(paper).not_to_be_in_viewport()
     page.mouse.wheel(0, 900)
@@ -322,11 +327,13 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     page.goto(url+"#workbench")
     page.reload()
     expect(page.get_by_role("heading",name="工作台",exact=True)).to_be_in_viewport()
-    for title, channel, filename in [
-        ("选出下一个词元之前，模型还能做什么？", "小红书", "小红书/发布文案.txt"),
-        ("M87 中心的亮环有多大？", "公众号", "公众号/发布文案.txt"),
-        ("街区咖啡日", "横版封面", "发布文案.txt"),
+    for case_name, title, channel, filename in [
+        ("秋夜设计书展", "秋夜设计书展", "社交方图", "发布文案.txt"),
+        ("PonderLM", "把思考藏进一次预测里", "小红书", "小红书/发布文案.txt"),
+        ("M87 黑洞观测","M87 中心的亮环有多大？", "公众号", "公众号/发布文案.txt"),
+        ("街区咖啡日","街区咖啡日", "横版封面", "发布文案.txt"),
     ]:
+        page.get_by_role("button",name=case_name,exact=True).click()
         page.get_by_role("button", name="预览" + title).click()
         dialog = page.get_by_role("dialog", name=title)
         dialog.get_by_role("button", name=channel).click()
@@ -350,13 +357,15 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
         <section style="break-before:page">Never send the third page.</section>""")
     path = tmp_path / "shade.pdf"
     page.pdf(path=path)
-    page.route("**/api/status", lambda r: r.fulfill(json={"ai": True}))
+    page.context.grant_permissions(["clipboard-read", "clipboard-write"])
+    statuses = []
+    page.route("**/api/status", lambda route: statuses.append(route))
     requests = []
 
     def capture(route):
         requests.append(route.request.post_data_json)
         route.fulfill(json={"model":"test-model", "provider":"StepFun", "headline":"城市树荫",
-                            "red":"模型返回的笔记", "moments":"模型返回的短分享", "evidence_ids":{}})
+                            "red":"城市树荫\n\n模型返回的笔记", "moments":"模型返回的短分享", "evidence_ids":{}})
 
     page.route("**/api/outreach/paper", capture)
     page.goto(url + "#papers/import")
@@ -367,13 +376,29 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     dialog.get_by_role("button",name="查看或修改提取内容").click()
     intro = dialog.get_by_role("textbox", name="引言")
     expect(intro).to_have_value("Earlier studies focused on winter.\nA second page of background.")
+    assert intro.get_attribute("maxlength") == "45000"
     intro.fill("Earlier work examined winter shade.")
     assert not requests
+    expect(dialog.get_by_role("button", name="正在检查模型服务…")).to_be_disabled()
+    assert statuses
+    for route in statuses:
+        route.fulfill(status=503, json={})
+    statuses.clear()
+    expect(dialog.get_by_role("button", name="生成四套本地摘录稿")).to_be_enabled()
+    with page.expect_request("**/api/status"):
+        dialog.get_by_role("button", name="重新连接").click()
+    expect(dialog.get_by_role("button", name="正在检查模型服务…")).to_be_disabled()
+    assert len(statuses) == 1
+    statuses[0].fulfill(json={"ai": True})
     dialog.get_by_role("button", name="生成四套宣传材料").click()
     expect(dialog).to_have_count(0)
     assert len(requests) == 1
     assert requests[0]["sections"] == {"abstract":"Four parks were studied in summer.", "introduction":"Earlier work examined winter shade."}
     expect(page.locator(".pr-copy")).to_contain_text("模型返回的笔记")
+    page.get_by_role("button", name="复制标题").click()
+    assert page.evaluate("navigator.clipboard.readText()") == "城市树荫"
+    page.get_by_role("button", name="复制正文").click()
+    assert page.evaluate("navigator.clipboard.readText()") == "模型返回的笔记\n\n论文：City shades"
     page.locator(".pr-tabs").get_by_role("button", name="公众号").click()
     expect(page.get_by_role("heading", name="本地摘录",exact=False)).to_be_visible()
     page.close()
@@ -399,7 +424,7 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     d.get_by_label("论文标题").fill("Park shade")
     d.get_by_label("摘要或论文原文").fill("The team observed four parks across the city.")
     d.get_by_role("button",name="生成四套宣传材料").click()
-    expect(page.get_by_text("StepFun 未返回可用文案，已保存本地摘录稿")).to_be_visible()
+    expect(page.get_by_text("模型未返回可用文案，已保存本地摘录稿")).to_be_visible()
     page.reload()
     page.get_by_role("button",name="编辑",exact=True).click()
     d.get_by_label("发布文案").fill("我已核过这段文字")
@@ -409,4 +434,193 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     expect(page.locator(".pr-copy")).to_contain_text("我已核过这段文字")
     page.locator(".pr-tabs").get_by_role("button",name="公众号").click()
     expect(page.locator(".pr-copy")).to_contain_text("公众号导读")
+    page.get_by_role("button", name="核对原句").click()
+    d.get_by_text("校对论文出处", exact=True).click()
+    d.get_by_label("论文原题").fill("Shade in four city parks")
+    d.get_by_label("作者与出版信息").fill("Park Observatory")
+    d.get_by_label("原文链接").fill("https://example.org/shade")
+    d.get_by_role("button", name="完成核对").click()
+    expect(page.locator(".pr-copy")).to_contain_text("Shade in four city parks")
+    expect(page.locator(".pr-copy")).to_contain_text("Park Observatory")
+    page.locator(".pr-tabs").get_by_role("button", name="小红书").click()
+    expect(page.locator(".pr-copy")).to_have_text("我已核过这段文字")
     assert len(calls)==2 and calls[0]==calls[1]
+
+
+def test_generated_campaign_artwork_applies_to_every_proof_and_survives_failure(studio):
+    import base64
+    from io import BytesIO
+
+    browser, url = studio
+    page = browser.new_page(viewport={"width":1440, "height":960})
+    page.route("**/api/status", lambda route: route.fulfill(json={
+        "ai": True, "campaign_model": "fixture-text", "artwork_model": "fixture-image",
+    }))
+    buf = BytesIO()
+    Image.new("RGB", (160, 128), "#1683d9").save(buf, "WEBP")
+    data_url = "data:image/webp;base64," + base64.b64encode(buf.getvalue()).decode()
+    requests = []
+
+    def artwork(route):
+        requests.append(route.request)
+        if len(requests) == 1:
+            route.fulfill(json={"data_url": data_url, "model": "fixture-image", "provider": "Paratera"})
+        else:
+            route.fulfill(status=502, json={"detail":"图像服务暂不可用"})
+
+    page.route("**/api/outreach/artwork", artwork)
+    page.goto(url + "#campaign")
+    page.get_by_role("button", name="生成主视觉", exact=True).click()
+    chosen = page.locator('.cp-spread svg image[href^="data:image/"]')
+    expect(chosen).to_have_count(3)
+    assert requests[0].headers["idempotency-key"] and requests[0].post_data_json["title"]
+    page.reload()
+    expect(chosen).to_have_count(3)
+    page.get_by_role("button", name="生成主视觉", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("图像服务暂不可用")
+    expect(chosen).to_have_count(3)
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="下载整套 ZIP").click()
+    with ZipFile(dl.value.path()) as z:
+        project = json.loads(z.read("project.posterlab.json"))
+        hero = project["current"]["heroId"]
+        assert project["assets"][hero]["data"].startswith("data:image/")
+    assert len(requests) == 2
+    page.close()
+
+
+def test_artwork_cdn_retry_after_reload_reuses_generation_and_exports(studio, tmp_path, monkeypatch):
+    from hashlib import sha256
+    from io import BytesIO
+
+    import httpx
+    from fastapi.testclient import TestClient
+    from posterlab import campaign_artwork
+    from posterlab.server import create_app
+
+    monkeypatch.setenv("POSTERLAB_PROVIDER", "paratera")
+    monkeypatch.setenv("PARATERA_IMAGE_MODEL", "test-image")
+    monkeypatch.delenv("PARATERA_BASE_URL", raising=False)
+    image = BytesIO()
+    Image.new("RGB", (120, 120), "#f02675").save(image, "PNG")
+    calls = []
+
+    async def resolve(host):
+        assert host == "storage.example.com"
+        return "93.184.215.14"
+
+    def upstream(request):
+        calls.append(request.method)
+        if request.method == "POST":
+            return httpx.Response(200, json={"data": [{"url": "https://storage.example.com/art.png"}]})
+        return httpx.Response(503) if calls.count("GET") == 1 else httpx.Response(200, content=image.getvalue())
+
+    monkeypatch.setattr(campaign_artwork, "_public_address", resolve)
+    app = create_app(tmp_path, api_key="test", transport=httpx.MockTransport(upstream), serve_site=False)
+    browser, url = studio
+    page = browser.new_page()
+    requests = []
+    with TestClient(app) as api:
+        def proxy(route):
+            request = route.request
+            if request.method == "GET":
+                response = api.get("/api/status")
+            else:
+                requests.append((request.headers["idempotency-key"], request.post_data))
+                response = api.post("/api/outreach/artwork", json=request.post_data_json,
+                                    headers={"Idempotency-Key": requests[-1][0]})
+            route.fulfill(status=response.status_code, headers=dict(response.headers), body=response.content)
+
+        page.route("**/api/status", proxy)
+        page.route("**/api/outreach/artwork", proxy)
+        page.goto(url + "#campaign")
+        page.get_by_label("使用模型编排", exact=False).uncheck()
+        page.locator("#cp-notice").fill("秋夜设计书展\n简介：翻阅独立设计刊物。")
+        page.get_by_role("button", name="生成并预览").click()
+        page.get_by_role("dialog").get_by_role("button", name="关闭").click()
+        generate = page.get_by_role("button", name="生成主视觉", exact=True)
+        generate.click()
+        expect(page.get_by_role("alert")).to_contain_text("重试将继续取图")
+        entry = page.evaluate("""() => Object.keys(sessionStorage)
+          .filter(k => k.startsWith('posterlab:campaign-artwork:'))
+          .map(k => [k, JSON.parse(sessionStorage[k])])""")
+        assert len(entry) == 1 and not entry[0][0].endswith(":draft")
+        token, body = requests[0]
+        assert entry[0][1] == {"digest": sha256(body.encode()).hexdigest(), "key": token}
+        page.reload()
+        generate.click()
+        images = page.locator('.cp-spread svg image[href^="data:image/"]')
+        expect(images).to_have_count(3)
+        assert requests == [(token, body)] * 2
+        assert calls == ["POST", "GET", "GET"]
+        assert page.evaluate("key => sessionStorage.getItem(key)", entry[0][0]) is None
+        page.reload()
+        expect(images).to_have_count(3)
+        with page.expect_download() as download:
+            page.get_by_role("button", name="下载整套 ZIP").click()
+
+    with ZipFile(download.value.path()) as archive:
+        project = json.loads(archive.read("project.posterlab.json"))
+        hero = project["assets"][project["current"]["heroId"]]
+        assert hero["license"] == "AI 生成的活动主视觉"
+        # Sample the photo inside each layout to check the exported pixels too.
+        for name, dimensions, point in (
+            ("竖版海报.png", (1080, 1440), (850, 920)),
+            ("社交方图.png", (1080, 1080), (340, 770)),
+            ("横版封面.png", (1920, 1080), (1400, 670)),
+        ):
+            with Image.open(archive.open(name)) as output:
+                assert output.size == dimensions
+                red, green, blue = output.convert("RGB").getpixel(point)
+                assert red > 2 * green and red > 1.4 * blue
+    page.close()
+
+
+def test_activity_case_opens_independent_editable_copies_from_the_preview_zip(studio):
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 1400, "height": 900})
+    page.route("**/api/**", lambda route: route.abort())
+    archives = []
+    page.on("request", lambda request: archives.append(request.url) if request.url.endswith("/kits/bookfair.zip") else None)
+    page.add_init_script("""const put = IDBObjectStore.prototype.put;
+      IDBObjectStore.prototype.put = function(...args) {
+        if (this.name === 'projects' && window.failCopySave) {
+          window.failCopySave = false;
+          throw new DOMException('storage full', 'QuotaExceededError');
+        }
+        return put.apply(this, args);
+      };""")
+    page.goto(url + "#collection")
+    page.get_by_role("button", name="社交方图", exact=True).click()
+    edit = page.get_by_role("button", name="编辑这套海报")
+    expect(edit).to_be_enabled()
+    page.evaluate("window.failCopySave = true")
+    edit.click()
+    expect(page.get_by_role("alert")).to_contain_text("保存副本失败")
+    edit.evaluate("button => { button.click(); button.click(); }")
+    art = page.locator(".cs-art")
+    title = art.locator('[data-layer="title"]')
+    expect(title).to_have_text("秋夜设计书展")
+    page.wait_for_function("location.hash === '#studio/square'")
+    for ratio, viewbox in (("3:4", "0 0 1080 1440"), ("16:9", "0 0 1920 1080"), ("1:1", "0 0 1080 1080")):
+        page.get_by_role("button", name=ratio, exact=True).click()
+        expect(art.locator("svg").first).to_have_attribute("viewBox", viewbox)
+        expect(art.locator('image[href^="data:image/"]').first).to_be_visible()
+    title.click()
+    page.get_by_label("修改图层文字").fill("周末绘本书展")
+    expect(title).to_have_text("周末绘本书展")
+    expect(page.locator(".cs-status")).to_contain_text("已自动保存")
+    assert len(archives) == 1
+
+    page.goto(url + "#collection")
+    edit.click()
+    expect(title).to_have_text("秋夜设计书展")
+    page.get_by_role("button", name="我的作品").click()
+    expect(page.get_by_role("button", name="打开作品 秋夜设计书展", exact=True)).to_have_count(1)
+    expect(page.get_by_role("button", name="打开作品 周末绘本书展", exact=True)).to_have_count(1)
+    assert len(archives) == 2
+    page.goto(url + "#collection")
+    page.get_by_role("button", name="街区咖啡日", exact=True).click()
+    edit.click()
+    expect(title).to_have_text("街区咖啡日")
+    page.close()

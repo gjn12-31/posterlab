@@ -91,6 +91,10 @@ const phase: Record<string, string> = {
   repairing: "正在自动修复设计，请稍候",
   rendering: "正在渲染海报",
 };
+function elapsedLabel(job: Job) {
+  const minutes = Math.floor((Date.now() - Date.parse(job.created)) / 60000);
+  return minutes > 0 ? ` · 已用 ${minutes} 分钟` : "";
+}
 function load<T>(key: string, fallback: T): T {
   try {
     return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
@@ -237,7 +241,7 @@ export default function Generator() {
     modelPreferences.review ||
     modelCatalog?.defaults.review ||
     service?.vision_model ||
-    "step-5-preview";
+    "";
   const [style, setStyle] = useState("auto"),
     [format, setFormat] = useState("portrait");
   const [pending, setPending] = useState<Packet | null>(() =>
@@ -314,6 +318,23 @@ export default function Generator() {
       ]);
       setService(s);
       setModelCatalog(m);
+      setModelPreferences((previous) => ({
+        chat: m.models.some(
+          (x) => x.id === previous.chat && x.roles.includes("chat"),
+        )
+          ? previous.chat
+          : "",
+        design: m.models.some(
+          (x) => x.id === previous.design && x.roles.includes("design"),
+        )
+          ? previous.design
+          : "",
+        review: m.models.some(
+          (x) => x.id === previous.review && x.roles.includes("review"),
+        )
+          ? previous.review
+          : "",
+      }));
       setStyles(p.styles);
       setJobs(j);
       setAssets(a.assets);
@@ -1172,6 +1193,7 @@ export default function Generator() {
                                   {j.state === "repairing"
                                     ? ` · 第 ${j.repair_attempt}/2 轮`
                                     : ""}
+                                  {elapsedLabel(j)}
                                   <span className="progress-dots">…</span>
                                 </div>
                               ))}
@@ -1245,8 +1267,12 @@ export default function Generator() {
                       <i />
                       <i />
                     </div>
-                    <h3>想法正在成形</h3>
-                    <p>完成后，海报会出现在这里。</p>
+                    <h3>海报预览</h3>
+                    <p>
+                      {active && elapsedLabel(active)
+                        ? "作品正在后台生成，可稍后回到这个对话查看。"
+                        : "完成后，海报会出现在这里。"}
+                    </p>
                   </div>
                 )}
                 {active && (
@@ -1282,6 +1308,7 @@ export default function Generator() {
                     {artwork
                       ? "正在设计新版本，原作已保留"
                       : phase[active.state]}
+                    {elapsedLabel(active)}
                   </div>
                 )}
               </div>

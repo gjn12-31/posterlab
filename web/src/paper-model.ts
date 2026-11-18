@@ -122,13 +122,21 @@ export function sentences(body: string): string[] {
     .split(/\n\s*\n/)
     .map((s) => s.replace(/\s+/g, " ").trim())
     .filter(Boolean);
+  const segmenter = new Intl.Segmenter("zh", { granularity: "sentence" });
   return lines
-    .flatMap((s) =>
-      Array.from(
-        new Intl.Segmenter("zh", { granularity: "sentence" }).segment(s),
-        (x) => x.segment.trim(),
-      ),
-    )
+    .flatMap((line) => {
+      const parts: string[] = [];
+      let sentence = "";
+      for (const { segment } of segmenter.segment(line)) {
+        sentence += segment;
+        // ICU can segment after an abbreviated figure or equation reference.
+        if (/\b(?:Fig|Eq|Dr|Prof|e\.g|i\.e)\.\s*$/i.test(sentence)) continue;
+        parts.push(sentence.trim());
+        sentence = "";
+      }
+      if (sentence.trim()) parts.push(sentence.trim());
+      return parts;
+    })
     .filter((s) => s.length >= 6 && s.length <= 3000);
 }
 export function prepareText(raw: string, titleHint = "") {
@@ -193,22 +201,32 @@ export function createPaper(
   title: string,
   source: string,
   byline = "",
+  evidenceSource = raw,
 ) {
   const body = raw.replace(/\s+/g, " ").trim();
   if (body.length < 20)
     throw Error("请提供至少 20 个字符的摘要或正文，以便提取论文要点。");
   if (!title.trim()) throw Error("请填写论文标题。");
-  const candidates = sentences(body);
+  const sourceText = evidenceSource.trim() || raw;
+  const all = sentences(sourceText);
+  const complete = all.filter((s) => /[。.!?！？][”’"'）)\]]*$/.test(s));
+  const candidates = complete.length ? complete : all;
   // Some PDF text layers omit sentence boundaries. Keep the confirmed source
   // for the model and use a short verbatim excerpt for the local artwork.
   if (!candidates.length)
-    candidates.push(Array.from(body).slice(0, 260).join(""));
+    candidates.push(
+      Array.from(sourceText.replace(/\s+/g, " ").trim()).slice(0, 260).join(""),
+    );
   const result =
     /(发现|表明|结果|观察到|提升|降低|we (?:find|show|observe|demonstrate)|results? (?:show|suggest)|achiev|outperform)/i;
   const limit =
     /(局限|尚需|可能|仅限|however|limitation|may |might |uncertain)/i;
   const priority = [
     0,
+    candidates.findIndex(
+      (s) =>
+        /\d/.test(s) && (result.test(s) || /surpass|rival|matches?\b/i.test(s)),
+    ),
     candidates.findIndex((s) => result.test(s)),
     candidates.findIndex((s) => limit.test(s)),
     candidates.length - 1,
@@ -314,6 +332,58 @@ export function channelCopy(p: Paper, c: Channel) {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+export function updateBibliography(
+  p: Paper,
+  info: Pick<Paper, "title" | "byline" | "source">,
+): Paper {
+  const next = { ...p, ...info, edits: { ...p.edits } };
+  const citation = (item: Paper) =>
+    item.source ? "原文：" + item.source : "论文：" + item.title;
+  const credit = (item: Paper, separator: string) =>
+    [item.title, item.byline, item.source].filter(Boolean).join(separator);
+  for (const c of ["red", "moments", "wechat"] as const) {
+    const copy = p.edits[c];
+    if (!copy) continue;
+    // Match complete application-written footers. A mention in an edited
+    // paragraph, or a manually replaced citation, belongs to the author.
+    const footers = [[citation(p), citation(next)]];
+    if (c === "wechat")
+      footers.unshift(
+        [credit(p, "\n"), credit(next, "\n")],
+        [
+          "阅读原文\n\n" + credit(p, "\n\n"),
+          "阅读原文\n\n" + credit(next, "\n\n"),
+        ],
+      );
+    if (c === "red")
+      footers.push([
+        citation(p) + "\n\n#论文分享 #科研笔记",
+        citation(next) + "\n\n#论文分享 #科研笔记",
+      ]);
+    const match = footers.find(([before]) => copy.endsWith("\n\n" + before));
+    if (match) next.edits[c] = copy.slice(0, -match[0].length) + match[1];
+  }
+  if (p.source !== next.source && p.edits.x) {
+    const posts = p.edits.x.split("\n\n");
+    const numbered = posts.every((post, i) =>
+      post.startsWith(`${i + 1}/${posts.length} `),
+    );
+    if (
+      numbered &&
+      (!p.source ||
+        posts.at(-1) === `${posts.length}/${posts.length} ${p.source}`)
+    ) {
+      const bodies = posts.map((post) => post.slice(post.indexOf(" ") + 1));
+      if (p.source) bodies.pop();
+      if (next.source) bodies.push(next.source);
+      next.edits.x = bodies
+        .map((post, i) => `${i + 1}/${bodies.length} ${post}`)
+        .join("\n\n");
+    }
+  }
+  return next;
 }
 export function wordingToReview(paper: Paper, channel: Channel) {
   const cited = paper.evidenceIds?.[channel];

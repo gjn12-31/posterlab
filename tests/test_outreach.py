@@ -92,3 +92,42 @@ def test_section_workflow_keeps_usable_platforms(tmp_path):
         result = c.post("/api/outreach/paper", headers=HEADERS, json=request)
         assert result.status_code == 200 and result.json()["red"] == "中文笔记"
         assert result.json()["headline"] == "Park shade" and "wechat" not in result.json()
+
+
+@pytest.mark.parametrize("sections", [False, True])
+def test_publication_format_preserves_the_whole_comparison_and_its_sources(tmp_path, sections):
+    lead = "在九项任务上，2.8B 超过 6.9B，表现接近 12B"
+    body = "作者也观察到分布变化。"
+    article = "## **对照里的 C#** ###\n\n保留 #1 和 C#。\n\n### 研究范围\n\n只在九项任务上比较。\n\n```python\n# preserve comment\n```"
+    draft = {**PAPER_RESULT, "headline": "小模型如何多想一步？", "red": lead + "\n\n" + body, "wechat": article}
+    payload = {"title": "PonderLM", **({"sections": {"abstract": lead}} if sections else {"evidence": [lead]})}
+    requests = []
+
+    def handler(request):
+        messages = json.loads(request.content)["messages"]
+        assert "最多20个字符" in messages[0]["content"]
+        assert "公众号编辑器的纯文本" in messages[0]["content"]
+        requests.append(json.loads(messages[1]["content"]))
+        return completion(draft)
+
+    with TestClient(create_app(tmp_path, api_key="test", transport=httpx.MockTransport(handler), serve_site=False)) as client:
+        response = client.post("/api/outreach/paper", headers=HEADERS, json=payload)
+    assert response.is_success, response.text
+    result = response.json()
+    assert len(requests) == 1 and lead in json.dumps(requests[0], ensure_ascii=False)
+    assert result["red"] == "小模型如何多想一步？\n\n" + lead + "\n\n" + body
+    assert result["wechat"] == article.replace("## **对照里的 C#** ###", "对照里的 C#").replace("### 研究范围", "研究范围")
+    assert result["evidence_ids"] == ({} if sections else draft["evidence_ids"])
+    assert (result["x"], result["moments"]) == (draft["x"], draft["moments"])
+
+
+def test_individual_paper_rewrite_uses_the_same_publication_format(tmp_path):
+    long_line = "PonderPythia-2.8B：在连续空间思量，超过 Pythia-6.9B"
+    fields = {"title": long_line, "description": long_line + "\n\n方法有三步。"}
+    app = create_app(tmp_path, api_key="test", transport=httpx.MockTransport(lambda _: completion({"fields": fields})), serve_site=False)
+    request = {"brief": {"title": "PonderLM: Inference in continuous space"}, "locked": [],
+               "theme": "paper", "titleScale": 1, "workflow": "paper", "paper_channel": "red", "instruction": "改写小红书笔记"}
+    with TestClient(app) as client:
+        response = client.post("/api/assist", headers=HEADERS, json=request)
+    assert response.is_success, response.text
+    assert response.json()["fields"]["description"] == "PonderLM\n\n" + fields["description"]

@@ -249,12 +249,19 @@ export function parseProject(raw: string) {
   if (raw.length > 25_000_000) throw Error("项目超过25MB，请减少素材后重试");
   return projectSchema.parse(JSON.parse(raw));
 }
+export function importProjectCopy(raw: string): Project {
+  const project = parseProject(raw);
+  project.id = crypto.randomUUID();
+  project.updated = now();
+  project.current.label = "导入的副本";
+  return project;
+}
 export type Suggestion = {
   fields: Partial<Brief>;
   theme?: Theme;
   titleScale?: number;
   reason: string;
-  source: "local" | "stepfun";
+  source: "local" | "stepfun" | "paratera";
 };
 export function applySuggestion(
   project: Project,

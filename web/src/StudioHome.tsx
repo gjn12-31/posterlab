@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ArrowDown, ArrowUpRight, Layers3 } from "lucide-react";
+import { ArrowDown, ArrowUpRight, Layers3, Layers2 } from "lucide-react";
 import PublishedKits from "./PublishedKits";
 import "./desktop.css";
 import "./showcase.css";
@@ -30,7 +30,7 @@ const desks = [
     url: "#campaign",
     summary: "一条活动通知，三种画幅的海报。",
     theme: "event",
-    images: ["coffee-portrait", "coffee-square"],
+    images: ["bookfair-portrait", "bookfair-square"],
   },
 ] as const;
 
@@ -61,6 +61,10 @@ export default function StudioHome() {
     // Hash routes mount lazily. Restore deep links once their target exists.
     if (location.hash === "#workbench")
       desk.current?.scrollIntoView({ behavior: "instant" });
+    else if (location.hash === "#collection")
+      document
+        .getElementById("collection")
+        ?.scrollIntoView({ behavior: "instant" });
     else if (location.hash === "#desk")
       window.scrollTo({ top: 0, behavior: "instant" });
     paintScroll();
@@ -86,10 +90,13 @@ export default function StudioHome() {
         >
           <header className="pl-masthead">
             <Brand />
+            <a className="pl-mast-link" href="#collection">
+              作品选集 <ArrowUpRight size={15} />
+            </a>
           </header>
           <div className="pl-visual" aria-hidden="true">
             <img
-              src={art + "paper-sculpture.webp"}
+              src={art + "ink-fold.webp"}
               width="1536"
               height="1024"
               alt=""
@@ -97,10 +104,13 @@ export default function StudioHome() {
               draggable={false}
             />
           </div>
-          <h1 id="pl-purpose">
-            <span>把论文和活动</span>
-            <span>做成文案与海报。</span>
-          </h1>
+          <div className="pl-intro-story">
+            <h1 id="pl-purpose">
+              <span>论文与活动的</span>
+              <span>宣传设计工作室</span>
+            </h1>
+            <p>把一篇论文或一份活动通知，做成可以编辑的文案与海报。</p>
+          </div>
           <a className="pl-down" href="#workbench">
             <span>
               <ArrowDown aria-hidden="true" />
@@ -119,6 +129,9 @@ export default function StudioHome() {
           <div className="pl-heading">
             <h2 id="pl-work-heading">工作台</h2>
             <nav aria-label="创作导航">
+              <a href="#studio">
+                <Layers2 size={16} /> 海报设计室 <ArrowUpRight />
+              </a>
               <a href="#create">
                 设计样张 <ArrowUpRight />
               </a>

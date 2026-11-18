@@ -205,13 +205,25 @@ export function chooseEdition(text: string): Edition {
   return "launch";
 }
 export function invitation(b: Brief, lead?: string) {
+  const introduction = lead || b.description;
+  const sentences = (text: string) =>
+    text
+      .split(/[。！？.!?\n]+/u)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  const cta = sentences(b.cta);
+  const opening = sentences(introduction);
+  const repeatsClosing =
+    cta.length > 0 &&
+    cta.length <= opening.length &&
+    cta.every((part, i) => part === opening[opening.length - cta.length + i]);
   return [
     b.title,
-    lead || b.description,
+    introduction,
     [b.date, b.time].filter(Boolean).join(" "),
     b.venue && "地点：" + b.venue,
     b.speaker && "主办 / 嘉宾：" + b.speaker,
-    b.cta,
+    repeatsClosing ? "" : b.cta,
     b.url,
   ]
     .filter(Boolean)

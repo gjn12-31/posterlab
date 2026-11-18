@@ -7,9 +7,9 @@ MODELS = [
     {'id': 'step-3.5-flash', 'name': 'Step 3.5 Flash', 'description': '文本创作 · 修改时参考源码，不读取原图', 'roles': ['chat', 'design']},
 ]
 
-def resolve_model(selected, default, role):
+def resolve_model(selected, default, role, catalog=MODELS):
     value = selected or default
-    entry = next((m for m in MODELS if m['id'] == value), None)
+    entry = next((m for m in catalog if m['id'] == value), None)
     if not entry or role not in entry['roles']:
         raise HTTPException(400, '所选模型不支持此用途，请在创作偏好中重新选择')
     return value

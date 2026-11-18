@@ -10,9 +10,6 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from .library import select_assets
-from .model_catalog import resolve_model
-from .design_policy import estimate_cost, model_options
-import os
 from .failures import Failure, check_provider, provider_document, clean_usage, classify
 
 
@@ -74,17 +71,17 @@ PLAN_SYSTEM = """你是海报创作前的需求编辑器。本接口只能整理
 """
 
 
-def register_chat(app, ledger, key, model, transport, enqueue, store):
+def register_chat(app, ledger, gateway, transport, enqueue, store):
     router = APIRouter(prefix='/api')
 
     @router.post('/chat')
     async def chat(data: ChatRequest, request: Request, tasks: BackgroundTasks):
         from .generation import GenerateRequest, FORMATS
-        selected_model=resolve_model(data.model,model,'chat')
-        design_model=resolve_model(data.design_model,os.getenv('STEP_DESIGN_MODEL','step-5-preview'),'design')
+        selected_model=gateway.select(data.model,'chat')
+        design_model=gateway.select(data.design_model,'design')
         data=data.model_copy(update={'model':selected_model,'design_model':design_model})
 
-        if not key:
+        if not gateway.api_key:
             raise HTTPException(503, 'AI 尚未连接，请在服务端配置密钥后重启。')
         if data.messages[-1].role != 'user':
             raise HTTPException(400, '最后一条消息应为你的需求')
@@ -106,21 +103,16 @@ def register_chat(app, ledger, key, model, transport, enqueue, store):
         if len(json.dumps(payload, ensure_ascii=False).encode()) > 50000:
             raise HTTPException(400, '对话内容太长，请精简消息或新建对话。')
         fingerprint = hashlib.sha256(data.model_dump_json().encode()).hexdigest()
-        saved = ledger.reserve('chat-' + request_key, fingerprint)
+        saved = ledger.reserve('chat-' + request_key, gateway.identity(selected_model, fingerprint))
         if saved is None:
             cost = None
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(600, connect=10), transport=transport, follow_redirects=False) as client:
-                    response = await client.post('https://api.stepfun.com/v1/chat/completions',
-                        headers={'Authorization': 'Bearer ' + key},
-                        json={'model': selected_model, 'messages': payload, **(model_options(selected_model,'chat') if selected_model != 'step-3.5-flash' else {'max_tokens':3000}), 'stream': False,
-                              'response_format': {'type': 'json_object'}})
+                    response = await gateway.complete(client, selected_model, payload, 'chat')
                 check_provider(response)
                 raw = provider_document(response)
                 usage = clean_usage(raw)
-                incoming, outgoing = usage.get('prompt_tokens'), usage.get('completion_tokens')
-                if type(incoming) is int and type(outgoing) is int and min(incoming, outgoing) >= 0:
-                    cost = estimate_cost(selected_model,usage)
+                cost = gateway.cost(selected_model,usage)
                 choice = raw['choices'][0]
                 if choice.get('finish_reason') != 'stop':
                     raise ValueError('AI 回复不完整，请缩短需求后再试。')
@@ -138,7 +130,7 @@ def register_chat(app, ledger, key, model, transport, enqueue, store):
                             else Decision.model_validate(document))
                 if decision.action == 'design' and len(decision.brief.strip()) < 5:
                     raise ValueError('AI 没有返回完整的创作需求，请补充主题。')
-                saved = {'decision': decision.model_dump(), 'cost': cost, 'response_id': raw.get('id'), 'model': selected_model}
+                saved = {'decision': decision.model_dump(), 'cost': cost, 'response_id': raw.get('id'), 'model': selected_model, 'provider': gateway.name}
                 ledger.finish('chat-' + request_key, 'complete', cost, saved)
             except Exception as exc:
                 if isinstance(exc,Failure) or isinstance(exc,httpx.TransportError):
@@ -161,6 +153,6 @@ def register_chat(app, ledger, key, model, transport, enqueue, store):
                 # request resumes the handoff without paying for chat again.
                 raise HTTPException(exc.status_code,{'message':str(exc.detail),'request_reusable':True,
                     'suggestion':'需求整理已保存，请处理问题后点击重试发送；不会重复调用对话模型。'}) from exc
-        return {'reply': decision.reply, 'job': job, 'cost': saved['cost'], 'response_id': saved['response_id'], 'model': saved.get('model',selected_model)}
+        return {'reply': decision.reply, 'job': job, 'cost': saved['cost'], 'response_id': saved['response_id'], 'model': saved.get('model',selected_model), 'provider': saved.get('provider', 'StepFun')}
 
     app.include_router(router)

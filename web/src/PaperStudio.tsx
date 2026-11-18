@@ -5,6 +5,7 @@ import {
   useState,
   type ReactNode,
   type CSSProperties,
+  type ClipboardEvent,
 } from "react";
 import {
   ArrowDownToLine,
@@ -15,6 +16,7 @@ import {
   Download,
   FileText,
   FileUp,
+  LoaderCircle,
   MessageCircle,
   NotebookPen,
   PencilLine,
@@ -36,9 +38,11 @@ import {
   createPaper,
   examplePaper,
   paperKey,
+  paperSchema,
   platforms,
   recoverPaper,
   sentences,
+  updateBibliography,
   type Paper,
   type Channel,
 } from "./paper-model";
@@ -48,6 +52,7 @@ import { download } from "./render";
 import { studioFetch, STATIC_DEMO } from "./studio-api";
 import twitterText from "twitter-text";
 import "./paper.css";
+import "./publicity-workroom.css";
 
 const icons = {
   x: FileText,
@@ -55,6 +60,25 @@ const icons = {
   moments: MessageCircle,
   wechat: BookOpen,
 };
+type ModelState = "checking" | "ready" | "offline" | "unreachable";
+const sectionLimit = 45000;
+
+// Keep pasted evidence available for a deliberate edit when a browser would
+// otherwise drop the end of an oversized paste at the native maxlength.
+function preserveLongPaste(
+  event: ClipboardEvent<HTMLTextAreaElement>,
+  update: (value: string) => void,
+) {
+  const { value, selectionStart, selectionEnd } = event.currentTarget;
+  const pasted =
+    value.slice(0, selectionStart) +
+    event.clipboardData.getData("text/plain") +
+    value.slice(selectionEnd);
+  if (pasted.length > sectionLimit) {
+    event.preventDefault();
+    update(pasted);
+  }
+}
 function Dialog({
   title,
   close,
@@ -109,6 +133,7 @@ function Art({ paper, channel }: { paper: Paper; channel: Channel }) {
     };
   }, [
     paper.title,
+    paper.byline,
     paper.headline,
     paper.sample,
     paper.figure,
@@ -137,13 +162,16 @@ function ImportPaper({
   close,
   apply,
   fileFirst,
-  ai,
+  modelState,
+  retryConnection,
 }: {
   close: () => void;
   apply: (p: Paper, file?: File) => void;
   fileFirst: boolean;
-  ai: boolean;
+  modelState: ModelState;
+  retryConnection: () => void;
 }) {
+  const ai = modelState === "ready";
   const [text, setText] = useState(""),
     [introduction, setIntroduction] = useState(""),
     [title, setTitle] = useState(""),
@@ -156,6 +184,12 @@ function ImportPaper({
   const [useModel, setUseModel] = useState(true),
     [generating, setGenerating] = useState(false);
   const [showSource, setShowSource] = useState(!fileFirst);
+  const tooLong =
+    text.length > sectionLimit
+      ? "摘要"
+      : introduction.length > sectionLimit
+        ? "引言"
+        : "";
   const generateLock = useRef(false);
   const [modelFailed, setModelFailed] = useState(false);
   const openFile = useRef<File | undefined>(undefined),
@@ -214,7 +248,7 @@ function ImportPaper({
     }
   }
   async function generate(withModel = ai && useModel) {
-    if (generateLock.current) return;
+    if (generateLock.current || modelState === "checking" || tooLong) return;
     generateLock.current = true;
     setGenerating(true);
     setModelFailed(false);
@@ -240,6 +274,7 @@ function ImportPaper({
         title.trim() || extracted?.title || "",
         url.trim() || extracted?.source || "",
         byline,
+        abstract || intro,
       );
       p.sections = sections;
       contactedModel = withModel;
@@ -272,8 +307,7 @@ function ImportPaper({
     >
       <fieldset className="ds-fieldset paper-intake" disabled={generating}>
         <p className="pr-help">
-          从 PDF 的前两页读取摘要与引言，制作
-          X、小红书、朋友圈和公众号的发布稿。
+          读取前两页的摘要与引言，生成四个平台的发布稿。
         </p>
         <input
           type="file"
@@ -284,7 +318,13 @@ function ImportPaper({
           onChange={(e) => read(e.target.files?.[0])}
         />
         <button
-          className={"pr-drop" + (drag ? " drag" : "")}
+          className={
+            "pr-drop wx-attachment" +
+            (drag ? " drag" : "") +
+            (label && !reading ? " has-file" : "")
+          }
+          aria-label={label ? "替换论文文件" : "选择或拖入论文文件"}
+          aria-describedby={label && !reading ? "wx-selected-file" : undefined}
           disabled={reading}
           autoFocus={fileFirst}
           onDragOver={(e) => {
@@ -299,25 +339,35 @@ function ImportPaper({
           }}
           onClick={() => file.current?.click()}
         >
-          <Upload size={22} />
-          <b>
-            {reading
-              ? "正在读取论文…"
-              : label
-                ? "替换论文文件"
-                : "选择或拖入论文文件"}
-          </b>
-          <small>PDF、TXT、MD · 最大 40 MB</small>
+          {reading ? (
+            <>
+              <LoaderCircle className="wx-spin" size={24} />
+              <b role="status">正在读取论文…</b>
+            </>
+          ) : label ? (
+            <>
+              <span className="wx-file-icon">
+                <FileText size={23} />
+              </span>
+              <span className="wx-file-description" id="wx-selected-file">
+                <span className="wx-received">
+                  <Check size={14} /> 已读取论文
+                </span>
+                <strong>{title}</strong>
+                <small>{label}</small>
+              </span>
+              <span className="wx-replace">替换</span>
+            </>
+          ) : (
+            <>
+              <span className="wx-drop-icon">
+                <Upload size={24} />
+              </span>
+              <b>选择或拖入论文文件</b>
+              <small>PDF、TXT、MD · 最大 40 MB</small>
+            </>
+          )}
         </button>
-        {label && (
-          <div className="paper-file-receipt" role="status">
-            <span>
-              <Check size={14} /> 已读取论文
-            </span>
-            <strong>{title}</strong>
-            <small>{label}</small>
-          </div>
-        )}
         <button
           type="button"
           aria-expanded={showSource}
@@ -348,7 +398,8 @@ function ImportPaper({
               rows={6}
               autoFocus={!fileFirst}
               value={text}
-              maxLength={140000}
+              maxLength={sectionLimit}
+              onPaste={(e) => preserveLongPaste(e, setText)}
               placeholder={"论文标题\n在这里粘贴中文或英文摘要……"}
               onChange={(e) => setText(e.target.value)}
             />
@@ -358,7 +409,8 @@ function ImportPaper({
             <textarea
               rows={3}
               value={introduction}
-              maxLength={140000}
+              maxLength={sectionLimit}
+              onPaste={(e) => preserveLongPaste(e, setIntroduction)}
               placeholder="自动提取前两页内的引言，也可以手动粘贴"
               onChange={(e) => setIntroduction(e.target.value)}
             />
@@ -393,10 +445,41 @@ function ImportPaper({
               onChange={(e) => setUseModel(e.target.checked)}
             />
             <span>
-              使用 StepFun 撰写四个平台的文案
+              使用模型撰写四个平台的文案
               <small>仅发送标题、署名、摘要与引言，PDF 留在浏览器中</small>
             </span>
           </label>
+        )}
+        {modelState === "unreachable" && (
+          <div className="pr-verification" role="status">
+            暂时连不上模型服务。{" "}
+            <button
+              type="button"
+              className="pr-reset"
+              onClick={retryConnection}
+            >
+              重新连接
+            </button>
+          </div>
+        )}
+        {generating && (
+          <div className="wx-generating" role="status">
+            <Check size={16} />
+            <span>来源已就绪</span>
+            <i aria-hidden="true" />
+            <LoaderCircle className="wx-spin" size={16} />
+            <b>{ai && useModel ? "正在撰写发布稿" : "正在整理本地摘录"}</b>
+          </div>
+        )}
+        {tooLong && (
+          <p role="alert" className="pr-error">
+            {tooLong}超过 45,000 字符，已保留完整内容。请在输入框中精简后生成。
+            {!showSource && (
+              <button type="button" onClick={() => setShowSource(true)}>
+                展开修改
+              </button>
+            )}
+          </p>
         )}
         {error && (
           <p role="alert" className="pr-error">
@@ -406,11 +489,21 @@ function ImportPaper({
         <button
           className="pr-action"
           disabled={
-            reading || generating || !(text.trim() || introduction.trim())
+            modelState === "checking" ||
+            !!tooLong ||
+            reading ||
+            generating ||
+            !(text.trim() || introduction.trim())
           }
           onClick={() => generate()}
         >
-          {generating ? "正在生成宣传材料…" : "生成四套宣传材料"}{" "}
+          {modelState === "checking"
+            ? "正在检查模型服务…"
+            : generating
+              ? "正在生成宣传材料…"
+              : ai && useModel
+                ? "生成四套宣传材料"
+                : "生成四套本地摘录稿"}{" "}
           <ArrowUpRight size={16} />
         </button>
         {modelFailed && (
@@ -572,6 +665,9 @@ function Evidence({
   ai: boolean;
 }) {
   const [headline, setHeadline] = useState(paper.headline),
+    [title, setTitle] = useState(paper.title),
+    [byline, setByline] = useState(paper.byline || ""),
+    [source, setSource] = useState(paper.source),
     [evidence, setEvidence] = useState(() =>
       paper.evidence.map((e) => ({ ...e })),
     ),
@@ -587,6 +683,35 @@ function Evidence({
     [paper],
   );
   const request = useRef({ fingerprint: "", key: "" });
+  const sourceValid = paperSchema.shape.source.safeParse(source.trim()).success;
+  const canSave =
+    !working &&
+    title.trim() &&
+    headline.trim() &&
+    sourceValid &&
+    evidence.every((e) => e.line.trim());
+  const evidenceChanged =
+    JSON.stringify(evidence) !== JSON.stringify(paper.evidence);
+  function save(replaceDrafts = false) {
+    const next = updateBibliography(paper, {
+      title: title.trim(),
+      byline: byline.trim(),
+      source: source.trim(),
+    });
+    next.headline = headline.trim();
+    if (evidenceChanged) {
+      next.evidence = evidence;
+      // A changed quote makes its previous per-platform indexes unreliable.
+      if (evidence.some((e, i) => e.quote !== paper.evidence[i].quote))
+        next.evidenceIds = undefined;
+      if (replaceDrafts) {
+        next.edits = {};
+        next.model = undefined;
+        next.evidenceIds = undefined;
+      }
+    }
+    apply(next);
+  }
   function change(index: number, quote: string, line: string) {
     setEvidence((items) =>
       items.map((e, i) => (i === index ? { quote, line } : e)),
@@ -635,6 +760,39 @@ function Evidence({
           onChange={(e) => setHeadline(e.target.value)}
         />
       </label>
+      <details className="pr-verification">
+        <summary>校对论文出处</summary>
+        <label>
+          论文原题
+          <input
+            value={title}
+            maxLength={500}
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </label>
+        <label>
+          作者与出版信息
+          <input
+            value={byline}
+            maxLength={240}
+            onChange={(e) => setByline(e.target.value)}
+          />
+        </label>
+        <label>
+          原文链接
+          <input
+            value={source}
+            type="url"
+            maxLength={1200}
+            onChange={(e) => setSource(e.target.value)}
+          />
+        </label>
+        {!sourceValid && (
+          <p className="pr-error">
+            请填写有效的 http 或 https 原文链接，或留空。
+          </p>
+        )}
+      </details>
       {paper.sections && (
         <details className="pr-verification">
           <summary>查看生成时使用的摘要与引言</summary>
@@ -677,7 +835,7 @@ function Evidence({
             <Sparkles size={15} />
             {working ? "正在改写…" : "AI 辅助中文改写"}
           </button>
-          <small>仅将标题及以上原句发送给已连接的 StepFun。</small>
+          <small>仅将标题及以上原句发送给当前使用的模型。</small>
         </div>
       )}
       {state && (
@@ -685,33 +843,23 @@ function Evidence({
           {state}
         </p>
       )}
-      <button
-        className="pr-action"
-        disabled={
-          working || !headline.trim() || evidence.some((e) => !e.line.trim())
-        }
-        onClick={() =>
-          apply(
-            JSON.stringify(evidence) === JSON.stringify(paper.evidence)
-              ? { ...paper, headline: headline.trim() }
-              : {
-                  ...paper,
-                  headline: headline.trim(),
-                  evidence,
-                  model: undefined,
-                  evidenceIds: undefined,
-                  edits: {},
-                },
-          )
-        }
-      >
-        {JSON.stringify(evidence) === JSON.stringify(paper.evidence)
-          ? "完成核对"
-          : Object.keys(paper.edits).length
-            ? "用更新后的摘录替换四个平台的文案"
-            : "应用到四个平台"}{" "}
+      <button className="pr-action" disabled={!canSave} onClick={() => save()}>
+        {evidenceChanged && Object.keys(paper.edits).length
+          ? "保存原句并保留发布稿"
+          : evidenceChanged
+            ? "应用到四个平台"
+            : "完成核对"}{" "}
         <Check size={16} />
       </button>
+      {evidenceChanged && Object.keys(paper.edits).length > 0 && (
+        <button
+          className="pr-reset"
+          disabled={!canSave}
+          onClick={() => save(true)}
+        >
+          用更新后的摘录替换四个平台的文案
+        </button>
+      )}
     </Dialog>
   );
 }
@@ -782,7 +930,11 @@ export default function PaperStudio() {
     [manualSelect, setManualSelect] = useState(false),
     [busy, setBusy] = useState(""),
     [message, setMessage] = useState(""),
-    [ai, setAi] = useState(false);
+    [modelState, setModelState] = useState<ModelState>(
+      STATIC_DEMO ? "offline" : "checking",
+    ),
+    [statusAttempt, setStatusAttempt] = useState(0);
+  const ai = modelState === "ready";
   const originalFile = useRef<File | undefined>(undefined);
   const result = useRef<HTMLElement>(null),
     lock = useRef(false);
@@ -796,18 +948,24 @@ export default function PaperStudio() {
     }
     document.title = "论文宣传 · PosterLab";
     window.scrollTo(0, 0);
+  }, []);
+  useEffect(() => {
+    if (STATIC_DEMO) return;
     let live = true;
-    if (!STATIC_DEMO)
-      studioFetch("/status")
-        .then((r) => r.json())
-        .then((d) => {
-          if (live) setAi(d.ai === true);
-        })
-        .catch(() => {});
+    studioFetch("/status", { signal: AbortSignal.timeout(8000) })
+      .then(async (r) => {
+        if (!r.ok) throw Error();
+        const d = await r.json();
+        if (typeof d.ai !== "boolean") throw Error();
+        if (live) setModelState(d.ai ? "ready" : "offline");
+      })
+      .catch(() => {
+        if (live) setModelState("unreachable");
+      });
     return () => {
       live = false;
     };
-  }, []);
+  }, [statusAttempt]);
   useEffect(() => {
     keepPaper(paper).catch(() =>
       setMessage("当前浏览器无法保存到论文库，请下载备份。"),
@@ -905,7 +1063,7 @@ export default function PaperStudio() {
   const redHasTitle =
     redLines.some((line) => line.trim()) && redTitle.length <= 72;
   return (
-    <div className="campaign pr-page ds-workroom">
+    <div id="publicity-studio" className="campaign pr-page ds-workroom">
       <CampaignNav active="papers" onPapers={() => setModal("library")} />
       <main className="cp-shell pr-shell">
         <section
@@ -931,42 +1089,39 @@ export default function PaperStudio() {
               </button>
             </div>
           </div>
-          <div className="pr-figure">
-            {paper.figure ? (
-              <>
+          <aside className="wx-paper-source" aria-label="当前论文">
+            <div className="wx-source-image">
+              {paper.figure ? (
                 <img
                   className="pr-userfig"
                   src={paper.figure.data}
                   alt={paper.figure.credit}
                 />
-                <div className="pr-figcaption">{paper.figure.credit}</div>
-              </>
-            ) : paper.sample ? (
-              <>
+              ) : paper.sample ? (
                 <img
                   src={import.meta.env.BASE_URL + "papers/m87.jpg"}
-                  alt="事件视界望远镜观测到的 M87 星系中心明亮圆环与中央暗区"
+                  alt="事件视界望远镜观测到的 M87 黑洞"
                 />
-                <div className="pr-figcaption">
-                  <strong>M87*</strong>
-                  <span>事件视界望远镜合作组 · 2019</span>
-                  <a
-                    href="https://www.eso.org/public/images/eso1907a/"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    图像来源 · CC BY 4.0 <ArrowUpRight size={12} />
-                  </a>
-                </div>
-              </>
-            ) : (
-              <div className="pr-activepaper">
-                <Quote />
-                <small>当前论文</small>
-                <strong>{paper.title}</strong>
-              </div>
-            )}
-          </div>
+              ) : (
+                <FileText size={34} />
+              )}
+            </div>
+            <div>
+              <span>{paper.sample ? "示例论文" : "当前论文"}</span>
+              <strong>{paper.title}</strong>
+              {paper.sample && !paper.figure ? (
+                <a
+                  href="https://www.eso.org/public/images/eso1907a/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  EHT Collaboration · CC BY 4.0 <ArrowUpRight size={12} />
+                </a>
+              ) : paper.figure ? (
+                <small>{paper.figure.credit}</small>
+              ) : null}
+            </div>
+          </aside>
         </section>
         <section className="pr-results" ref={result}>
           <div className="pr-resultshead">
@@ -974,7 +1129,7 @@ export default function PaperStudio() {
               <div className="pr-eyebrow">
                 <span />
                 {paper.model
-                  ? "StepFun · " + paper.model
+                  ? "模型初稿 · " + paper.model
                   : paper.sample
                     ? "示例论文 · 已生成"
                     : "本地摘录 · 已生成"}
@@ -995,7 +1150,7 @@ export default function PaperStudio() {
               <div>
                 <b>
                   {paper.modelNotice
-                    ? "StepFun 未返回可用文案，已保存本地摘录稿"
+                    ? "模型未返回可用文案，已保存本地摘录稿"
                     : "部分平台使用本地摘录"}
                 </b>
                 <p>
@@ -1129,9 +1284,19 @@ export default function PaperStudio() {
                   {paper.evidenceIds?.[channel]?.join("、") ||
                     "· " + paper.evidence.length}
                 </button>
-                <button onClick={() => clipboard(copy)}>
+                {redHasTitle && (
+                  <button onClick={() => clipboard(redTitle)}>
+                    <Clipboard size={15} />
+                    复制标题
+                  </button>
+                )}
+                <button
+                  onClick={() =>
+                    clipboard(redHasTitle ? redLines.join("\n").trim() : copy)
+                  }
+                >
                   <Clipboard size={15} />
-                  复制文案
+                  {redHasTitle ? "复制正文" : "复制文案"}
                 </button>
               </div>
             </section>
@@ -1153,7 +1318,11 @@ export default function PaperStudio() {
       </main>
       {(modal === "file" || modal === "paste") && (
         <ImportPaper
-          ai={ai}
+          modelState={modelState}
+          retryConnection={() => {
+            setModelState("checking");
+            setStatusAttempt((attempt) => attempt + 1);
+          }}
           fileFirst={modal === "file"}
           close={() => setModal(null)}
           apply={(p, f) => {
@@ -1165,7 +1334,9 @@ export default function PaperStudio() {
                 ? "模型暂时未返回可用文案，摘要、引言和本地摘录稿已保存。"
                 : p.localChannels?.length
                   ? "已保留模型返回的文案，其余平台已标记为本地摘录。"
-                  : "四个平台的宣传材料已生成",
+                  : p.model
+                    ? "四个平台的宣传材料已生成"
+                    : "四个平台的本地摘录稿已生成",
             );
             requestAnimationFrame(() =>
               result.current?.scrollIntoView({ block: "start" }),

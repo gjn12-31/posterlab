@@ -94,3 +94,11 @@ def test_edit_diff_omits_unchanged_values(tmp_path):
     r=c.post('/api/assist',json=PAYLOAD,headers=HEADERS)
     assert r.status_code==200 and r.json()['fields']=={}
     assert 'theme' not in r.json() and 'titleScale' not in r.json()
+
+
+def test_multibyte_paper_sections_reach_the_normal_paper_handler(tmp_path):
+    client = TestClient(create_app(tmp_path, api_key='', serve_site=False))
+    payload = {'title': '观测', 'sections': {'abstract': '数' * 22_000, 'introduction': '据' * 24_000}}
+    assert client.post('/api/outreach/paper', json=payload, headers=HEADERS).status_code == 503
+    payload['sections']['abstract'] = '数' * 45_001
+    assert client.post('/api/outreach/paper', json=payload, headers=HEADERS).status_code == 422

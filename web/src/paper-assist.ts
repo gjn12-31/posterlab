@@ -12,6 +12,7 @@ async function requestDraft(
   requestId: string,
   task: string,
   fullSections = false,
+  channel?: Channel,
 ) {
   const evidence = p.evidence.map(
     (e, i) => "[" + String(i + 1) + "] " + e.quote,
@@ -30,6 +31,9 @@ async function requestDraft(
         ? "摘要和引言超过改写长度，请精简引言后重新导入。"
         : "选中原句超过文字助手的输入长度，请在「核对原句」选择较短的句子。",
     );
+  const status = await studioFetch("/status")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
   const response = await studioFetch("/assist", {
     method: "POST",
     headers: {
@@ -42,6 +46,10 @@ async function requestDraft(
       theme: "paper",
       titleScale: 1,
       kind: "edit",
+      ...(status?.paper_model ? { workflow: "paper" } : {}),
+      ...(status?.paper_model && (channel === "red" || channel === "wechat")
+        ? { paper_channel: channel }
+        : {}),
       instruction,
     }),
   });
@@ -77,11 +85,11 @@ export async function adaptEvidence(p: Paper, requestId: string) {
 }
 const briefs: Record<Channel, string> = {
   x: "为 X 写 2 至 4 条英文短帖。每条仅讲一个研究问题、结果或限制，每条少于 235 个字符。直接输出帖子，以空行分隔，不加编号。",
-  red: "写给领域同行。首行独立标题，从本文的失败场景、方法动作或带基线的比较中选一个切入。分段交代旧方法卡在哪里、本文改了哪一步、在什么条件下得到结果。数字带上指标和比较对象，保留接近、约等限定词。把观察、已验证结果和未来工作分开。只有原文提供时才引用图号或硬件条件，Workshop 保留全称。不冒充作者、不猜会议奖项，不用颠覆、干翻或里程碑。",
+  red: "写给领域同行。description 首行单独写一个自然完整的中文标题，最多20个字符，英文、空格和标点也计数。title 另写同样限长的封面标题。优先点出研究问题或方法动作；完整基线和限定条件放不下时移入正文。标题之后空一行，分段交代旧方法卡在哪里、本文改了哪一步、在什么条件下得到结果。数字带上指标和比较对象，保留接近、约等限定词。把观察、已验证结果和未来工作分开。只有原文提供时才引用图号或硬件条件，Workshop 保留全称。不冒充作者、不猜会议奖项。",
   moments:
     "写一段可以直接分享到朋友圈的中文导语。用两三句话交代这项研究为什么值得读和一个有依据的发现。避免广告腔、虚构身份或亲身经历。",
   wechat:
-    "写中文公众号文章导读。包括简短标题、引入问题、方法、关键发现与研究边界。按自然段组织，约 250 到 450 字。材料缺少的信息略去。",
+    "写可以直接粘贴到公众号编辑器的纯文本导读。小标题独占一行，与正文之间空一行，不加井号和加粗标记。介绍研究问题、方法、关键发现与研究边界。约 250 到 450 字，材料缺少的信息略去。",
 };
 export async function adaptChannel(
   p: Paper,
@@ -98,6 +106,7 @@ export async function adaptChannel(
         : "") +
       " 不推断论文的发表时间，不把已有成果称为最新发现或刚刚发布。不加网址，由应用附上原文链接。把完整可发布文案写入 description 字段，不用 Markdown。",
     true,
+    c,
   );
   const description = publicationVoice(draft.description);
   if (!description) throw Error("助手未返回可用文案，请继续编辑当前草稿。");

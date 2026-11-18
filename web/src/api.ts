@@ -27,6 +27,10 @@ export async function request<T>(path: string, body?: unknown): Promise<T> {
 export type Service = {
   ai: boolean;
   mode: string;
+  provider?: string;
+  paper_model?: string;
+  campaign_model?: string;
+  artwork_model?: string;
   model: string;
   budget: number;
   spent: number;
