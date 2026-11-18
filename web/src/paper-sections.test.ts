@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { extractSections } from "./paper-sections";
+import {
+  abstractBeforeFigure,
+  extractSections,
+  stripDiagramLabels,
+} from "./paper-sections";
 describe("PDF sections", () => {
   it("separates headings and keeps the introduction up to the next section", () => {
     const parsed = extractSections(
@@ -22,4 +26,30 @@ describe("PDF sections", () => {
     expect(parsed.abstract).toBe("");
     expect(parsed.introduction).toContain("Prior work");
   });
+});
+
+it("omits isolated figure tick labels and keeps captions, prose and unrelated numbers", () => {
+  const plot = "0.1\n0.2\n⋯\n0.1\n0.3\n⋯\n0.4\n0.8\nHidden\nEmbedding";
+  const before = "Earlier studies measured 0.3 seconds.";
+  const after =
+    "Figure 2 | A distribution over tokens.\nOur comparison concerns nine benchmarks.";
+  expect(stripDiagramLabels([before, plot, after].join("\n"))).toBe(
+    before + "\n" + after,
+  );
+  expect(stripDiagramLabels(plot)).toBe(plot);
+  expect(stripDiagramLabels("0.3\n" + after)).toBe("0.3\n" + after);
+});
+
+it("keeps figure-specific comparisons outside the PDF abstract", () => {
+  const abstract = "On nine tasks, the 2.8B model approaches the 12B baseline.";
+  const caption =
+    "Figure 1 | A different comparison: 2.55B matches the training loss.";
+  expect(
+    abstractBeforeFigure(
+      [abstract, "200M 1B 7B", "#Parameters", caption].join("\n"),
+    ),
+  ).toBe(abstract);
+  expect(
+    abstractBeforeFigure("As Figure 1 illustrates, performance improves."),
+  ).toBe("As Figure 1 illustrates, performance improves.");
 });

@@ -143,7 +143,7 @@ def register_outreach(app, ledger, key, model, transport):
             raise HTTPException(502, 'StepFun 连接中断，原稿已保留。') from None
         except (ValueError, KeyError, TypeError, IndexError, AttributeError):
             ledger.finish(token, 'invalid', cost)
-            raise HTTPException(502, '模型返回的未返回四个平台的完整文案或所需字段。已保留输入，可重试或选择本地排版。') from None
+            raise HTTPException(502, '模型回复中没有可读取的发布稿。输入已保留，可重试或选择本地排版。') from None
 
     @app.post('/api/outreach/paper')
     async def paper(data: PaperRequest, request: Request):

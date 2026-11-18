@@ -43,6 +43,89 @@ function rows(ctx: CanvasRenderingContext2D, text: string, w: number) {
   if (row) out.push(row.trimEnd());
   return out;
 }
+function editorialCover(
+  g: CanvasRenderingContext2D,
+  p: Paper,
+  c: Channel,
+  w: number,
+  h: number,
+) {
+  const wide = w / h > 1.4,
+    pad = w * 0.065,
+    short = Math.min(w, h);
+  const palette = {
+    red: ["#e9ded1", "#ab412c"],
+    moments: ["#e8e9dc", "#5a6543"],
+    x: ["#e5e7ec", "#445e9b"],
+    wechat: ["#eddfcc", "#8b582e"],
+  }[c];
+  g.fillStyle = palette[0];
+  g.fillRect(0, 0, w, h);
+  const method = p.title.match(/^([A-Za-z][A-Za-z0-9 -]{1,22})[:：]/)?.[1];
+  const visualX = wide ? w * 0.72 : w * 0.67,
+    visualY = wide ? h * 0.27 : h * 0.075;
+  g.save();
+  g.translate(visualX, visualY);
+  g.rotate(-0.12);
+  const sw = short * (wide ? 0.27 : 0.24),
+    sh = sw * 1.34;
+  for (let i = 3; i >= 0; i--) {
+    g.fillStyle = i === 0 ? palette[1] : palette[0];
+    g.strokeStyle = palette[1];
+    g.lineWidth = 2;
+    g.fillRect(i * sw * 0.14, i * sw * 0.12, sw, sh);
+    g.strokeRect(i * sw * 0.14, i * sw * 0.12, sw, sh);
+  }
+  g.fillStyle = "#fff9eb";
+  g.textAlign = "left";
+  g.font = "bold " + sw * 0.12 + "px Arial";
+  g.fillText(method || "Paper", sw * 0.1, sh * 0.82, sw * 0.82);
+  g.restore();
+  g.fillStyle = palette[1];
+  g.font = "bold " + short * 0.029 + "px " + paperFont;
+  g.fillText(platforms[c].name + "  /  " + platforms[c].type, pad, h * 0.105);
+  const title = c === "x" ? p.title : p.headline;
+  let size = short * (wide ? 0.113 : 0.092),
+    top = h * (wide ? 0.235 : 0.355);
+  const textWidth = wide ? w * 0.55 : w - 2 * pad;
+  let lines: string[] = [];
+  do {
+    g.font = "700 " + size + "px " + paperFont;
+    lines = rows(g, title, textWidth);
+    if (lines.length * size * 1.16 <= h * (wide ? 0.43 : 0.31) || size <= 16)
+      break;
+    size *= 0.94;
+  } while (true);
+  g.fillStyle = "#22211d";
+  g.textBaseline = "top";
+  lines.forEach((l, i) => g.fillText(l, pad, top + i * size * 1.16));
+  const x = pad,
+    y = h * (wide ? 0.72 : 0.73);
+  g.fillStyle = palette[1];
+  g.fillRect(x, y, short * 0.05, Math.max(3, short * 0.004));
+  g.font = "600 " + short * 0.021 + "px " + paperFont;
+  g.fillText("论文原句", x, y + short * 0.015);
+  const quote = p.evidence[0].quote;
+  const qs = short * 0.027;
+  g.font = "400 " + qs + "px " + paperFont;
+  const q = rows(g, quote, wide ? w * 0.83 : w * 0.84);
+  const count = 2;
+  g.fillStyle = "#3d3934";
+  q.slice(0, count).forEach((line, i) =>
+    g.fillText(
+      line + (i === count - 1 && q.length > count ? "…" : ""),
+      x,
+      y + short * 0.048 + i * qs * 1.27,
+      wide ? w * 0.85 : w * 0.86,
+    ),
+  );
+  g.fillStyle = "#8f877d";
+  g.fillRect(pad, h * 0.923, w - 2 * pad, 1);
+  g.font = "500 " + short * 0.021 + "px " + paperFont;
+  g.fillStyle = "#3b3934";
+  g.fillText(p.byline || p.title, pad, h * 0.944, w - 2 * pad);
+}
+
 export async function drawPaper(p: Paper, c: Channel) {
   const { width: w, height: h } = platforms[c];
   const canvas = document.createElement("canvas");
@@ -51,6 +134,10 @@ export async function drawPaper(p: Paper, c: Channel) {
   const g = canvas.getContext("2d")!;
   const title = c === "x" ? p.title : p.headline;
   await loadFonts(title + "科研笔记论文导读研究分享");
+  if (!p.figure && !p.sample) {
+    editorialCover(g, p, c, w, h);
+    return canvas;
+  }
   const wide = w / h > 1.4,
     pad = w * 0.062,
     warm = p.sample && !p.figure,

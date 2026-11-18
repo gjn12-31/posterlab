@@ -573,11 +573,14 @@ body:has(.ds-workroom) {
   margin: 4px 0 10px;
   cursor: pointer;
 }
-.ds-model-option input[type="checkbox"] {
+.ds-model-option input[type="checkbox"],
+.pr-dialog .ds-model-option input[type="checkbox"] {
+  flex: 0 0 15px;
+  padding: 0;
   width: 15px;
   height: 15px;
   margin: 0;
-  accent-color: #229e7d;
+  accent-color: #805432;
 }
 .ds-model-option span {
   font-size: 12px;
@@ -937,4 +940,205 @@ body:has(.cs-app) .cs-wordmark {
   background: transparent;
   padding: 8px;
   cursor: pointer;
+}
+.paper-file-receipt {
+  margin: 12px 0;
+  padding: 16px 18px;
+  border: 1px solid #b4bfaf;
+  background: #edf1e8;
+  border-radius: 7px;
+  color: #273125;
+  display: grid;
+  gap: 9px;
+}
+.paper-file-receipt > span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: #3b5b3d;
+  font-weight: 650;
+  font-size: 12px;
+}
+.paper-file-receipt strong {
+  font-size: 20px;
+  line-height: 1.32;
+  overflow-wrap: anywhere;
+}
+.paper-file-receipt small {
+  font-size: 12px;
+  color: #536050;
+}
+.paper-source-toggle {
+  background: none;
+  color: #39433c;
+  border: 0;
+  border-bottom: 1px solid #c3c9c1;
+  width: 100%;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+}
+.paper-source-toggle span {
+  font-size: 12px;
+}
+.paper-import-source[hidden] {
+  display: none;
+}
+.paper-import-source:not([hidden]) {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0;
+}
+.paper-import-source label {
+  display: grid;
+  gap: 5px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.paper-import-source input,
+.paper-import-source textarea {
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #a6b0a8;
+  border-radius: 5px;
+  background: #fff;
+}
+
+/* A continuous reading surface from the case gallery into both workrooms. */
+.campaign.ds-workroom {
+  --ink: #26241f;
+  --line: #ccc6ba;
+  --green: #694329;
+  --soft: #685f55;
+  --paper-border: #d6cfc2;
+  background: #f4f1eb;
+}
+.campaign.ds-workroom .cp-nav {
+  background: #151412;
+  border-color: #38342e;
+}
+.campaign.ds-workroom .cp-logo > span,
+.campaign.ds-workroom .cp-nav nav a[aria-current="page"] {
+  color: #ffb786;
+}
+.campaign.ds-workroom .cp-nav nav a[aria-current="page"]:after {
+  background: #ffb786;
+}
+.ds-workroom.pr-page .pr-hero,
+.campaign.ds-workroom .cp-hero {
+  background: #191715;
+  color: #fff8f0;
+}
+.ds-workroom.pr-page .pr-hero h1 span,
+.ds-workroom .pr-hero .pr-eyebrow,
+.ds-workroom .cp-hero h1 em,
+.ds-workroom .cp-intro .cp-kicker {
+  color: #ffb581;
+}
+.ds-workroom .pr-hero-copy p,
+.ds-workroom .cp-lead {
+  color: #ded5ca;
+}
+.ds-workroom.pr-page .pr-hero .pr-import,
+.ds-workroom .cp-primary,
+.ds-workroom .cp-primary:hover:enabled {
+  background: #ffd1a5;
+  color: #2b1e15;
+  border-radius: 32px;
+}
+.ds-workroom .pr-hero .pr-paste {
+  border: 1px solid #8c8175;
+  border-radius: 32px;
+  color: #f6ede1;
+}
+.ds-workroom .pr-figure {
+  border-color: #514638;
+  background: #100e0c;
+  box-shadow: none;
+}
+.ds-workroom .pr-tabs {
+  border-top-color: #bcb3a5;
+}
+.ds-workroom .pr-tabs button {
+  border-bottom-color: #cec5b8;
+}
+.ds-workroom .pr-tabs button[aria-pressed="true"] {
+  background: #332c24;
+  color: #fff2dc;
+  box-shadow: inset 3px 0 #f0a267;
+}
+.ds-workroom .pr-results .pr-eyebrow,
+.ds-workroom .cp-delivery .cp-kicker {
+  color: #735238;
+}
+.ds-workroom .pr-eyebrow span {
+  background: #d98b51;
+}
+.ds-workroom :is(.pr-vis, .pr-writing, .pr-source, .cp-files, .cp-message) {
+  background: #fffdf8;
+  border-color: #d7cebf;
+  border-radius: 8px;
+}
+.ds-workroom .pr-source {
+  background: #eae4d8;
+}
+.ds-workroom .pr-mat {
+  background:
+    repeating-linear-gradient(0deg, transparent 0 25px, #a9957620 25px 26px),
+    repeating-linear-gradient(90deg, #e9e2d7 0 25px, #ded5c7 25px 26px) !important;
+}
+.ds-workroom .pr-note h4 {
+  font-size: clamp(20px, 1.55vw, 27px);
+  line-height: 1.4;
+  margin: 0 0 12px;
+  color: #29251e;
+}
+.ds-workroom :is(.pr-action, .cp-dark) {
+  background: #312c25;
+  color: #fff5e5;
+}
+.ds-workroom .cp-form {
+  background: #29251f;
+  color: #fff8ef;
+  border-color: #6f6050;
+  border-radius: 10px;
+}
+.ds-workroom .cp-form textarea,
+.ds-workroom .cp-form :is(label, .cp-clear) {
+  color: #f3eadf;
+}
+.ds-workroom .cp-form label small,
+.ds-workroom .cp-samples span {
+  color: #c7baad;
+}
+.ds-workroom .cp-samples button,
+.ds-workroom .cp-board-foot button {
+  background: #29251e;
+  color: #e6dacb;
+  border-color: #665b4e;
+}
+.ds-workroom .cp-samples button[aria-pressed="true"] {
+  background: #3b2b20;
+  border-color: #be8056;
+  color: #ffce9c;
+}
+.ds-workroom .cp-board {
+  background: radial-gradient(
+    ellipse at 42% 38%,
+    #6b5e50,
+    #3d352c 63%,
+    #251f1b
+  );
+  border-color: #716150;
+  border-radius: 8px;
+}
+.ds-workroom .cp-message textarea {
+  background: #f1ece2;
+  color: #373028;
 }

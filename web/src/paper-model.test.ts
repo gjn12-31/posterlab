@@ -7,6 +7,7 @@ import {
   evidenceText,
   examplePaper,
   prepareText,
+  publicationVoice,
   recoverPaper,
   threadPosts,
 } from "./paper-model";
@@ -21,6 +22,54 @@ describe("科研传播", () => {
     ]);
     paper.edits.red = "亮环的角直径为 42 ± 3 微角秒，与理论预期一致。";
     expect(wordingToReview(paper, "red")).toEqual([]);
+  });
+
+  it("小红书稿件标记未经原文支持的录用、数值和比较方向", () => {
+    const p = examplePaper();
+    p.title = "PonderLM";
+    p.byline = "ICLR 2026";
+    p.sections = {
+      abstract:
+        "2.8B surpasses Pythia-6.9B and approaches Pythia-12B on nine benchmarks.",
+      introduction: "",
+    };
+    p.edits.red = "ICLR 2026 Spotlight：超过 Pythia-12B，提升 67%。";
+    expect(wordingToReview(p, "red")).toEqual([
+      "Spotlight",
+      "67%",
+      "超过 Pythia-12B",
+    ]);
+    p.edits.red = "ICLR 2026：九项测试中，2.8B 接近 Pythia-12B。";
+    expect(wordingToReview(p, "red")).toEqual([]);
+  });
+  it("attributes research to its authors before formatting model-written posts", () => {
+    expect(
+      publicationVoice(
+        "We propose PonderLM.\nOur 2.8B PonderPythia rivals the larger model.",
+      ),
+    ).toBe(
+      "The authors propose PonderLM.\nThe authors’ 2.8B PonderPythia rivals the larger model.",
+    );
+    expect(publicationVoice("我们在九项任务中验证了方法。")).toBe(
+      "研究团队在九项任务中验证了方法。",
+    );
+    expect(publicationVoice("The paper asks “We study what?”")).toBe(
+      "The paper asks “We study what?”",
+    );
+  });
+  it("calls out an invented author voice and unmeasured compute savings", () => {
+    const paper = examplePaper();
+    paper.model = "StepFun";
+    paper.sections = {
+      abstract:
+        "Under the same computational budget the model achieved a lower loss.",
+      introduction: "",
+    };
+    paper.edits.moments = "我们提出新的方法，算力还省了。";
+    expect(wordingToReview(paper, "moments")).toEqual([
+      "我们提出",
+      "算力还省了",
+    ]);
   });
 
   it("从有标签的摘要分离出标题、引文与原文链接", () => {

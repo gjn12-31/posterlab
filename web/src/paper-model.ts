@@ -233,6 +233,24 @@ export function createPaper(
     edits: {},
   });
 }
+// Apply only to model drafts, before numbering posts and adding citations.
+// Keep the author's words intact when the user edits, quotes or pastes text.
+export function publicationVoice(draft: string) {
+  return draft
+    .replace(
+      /^(\s*)We (?=propose|introduce|present|evaluate|test|find|show|compare|demonstrate|report)/gm,
+      "$1The authors ",
+    )
+    .replace(
+      /^(\s*)Our (?=(?:[\d.]+[BM] |proposed |new )?(?:models?\b|method\b|results?\b|[A-Z][a-z]+[A-Z]))/gm,
+      "$1The authors’ ",
+    )
+    .replace(
+      /(^|[。！？\n])([ \t]*)我们(?:团队)?(?=提出|发现|构建|设计|在.{0,18}(?:验证|测试|比较))/g,
+      "$1$2研究团队",
+    );
+}
+
 export function threadPosts(texts: string[]): string[] {
   const chunks: string[] = [];
   for (const text of texts.filter(Boolean)) {
@@ -302,7 +320,9 @@ export function wordingToReview(paper: Paper, channel: Channel) {
   const source = (
     cited?.length
       ? cited.map((id) => paper.evidence[id - 1]?.quote || "")
-      : paper.evidence.map((e) => e.quote)
+      : paper.sections
+        ? [paper.sections.abstract, paper.sections.introduction]
+        : paper.evidence.map((e) => e.quote)
   ).join(" ");
   const text = [
     paper.headline,
@@ -322,6 +342,47 @@ export function wordingToReview(paper: Paper, channel: Channel) {
       /(?:超过|不低于|大于|小于|不高于|more than |less than )\s*\d+(?:[∶:]\d+)?/i,
     );
     if (comparison) terms.push(comparison[0]);
+  }
+  const normalize = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/(\d(?:\.\d+)?)\s*(?:percent\b|％)/g, "$1%")
+      .replace(/(\d)\s*(?:times\b|[×x](?![a-z]))/g, "$1倍")
+      .replace(/\s+/g, "");
+  const record = normalize([paper.title, paper.byline || "", source].join(" "));
+  const draft = text.replace(/https?:\/\/\S+/g, "");
+  const identity = draft.match(
+    /我们(?:团队|提出|设计|做了|验证|在.{0,16}(?:验证|研究|发现))|our (?:team|new method)/i,
+  );
+  if (paper.model && identity) terms.push(identity[0]);
+  const savings = draft.match(
+    /(?:算力|计算成本|训练时间)(?:还|也|更)?(?:省了|更少|降低|减少|节省)|(?:节省|减少|降低)(?:了)?(?:算力|计算成本|训练时间)/,
+  );
+  if (
+    savings &&
+    !/(?:less|reduce[ds]?|lower|sav(?:es?|ing)) (?:training time|comput(?:e|ation)(?: cost)?)|(?:减少|节省)(?:了)?(?:算力|计算成本|训练时间)/i.test(
+      source,
+    )
+  )
+    terms.push(savings[0]);
+  for (const match of draft.matchAll(
+    /(?:ICLR|NeurIPS|ICML|CVPR)\s*20\d{2}|\b(?:oral|spotlight)\b|(?:\d+(?:\.\d+)?)\s*(?:[%％]|倍|BLEU\b)/gi,
+  )) {
+    const term = match[0];
+    const value = normalize(term);
+    if (!record.includes(value) && !terms.includes(term)) terms.push(term);
+  }
+  for (const match of draft.matchAll(
+    /(?:超过|胜过|击败|超越|outperform(?:s|ed)?)[^。；;，,\n]{0,24}?(\d+(?:\.\d+)?B)\b/gi,
+  )) {
+    const modelSize = match[1].replace(".", "\\.");
+    const near = new RegExp(
+      "(?:接近|逼近|approach(?:es|ing)?|nearly match(?:es)?|rivals?|comparable to)[^。；;，,\n]{0,55}?" +
+        modelSize +
+        "\\b",
+      "i",
+    );
+    if (near.test(source) && !terms.includes(match[0])) terms.push(match[0]);
   }
   return terms;
 }

@@ -2,7 +2,12 @@ import { z } from "zod";
 import { studioFetch, STATIC_DEMO } from "./studio-api";
 import { editionIds } from "./editions";
 import type { Brief } from "./model";
-import { channels, threadPosts, type Paper } from "./paper-model";
+import {
+  channels,
+  publicationVoice,
+  threadPosts,
+  type Paper,
+} from "./paper-model";
 
 const provenance = { provider: z.literal("StepFun"), model: z.string().min(1) };
 const kitSchema = z.object({
@@ -97,17 +102,20 @@ export async function writePaper(p: Paper, key: string): Promise<Paper> {
     edits: {
       ...(k.x
         ? {
-            x: threadPosts([...k.x, ...(p.source ? [p.source] : [])]).join(
-              "\n\n",
-            ),
+            x: threadPosts([
+              ...k.x.map(publicationVoice),
+              ...(p.source ? [p.source] : []),
+            ]).join("\n\n"),
           }
         : {}),
-      ...(k.red ? { red: k.red + "\n\n" + citation } : {}),
-      ...(k.moments ? { moments: k.moments + "\n\n" + citation } : {}),
+      ...(k.red ? { red: publicationVoice(k.red) + "\n\n" + citation } : {}),
+      ...(k.moments
+        ? { moments: publicationVoice(k.moments) + "\n\n" + citation }
+        : {}),
       ...(k.wechat
         ? {
             wechat:
-              k.wechat +
+              publicationVoice(k.wechat) +
               "\n\n" +
               [p.title, p.byline, p.source].filter(Boolean).join("\n"),
           }

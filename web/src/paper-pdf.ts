@@ -1,7 +1,11 @@
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import worker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
-import { extractSections } from "./paper-sections";
+import {
+  abstractBeforeFigure,
+  extractSections,
+  stripDiagramLabels,
+} from "./paper-sections";
 GlobalWorkerOptions.workerSrc = worker;
 
 export async function openPdf(file: File) {
@@ -93,7 +97,9 @@ export async function readPdf(file: File) {
         lines.push(item.str, item.hasEOL ? "\n" : "");
         lastY = y;
       }
-      const pageText = lines.join("").replace(/ *\n+ */g, "\n");
+      const pageText = stripDiagramLabels(
+        lines.join("").replace(/ *\n+ */g, "\n"),
+      );
       // Author contribution and licensing footnotes run to the end of the page,
       // including in PDFs whose accessibility reading order places headers last.
       const footer = pageText.search(
@@ -113,6 +119,9 @@ export async function readPdf(file: File) {
     );
     return {
       ...parsed,
+      abstract: parsed.namedAbstract
+        ? abstractBeforeFigure(parsed.abstract)
+        : parsed.abstract,
       pagesRead: pages.length,
       hasLaterPages: doc.numPages > pages.length,
       byline: (

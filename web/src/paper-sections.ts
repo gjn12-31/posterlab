@@ -11,6 +11,43 @@ const nextSection =
 const metadata =
   /\n[ \t]*(?:keywords|key words|index terms|关键词|doi[ \t]*[:：])[ \t:：]*/i;
 
+// A first-page teaser between Abstract and Introduction is outside the abstract.
+export function abstractBeforeFigure(section: string) {
+  const caption =
+    /\n[ \t]*(?:fig(?:ure)?\.?\s*\d+|图\s*\d+)[ \t]*[.|:：丨｜—–-]/iu.exec(
+      section,
+    );
+  if (!caption) return section;
+  const before = section.slice(0, caption.index).trimEnd();
+  const prose = /[。！？.!?][”"’')）\]]?(?=\s*\n|$)/g;
+  const last = [...before.matchAll(prose)].at(-1);
+  return last ? before.slice(0, last.index! + last[0].length) : before;
+}
+
+// PDF readers sometimes interleave the labels and pseudocode inside a diagram
+// with the surrounding introduction. Only omit a dense numeric block when a
+// figure caption follows it on the same page and no intervening prose is present.
+export function stripDiagramLabels(page: string) {
+  const lines = page.split("\n");
+  const kept: string[] = [];
+  let start = 0;
+  for (let i = 0; i < lines.length; i++) {
+    if (
+      !/^\s*(?:fig(?:ure)?\.?\s*\d+|图\s*\d+)\s*[.|:：丨｜—–-]/i.test(lines[i])
+    )
+      continue;
+    let boundary = i - 1;
+    while (boundary >= start && lines[boundary].trim().length < 65) boundary--;
+    const fragment = lines.slice(boundary + 1, i);
+    const tick = /^\s*(?:[-+]?\d+(?:\.\d+)?|[⋯…⨀⨁]+)\s*$/;
+    if (fragment.filter((line) => tick.test(line)).length < 8) continue;
+    const first = fragment.findIndex((line) => tick.test(line));
+    kept.push(...lines.slice(start, boundary + 1 + first));
+    start = i;
+  }
+  return kept.concat(lines.slice(start)).join("\n");
+}
+
 export function extractSections(raw: string, titleHint = "") {
   const text = raw
     .replace(/\r/g, "")

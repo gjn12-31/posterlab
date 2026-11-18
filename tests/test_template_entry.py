@@ -262,6 +262,8 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     page.get_by_role("button", name="导入论文 PDF").click()
     page.get_by_label("选择论文文件").set_input_files(path)
     dialog = page.get_by_role("dialog")
+    expect(dialog.get_by_label("摘要或论文原文")).to_be_hidden()
+    dialog.get_by_role("button",name="查看或修改提取内容").click()
     expect(dialog.get_by_label("论文标题")).to_have_value("Urban shade observations")
     assert "Introduction" not in dialog.get_by_label("摘要或论文原文").input_value()
     dialog.get_by_role("button", name="生成四套宣传材料").click()
@@ -308,7 +310,18 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     page.goto(url)
+    carousel = page.get_by_role("region", name="精选宣传案例")
+    carousel.get_by_role("button", name="下一个案例").click()
+    expect(carousel.get_by_role("heading", level=1)).to_contain_text("街区咖啡日")
+    carousel.get_by_role("button", name="看三种画幅").click()
+    expect(page.get_by_role("dialog").get_by_role("img")).to_be_visible()
+    page.keyboard.press("Escape")
+    carousel.get_by_role("button", name="下一个案例").click()
+    expect(carousel.get_by_role("link", name="打开这张画布")).to_have_attribute("href", "./?mode=templates#new?edition=vinyl&format=portrait")
+    page.emulate_media(reduced_motion="reduce")
+    expect(carousel.get_by_role("button", name="播放轮播")).to_have_count(0)
     for title, channel, filename in [
+        ("选出下一个词元之前，模型还能做什么？", "小红书", "小红书/发布文案.txt"),
         ("M87 中心的亮环有多大？", "公众号", "公众号/发布文案.txt"),
         ("街区咖啡日", "横版封面", "发布文案.txt"),
     ]:
@@ -347,6 +360,9 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     page.goto(url + "#papers/import")
     dialog = page.get_by_role("dialog")
     dialog.get_by_label("选择论文文件").set_input_files(path)
+    expect(dialog.get_by_text("已读取论文",exact=True)).to_be_visible()
+    expect(dialog.get_by_label("摘要或论文原文")).to_be_hidden()
+    dialog.get_by_role("button",name="查看或修改提取内容").click()
     intro = dialog.get_by_role("textbox", name="引言")
     expect(intro).to_have_value("Earlier studies focused on winter.\nA second page of background.")
     intro.fill("Earlier work examined winter shade.")
@@ -377,6 +393,7 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     page.route("**/api/outreach/paper", assist)
     page.goto(url+"#papers/import")
     d=page.get_by_role("dialog")
+    d.get_by_role("button",name="手动填写标题和摘要").click()
     d.get_by_label("论文标题").fill("Park shade")
     d.get_by_label("摘要或论文原文").fill("The team observed four parks across the city.")
     d.get_by_role("button",name="生成四套宣传材料").click()

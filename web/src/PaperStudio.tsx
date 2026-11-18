@@ -155,6 +155,7 @@ function ImportPaper({
     [drag, setDrag] = useState(false);
   const [useModel, setUseModel] = useState(true),
     [generating, setGenerating] = useState(false);
+  const [showSource, setShowSource] = useState(!fileFirst);
   const generateLock = useRef(false);
   const [modelFailed, setModelFailed] = useState(false);
   const openFile = useRef<File | undefined>(undefined),
@@ -203,6 +204,7 @@ function ImportPaper({
       )
         details.push("引言截取至第 2 页末");
       setLabel([f.name, ...details].join(" · "));
+      setShowSource(false);
     } catch (e) {
       if (ticket === inFlight.current)
         setError((e as Error).message || "无法读取这个文件。");
@@ -268,10 +270,10 @@ function ImportPaper({
         if (!generating) close();
       }}
     >
-      <fieldset className="ds-fieldset" disabled={generating}>
+      <fieldset className="ds-fieldset paper-intake" disabled={generating}>
         <p className="pr-help">
-          浏览器先从 PDF
-          的前两页提取摘要和引言。确认下方文字后，即可一次生成四个平台的宣传材料。
+          从 PDF 的前两页读取摘要与引言，制作
+          X、小红书、朋友圈和公众号的发布稿。
         </p>
         <input
           type="file"
@@ -298,61 +300,91 @@ function ImportPaper({
           onClick={() => file.current?.click()}
         >
           <Upload size={22} />
-          <b>{reading ? "正在提取文本…" : "选择或拖入论文文件"}</b>
+          <b>
+            {reading
+              ? "正在读取论文…"
+              : label
+                ? "替换论文文件"
+                : "选择或拖入论文文件"}
+          </b>
           <small>PDF、TXT、MD · 最大 40 MB</small>
         </button>
-        {label && <p className="pr-help">{label}</p>}
-        <label>
-          论文标题
-          <input
-            value={title}
-            maxLength={500}
-            placeholder="也可写在下方文本的第一行"
-            onChange={(e) => setTitle(e.target.value)}
-          />
-        </label>
-        <label>
-          摘要或论文原文
-          <textarea
-            rows={6}
-            autoFocus={!fileFirst}
-            value={text}
-            maxLength={140000}
-            placeholder={"论文标题\n在这里粘贴中文或英文摘要……"}
-            onChange={(e) => setText(e.target.value)}
-          />
-        </label>
-        <label>
-          引言 <small>可选，可在此修正或补全</small>
-          <textarea
-            rows={3}
-            value={introduction}
-            maxLength={140000}
-            placeholder="自动提取前两页内的引言，也可以手动粘贴"
-            onChange={(e) => setIntroduction(e.target.value)}
-          />
-        </label>
-        <label>
-          原文链接 <small>选填</small>
-          <input
-            type="url"
-            value={url}
-            maxLength={1200}
-            placeholder="https://doi.org/…"
-            onChange={(e) => setUrl(e.target.value)}
-          />
-        </label>
-        <details className="pr-verification">
-          <summary>作者和出版信息（选填）</summary>
+        {label && (
+          <div className="paper-file-receipt" role="status">
+            <span>
+              <Check size={14} /> 已读取论文
+            </span>
+            <strong>{title}</strong>
+            <small>{label}</small>
+          </div>
+        )}
+        <button
+          type="button"
+          aria-expanded={showSource}
+          aria-controls="paper-import-source"
+          className="paper-source-toggle"
+          onClick={() => setShowSource(!showSource)}
+        >
+          {label ? "查看或修改提取内容" : "手动填写标题和摘要"}{" "}
+          <span>{showSource ? "收起" : "展开"}</span>
+        </button>
+        <div
+          className="paper-import-source"
+          id="paper-import-source"
+          hidden={!showSource}
+        >
           <label>
-            作者、期刊、年份
+            论文标题
             <input
-              value={byline}
-              maxLength={240}
-              onChange={(e) => setByline(e.target.value)}
+              value={title}
+              maxLength={500}
+              placeholder="也可写在下方文本的第一行"
+              onChange={(e) => setTitle(e.target.value)}
             />
           </label>
-        </details>
+          <label>
+            摘要或论文原文
+            <textarea
+              rows={6}
+              autoFocus={!fileFirst}
+              value={text}
+              maxLength={140000}
+              placeholder={"论文标题\n在这里粘贴中文或英文摘要……"}
+              onChange={(e) => setText(e.target.value)}
+            />
+          </label>
+          <label>
+            引言 <small>可选，可在此修正或补全</small>
+            <textarea
+              rows={3}
+              value={introduction}
+              maxLength={140000}
+              placeholder="自动提取前两页内的引言，也可以手动粘贴"
+              onChange={(e) => setIntroduction(e.target.value)}
+            />
+          </label>
+          <label>
+            原文链接 <small>选填</small>
+            <input
+              type="url"
+              value={url}
+              maxLength={1200}
+              placeholder="https://doi.org/…"
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </label>
+          <details className="pr-verification">
+            <summary>作者和出版信息（选填）</summary>
+            <label>
+              作者、期刊、年份
+              <input
+                value={byline}
+                maxLength={240}
+                onChange={(e) => setByline(e.target.value)}
+              />
+            </label>
+          </details>
+        </div>
         {ai && (
           <label className="ds-model-option">
             <input
@@ -362,7 +394,7 @@ function ImportPaper({
             />
             <span>
               使用 StepFun 撰写四个平台的文案
-              <small>一次发送标题、署名和上方的摘要、引言</small>
+              <small>仅发送标题、署名、摘要与引言，PDF 留在浏览器中</small>
             </span>
           </label>
         )}
@@ -414,6 +446,7 @@ function CopyEditor({
   const [value, setValue] = useState(initial),
     [state, setState] = useState(""),
     [working, setWorking] = useState(false);
+  const [angle, setAngle] = useState("");
   const field = useRef<HTMLTextAreaElement>(null),
     key = useRef(crypto.randomUUID());
   useEffect(() => {
@@ -423,7 +456,7 @@ function CopyEditor({
     setWorking(true);
     setState("");
     try {
-      setValue(await adaptChannel(paper, channel, key.current));
+      setValue(await adaptChannel(paper, channel, key.current, angle));
       setState("已生成平台草稿，请对照下方原句后保存。");
     } catch (e) {
       setState((e as Error).message);
@@ -456,13 +489,35 @@ function CopyEditor({
     <Dialog title={"编辑" + platforms[channel].name + "文案"} close={close}>
       {ai && (
         <div className="pr-ai">
+          {channel === "red" && (
+            <label className="pr-angle">
+              写作切入点
+              <select
+                value={angle}
+                disabled={working}
+                onChange={(e) => {
+                  setAngle(e.target.value);
+                  key.current = crypto.randomUUID();
+                }}
+              >
+                <option value="">根据论文选择</option>
+                <option>从实际问题切入</option>
+                <option>讲清方法的关键动作</option>
+                <option>从有依据的对照结果切入</option>
+              </select>
+            </label>
+          )}
           <button disabled={working} onClick={adapt}>
             <Sparkles size={16} />
             {working
               ? "正在改写…"
               : "按" + platforms[channel].name + "风格改写"}
           </button>
-          <small>将论文标题和选中原句发送给 StepFun。</small>
+          <small>
+            {paper.sections
+              ? "使用已保存的摘要和引言。"
+              : "使用标题和选中的原句。"}
+          </small>
         </div>
       )}
       <label>
@@ -845,6 +900,10 @@ export default function PaperStudio() {
     }
   }
   const posts = channel === "x" ? copy.split(/\n\s*\n/).filter(Boolean) : [];
+  const [redTitle, ...redLines] =
+    channel === "red" ? copy.trim().split(/\n/) : [];
+  const redHasTitle =
+    redLines.some((line) => line.trim()) && redTitle.length <= 72;
   return (
     <div className="campaign pr-page ds-workroom">
       <CampaignNav active="papers" onPapers={() => setModal("library")} />
@@ -860,13 +919,11 @@ export default function PaperStudio() {
               <span /> 科研论文传播
             </div>
             <h1>
-              导入一篇论文，
-              <br />
-              四套宣传材料<span>。</span>
+              论文传播工作台<span>。</span>
             </h1>
             <p>
-              把论文变成 X
-              短帖串、小红书笔记、朋友圈分享卡和公众号导读。每个平台都有自己的文案与配图。
+              上传论文，获得
+              X、小红书、朋友圈和公众号的文案与配图。可逐个平台编辑、核对和下载。
             </p>
             <div className="pr-actions">
               <button className="pr-import" onClick={() => setModal("file")}>
@@ -1061,6 +1118,11 @@ export default function PaperStudio() {
                       </button>
                     </div>
                   ))
+                ) : redHasTitle ? (
+                  <article className="pr-note">
+                    <h4>{redTitle}</h4>
+                    <p>{redLines.join("\n").trim()}</p>
+                  </article>
                 ) : (
                   <p>{copy}</p>
                 )}

@@ -7,6 +7,8 @@ See docs/licenses/paper2blog.txt for the copyright and permission notice.
 
 import json
 
+from .rednote import RED_NOTE_GUIDE
+
 
 _PAPER = """你是一位专业的技术博主，擅长将学术论文转化为通俗易懂的技术博客。现在为同一项研究的四类读者撰写发布草稿。
 以第三方论文阅读者的视角叙述。首次出现的缩写在必要时解释，重点放在读者理解这项研究所需要的信息。翻译要保持技术含义、样本范围、比较基线、单位和不确定性。
@@ -14,7 +16,7 @@ _PAPER = """你是一位专业的技术博主，擅长将学术论文转化为�
 先从所给原句选择一个值得介绍的具体发现，再挑一句最能解释它从何而来的证据。按下面的用途取舍。每个平台独立成篇，不互相引用。
 headline：一句简短且适合中文封面的标题，保留研究对象。
 x：2 至 4 条自然英文短帖。第一帖可以单独读懂，点出研究对象与发现；后续帖分别解释证据、方法或限定条件。每帖尽量短于 225 个加权字符，避免 URL、标签堆砌和手写序号，前端会分帖。
-red：中文小红书图文笔记。用一个具体问题或观察开篇，分成 2 至 3 个短段。用普通词讲清「作者如何知道」，保留原文的限定。末尾可以给一到两个准确的中文话题标签。用自然语气，不虚构试用、推荐、作者身份或读者反馈。
+red：""" + RED_NOTE_GUIDE + """
 moments：朋友圈中文分享语，2 至 3 句，说清楚这篇论文看到了什么，以及为何值得点开。避免假扮论文作者和过度熟络的称呼。
 wechat：中文公众号导读，含可直接使用的小标题与分段正文。把研究问题、支撑结论的观测或实验、能从中得出的结论连起来。仅当原句足够时再补一段研究边界。
 用于核对的 evidence_ids 按平台列出实际用到的原句编号。编号从 1 开始，每个平台至少一个；不得虚构、重复、或列入未用到的编号。正文不打印编号。原文链接和完整署名由应用附上，草稿中不要自造链接。
@@ -33,7 +35,7 @@ def build_messages(kind: str, payload: dict) -> list[dict]:
     if kind == "paper" and payload.get("sections"):
         source = {name: payload[name] for name in ("title", "byline", "sections")}
         instructions = _PAPER[:_PAPER.index("用于核对的 evidence_ids")]
-        instructions = instructions.replace("带编号的原文", "作者核对过的摘要、引言").replace("对照编号原句", "对照摘要和引言")
+        instructions = instructions.replace("带编号的原文", "从论文提取或由用户提供的摘要、引言").replace("对照编号原句", "对照摘要和引言")
         instructions += """
 通读 sections.abstract 和 sections.introduction。引言用于解释研究背景，前人研究不能写作本论文结果。引言可能只包含前两页；章节为空表示没有提供。PDF 数学符号或量值疑似乱码时省略该细节。
 一次交付全部四个平台。不输出引文编号。只输出这样的 JSON：{"headline":"中文封面标题","x":["English post"],"red":"中文笔记","moments":"中文分享语","wechat":"公众号导读"}。"""
