@@ -64,3 +64,31 @@ def test_unusable_upstream_result_preserves_caller_input(tmp_path, provider_resp
 def test_unconfigured_outreach(tmp_path):
     with TestClient(create_app(tmp_path, api_key="", serve_site=False)) as client:
         assert client.post("/api/outreach/paper", headers=HEADERS, json=PAPER).status_code == 503
+
+
+def test_reviewed_sections_generate_four_drafts_in_one_call_without_sentence_ids(tmp_path):
+    sections = {"abstract": "A numerical result.", "introduction": "What prior research found."}
+    calls = []
+
+    def handler(request):
+        messages = json.loads(request.content)["messages"]
+        calls.append(json.loads(messages[1]["content"]))
+        draft = {k: v for k, v in PAPER_RESULT.items() if k != "evidence_ids"}
+        return completion(draft)
+
+    client = TestClient(create_app(tmp_path, api_key="test-key", transport=httpx.MockTransport(handler), serve_site=False))
+    for _ in range(2):
+        result = client.post("/api/outreach/paper", headers=HEADERS, json={"title": "Test", "sections": sections})
+        assert result.status_code == 200 and result.json()["evidence_ids"] == {}
+        assert all(result.json()[c] for c in CHANNELS)
+    assert calls == [{"title": "Test", "byline": "", "sections": sections}]
+
+
+def test_section_workflow_keeps_usable_platforms(tmp_path):
+    request = {"title": "Park shade", "sections": {"abstract": "Four parks were studied."}}
+    response = completion({"x": ["Short post."], "red": "中文笔记", "wechat": None})
+    app = create_app(tmp_path, api_key="test", transport=httpx.MockTransport(lambda _: response), serve_site=False)
+    with TestClient(app) as c:
+        result = c.post("/api/outreach/paper", headers=HEADERS, json=request)
+        assert result.status_code == 200 and result.json()["red"] == "中文笔记"
+        assert result.json()["headline"] == "Park shade" and "wechat" not in result.json()

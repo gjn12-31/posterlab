@@ -914,3 +914,27 @@ body:has(.cs-app) .cs-wordmark {
   text-decoration: underline;
   color: inherit;
 }
+
+.ds-workroom .pr-recovery {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff2d4;
+  color: #493715;
+  border: 1px solid #d9c79a;
+  padding: 12px 16px;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.pr-recovery p {
+  margin: 4px 0;
+}
+.pr-recovery button {
+  border: 1px solid #6d603d;
+  color: inherit;
+  background: transparent;
+  padding: 8px;
+  cursor: pointer;
+}

@@ -51,9 +51,14 @@ export const paperSchema = z.object({
       credit: z.string().min(1).max(160),
     })
     .optional(),
+  sections: z
+    .object({ abstract: z.string(), introduction: z.string() })
+    .optional(),
   body: z.string().min(20).max(140000),
   sample: z.boolean(),
   model: z.string().max(100).optional(),
+  modelNotice: z.string().max(700).optional(),
+  localChannels: z.array(z.enum(["x", "red", "moments", "wechat"])).optional(),
   evidenceIds: z
     .partialRecord(
       z.enum(["x", "red", "moments", "wechat"]),
@@ -194,8 +199,10 @@ export function createPaper(
     throw Error("请提供至少 20 个字符的摘要或正文，以便提取论文要点。");
   if (!title.trim()) throw Error("请填写论文标题。");
   const candidates = sentences(body);
+  // Some PDF text layers omit sentence boundaries. Keep the confirmed source
+  // for the model and use a short verbatim excerpt for the local artwork.
   if (!candidates.length)
-    throw Error("这段文字缺少可提取的句子，请粘贴有标点的摘要。");
+    candidates.push(Array.from(body).slice(0, 260).join(""));
   const result =
     /(发现|表明|结果|观察到|提升|降低|we (?:find|show|observe|demonstrate)|results? (?:show|suggest)|achiev|outperform)/i;
   const limit =
@@ -324,6 +331,19 @@ export function evidenceText(p: Paper) {
     p.title,
     p.byline,
     p.source,
+    ...(p.localChannels?.length
+      ? [
+          "本地摘录稿：" +
+            p.localChannels.map((c) => platforms[c].name).join("、"),
+        ]
+      : []),
+    ...(p.sections
+      ? [
+          p.sections.abstract && "摘要\n" + p.sections.abstract,
+          p.sections.introduction &&
+            "引言（导入范围内）\n" + p.sections.introduction,
+        ]
+      : []),
     ...p.evidence.map(
       (e, i) =>
         "[ " + (i + 1) + " ]\n传播表述：" + e.line + "\n论文原句：" + e.quote,

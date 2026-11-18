@@ -25,7 +25,8 @@ import {
   X,
 } from "lucide-react";
 import { paperEntries, openPaper, keepPaper } from "./paper-library";
-import { writePaper } from "./outreach";
+import { ModelUnavailable, writePaper } from "./outreach";
+import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
 import { CampaignNav } from "./CampaignNav";
 import {
@@ -36,7 +37,6 @@ import {
   examplePaper,
   paperKey,
   platforms,
-  prepareText,
   recoverPaper,
   sentences,
   type Paper,
@@ -145,6 +145,7 @@ function ImportPaper({
   ai: boolean;
 }) {
   const [text, setText] = useState(""),
+    [introduction, setIntroduction] = useState(""),
     [title, setTitle] = useState(""),
     [url, setUrl] = useState(""),
     [byline, setByline] = useState(""),
@@ -155,6 +156,7 @@ function ImportPaper({
   const [useModel, setUseModel] = useState(true),
     [generating, setGenerating] = useState(false);
   const generateLock = useRef(false);
+  const [modelFailed, setModelFailed] = useState(false);
   const openFile = useRef<File | undefined>(undefined),
     file = useRef<HTMLInputElement>(null),
     inFlight = useRef(0);
@@ -169,6 +171,7 @@ function ImportPaper({
     const ticket = ++inFlight.current;
     setError("");
     setReading(true);
+    setModelFailed(false);
     try {
       if (f.size > 40 * 1024 * 1024)
         throw Error("请选择 40 MB 以内的文件，或粘贴摘要。");
@@ -177,19 +180,29 @@ function ImportPaper({
         throw Error("支持 PDF、TXT 和 Markdown 文件。");
       const d = pdf
         ? await (await import("./paper-pdf")).readPdf(f)
-        : prepareText(await f.text());
-      if (d.body.length > 140000)
-        throw Error("文本较长，请选取摘要或要传播的章节。");
+        : extractSections(await f.text());
       if (ticket !== inFlight.current) return;
       openFile.current = pdf ? f : undefined;
-      setText(d.body);
+      setText(d.abstract);
+      setIntroduction(d.introduction);
       setTitle(d.title || f.name.replace(/\.[^.]+$/, ""));
       setUrl(d.source);
       setByline("byline" in d && typeof d.byline === "string" ? d.byline : "");
-      setLabel(
-        f.name +
-          (pdf ? " · 已从前五页内提取，请核对标题和摘要" : " · 已读取文本"),
-      );
+      const details = [
+        "pagesRead" in d ? "已读取前 " + d.pagesRead + " 页" : "已读取文本",
+      ];
+      if (!d.namedAbstract)
+        details.push(
+          d.abstract ? "未识别摘要标题，请确认提取文字" : "未识别到摘要",
+        );
+      if (!d.introduction) details.push("未识别到引言，可补充或仅用摘要生成");
+      else if (
+        d.introductionContinues &&
+        "hasLaterPages" in d &&
+        d.hasLaterPages
+      )
+        details.push("引言截取至第 2 页末");
+      setLabel([f.name, ...details].join(" · "));
     } catch (e) {
       if (ticket === inFlight.current)
         setError((e as Error).message || "无法读取这个文件。");
@@ -198,23 +211,51 @@ function ImportPaper({
       if (file.current) file.current.value = "";
     }
   }
-  async function generate() {
+  async function generate(withModel = ai && useModel) {
     if (generateLock.current) return;
     generateLock.current = true;
     setGenerating(true);
+    setModelFailed(false);
+    let contactedModel = false;
     setError("");
     try {
-      const extracted = prepareText(text);
+      const extracted = label ? null : extractSections(text);
+      const abstract = (
+        extracted?.namedAbstract ||
+        (!title.trim() && extracted?.title) ||
+        extracted?.hasIntroduction
+          ? extracted.abstract
+          : text
+      ).trim();
+      const intro = (
+        introduction.trim() ||
+        extracted?.introduction ||
+        ""
+      ).trim();
+      const sections = { abstract, introduction: intro };
       const p = createPaper(
-        label || (title.trim() && !extracted.title) ? text : extracted.body,
-        title.trim() || extracted.title,
-        url.trim() || extracted.source,
+        [abstract, intro].filter(Boolean).join("\n\n"),
+        title.trim() || extracted?.title || "",
+        url.trim() || extracted?.source || "",
         byline,
       );
-      const kit = ai && useModel ? await writePaper(p, crypto.randomUUID()) : p;
-      apply(kit, openFile.current);
+      p.sections = sections;
+      contactedModel = withModel;
+      if (withModel) {
+        try {
+          const kit = await writePaper(p, crypto.randomUUID());
+          apply(kit, openFile.current);
+        } catch (error) {
+          if (!(error instanceof ModelUnavailable)) throw error;
+          apply(
+            { ...p, localChannels: [...channels], modelNotice: error.message },
+            openFile.current,
+          );
+        }
+      } else apply(p, openFile.current);
     } catch (e) {
       setError((e as Error).message);
+      setModelFailed(contactedModel);
     } finally {
       generateLock.current = false;
       setGenerating(false);
@@ -229,7 +270,8 @@ function ImportPaper({
     >
       <fieldset className="ds-fieldset" disabled={generating}>
         <p className="pr-help">
-          导入带文本层的 PDF，或直接粘贴标题和摘要。文件在此浏览器中读取。
+          浏览器先从 PDF
+          的前两页提取摘要和引言。确认下方文字后，即可一次生成四个平台的宣传材料。
         </p>
         <input
           type="file"
@@ -281,6 +323,16 @@ function ImportPaper({
           />
         </label>
         <label>
+          引言 <small>可选，可在此修正或补全</small>
+          <textarea
+            rows={3}
+            value={introduction}
+            maxLength={140000}
+            placeholder="自动提取前两页内的引言，也可以手动粘贴"
+            onChange={(e) => setIntroduction(e.target.value)}
+          />
+        </label>
+        <label>
           原文链接 <small>选填</small>
           <input
             type="url"
@@ -310,7 +362,7 @@ function ImportPaper({
             />
             <span>
               使用 StepFun 撰写四个平台的文案
-              <small>仅发送标题、署名和从原文提取的句子</small>
+              <small>一次发送标题、署名和上方的摘要、引言</small>
             </span>
           </label>
         )}
@@ -321,12 +373,23 @@ function ImportPaper({
         )}
         <button
           className="pr-action"
-          disabled={reading || generating || !text.trim()}
-          onClick={generate}
+          disabled={
+            reading || generating || !(text.trim() || introduction.trim())
+          }
+          onClick={() => generate()}
         >
           {generating ? "正在生成宣传材料…" : "生成四套宣传材料"}{" "}
           <ArrowUpRight size={16} />
         </button>
+        {modelFailed && (
+          <button
+            type="button"
+            className="pr-reset"
+            onClick={() => generate(false)}
+          >
+            使用已提取的文字生成本地摘录稿
+          </button>
+        )}
       </fieldset>
     </Dialog>
   );
@@ -517,6 +580,13 @@ function Evidence({
           onChange={(e) => setHeadline(e.target.value)}
         />
       </label>
+      {paper.sections && (
+        <details className="pr-verification">
+          <summary>查看生成时使用的摘要与引言</summary>
+          {paper.sections.abstract && <p>{paper.sections.abstract}</p>}
+          {paper.sections.introduction && <p>{paper.sections.introduction}</p>}
+        </details>
+      )}
       {evidence.map((e, i) => (
         <section className="pr-evidence" key={i}>
           <label>
@@ -701,6 +771,44 @@ export default function PaperStudio() {
   }, [message]);
   const name =
     paper.headline.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").slice(0, 50) || "论文";
+  const activePaper = useRef(paper);
+  activePaper.current = paper;
+  async function retryModel() {
+    if (lock.current || !paper.sections) return;
+    lock.current = true;
+    setBusy("model");
+    try {
+      const kit = await writePaper(paper, crypto.randomUUID());
+      const current = activePaper.current;
+      if (current.id !== paper.id || current.sections !== paper.sections)
+        return;
+      // A retry may fill untouched local channels. Keep any work the author
+      // saved while waiting, including manual text, artwork and cover title.
+      const needed = current.localChannels || [];
+      const edits = { ...current.edits };
+      for (const c of needed) if (kit.edits[c]) edits[c] = kit.edits[c];
+      const localChannels = needed.filter((c) => !kit.edits[c]);
+      setPaper({
+        ...current,
+        edits,
+        localChannels,
+        model: kit.model,
+        modelNotice: undefined,
+        headline:
+          current.headline === current.title ? kit.headline : current.headline,
+      });
+      setMessage(
+        localChannels.length
+          ? "已补充可用的模型文案，其余平台保留本地摘录。"
+          : "四个平台的文案已就绪",
+      );
+    } catch (error) {
+      setMessage((error as Error).message);
+    } finally {
+      lock.current = false;
+      setBusy("");
+    }
+  }
   async function save(which: "all" | "image") {
     if (lock.current) return;
     lock.current = true;
@@ -830,6 +938,29 @@ export default function PaperStudio() {
               {busy === "all" ? "正在打包…" : "下载整套 ZIP"}
             </button>
           </div>
+          {paper.sections && !!paper.localChannels?.length && (
+            <div className="pr-recovery">
+              <div>
+                <b>
+                  {paper.modelNotice
+                    ? "StepFun 未返回可用文案，已保存本地摘录稿"
+                    : "部分平台使用本地摘录"}
+                </b>
+                <p>
+                  {paper.modelNotice ||
+                    paper.localChannels
+                      .map((c) => platforms[c].name)
+                      .join("、")}
+                  　可以直接编辑或导出。
+                </p>
+              </div>
+              {ai && (
+                <button disabled={!!busy} onClick={retryModel}>
+                  {busy === "model" ? "正在撰写…" : "用原摘要和引言重新撰写"}
+                </button>
+              )}
+            </div>
+          )}
           <div className="pr-tabs" aria-label="发布平台">
             {channels.map((c) => {
               const Icon = icons[c];
@@ -875,7 +1006,12 @@ export default function PaperStudio() {
             </section>
             <section className="pr-writing">
               <div className="pr-panelhead">
-                <h3>{channelInfo.type}文案</h3>
+                <h3>
+                  {channelInfo.type}文案
+                  {paper.localChannels?.includes(channel) && (
+                    <small> · 本地摘录</small>
+                  )}
+                </h3>
                 {ai && (
                   <button
                     onClick={() => {
@@ -967,7 +1103,13 @@ export default function PaperStudio() {
             originalFile.current = f;
             setPaper(p);
             setModal(null);
-            setMessage("四个平台的宣传材料已生成");
+            setMessage(
+              p.modelNotice
+                ? "模型暂时未返回可用文案，摘要、引言和本地摘录稿已保存。"
+                : p.localChannels?.length
+                  ? "已保留模型返回的文案，其余平台已标记为本地摘录。"
+                  : "四个平台的宣传材料已生成",
+            );
             requestAnimationFrame(() =>
               result.current?.scrollIntoView({ block: "start" }),
             );
@@ -1001,6 +1143,7 @@ export default function PaperStudio() {
             setPaper({
               ...paper,
               evidenceIds,
+              localChannels: paper.localChannels?.filter((c) => c !== channel),
               edits: { ...paper.edits, [channel]: text },
             });
             setModal(null);

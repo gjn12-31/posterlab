@@ -30,7 +30,14 @@ tag 是 2 至 4 个可印在海报上的简短英文单词，描述活动种类�
 
 def build_messages(kind: str, payload: dict) -> list[dict]:
     """Supply source material separately from editorial instructions."""
-    if kind == "paper":
+    if kind == "paper" and payload.get("sections"):
+        source = {name: payload[name] for name in ("title", "byline", "sections")}
+        instructions = _PAPER[:_PAPER.index("用于核对的 evidence_ids")]
+        instructions = instructions.replace("带编号的原文", "作者核对过的摘要、引言").replace("对照编号原句", "对照摘要和引言")
+        instructions += """
+通读 sections.abstract 和 sections.introduction。引言用于解释研究背景，前人研究不能写作本论文结果。引言可能只包含前两页；章节为空表示没有提供。PDF 数学符号或量值疑似乱码时省略该细节。
+一次交付全部四个平台。不输出引文编号。只输出这样的 JSON：{"headline":"中文封面标题","x":["English post"],"red":"中文笔记","moments":"中文分享语","wechat":"公众号导读"}。"""
+    elif kind == "paper":
         source = {
             "title": payload["title"],
             "byline": payload.get("byline", ""),

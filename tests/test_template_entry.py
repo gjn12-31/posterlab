@@ -324,3 +324,70 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
         with ZipFile(download.value.path()) as z:
             assert z.read(filename).decode() == copy
     page.close()
+
+
+def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tmp_path):
+    browser, url = studio
+    page = browser.new_page()
+    page.set_content("""<title>City shades</title><h1>City shades</h1><h2>Abstract</h2>
+        <p>Four parks were studied in summer.</p><h2>1. Introduction</h2>
+        <p>Earlier studies focused on winter.</p><section style="break-before:page">A second page of background.</section>
+        <section style="break-before:page">Never send the third page.</section>""")
+    path = tmp_path / "shade.pdf"
+    page.pdf(path=path)
+    page.route("**/api/status", lambda r: r.fulfill(json={"ai": True}))
+    requests = []
+
+    def capture(route):
+        requests.append(route.request.post_data_json)
+        route.fulfill(json={"model":"test-model", "provider":"StepFun", "headline":"城市树荫",
+                            "red":"模型返回的笔记", "moments":"模型返回的短分享", "evidence_ids":{}})
+
+    page.route("**/api/outreach/paper", capture)
+    page.goto(url + "#papers/import")
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("选择论文文件").set_input_files(path)
+    intro = dialog.get_by_role("textbox", name="引言")
+    expect(intro).to_have_value("Earlier studies focused on winter.\nA second page of background.")
+    intro.fill("Earlier work examined winter shade.")
+    assert not requests
+    dialog.get_by_role("button", name="生成四套宣传材料").click()
+    expect(dialog).to_have_count(0)
+    assert len(requests) == 1
+    assert requests[0]["sections"] == {"abstract":"Four parks were studied in summer.", "introduction":"Earlier work examined winter shade."}
+    expect(page.locator(".pr-copy")).to_contain_text("模型返回的笔记")
+    page.locator(".pr-tabs").get_by_role("button", name="公众号").click()
+    expect(page.get_by_role("heading", name="本地摘录",exact=False)).to_be_visible()
+    page.close()
+
+
+def test_paper_service_failure_saves_sources_then_retries_without_another_upload(studio):
+    browser, url = studio
+    page = browser.new_page()
+    page.route("**/api/status", lambda r: r.fulfill(json={"ai": True}))
+    calls = []
+    def assist(route):
+        calls.append(route.request.post_data_json)
+        if len(calls) == 1:
+            route.fulfill(status=502, json={"detail":"模型回复不完整"})
+        else:
+            route.fulfill(json={"model":"test-model", "provider":"StepFun","headline":"公园观察",
+                                "red":"模型笔记","moments":"公园观察分享","x":["Summer shade."],
+                                "wechat":"公众号导读", "evidence_ids":{}})
+    page.route("**/api/outreach/paper", assist)
+    page.goto(url+"#papers/import")
+    d=page.get_by_role("dialog")
+    d.get_by_label("论文标题").fill("Park shade")
+    d.get_by_label("摘要或论文原文").fill("The team observed four parks across the city.")
+    d.get_by_role("button",name="生成四套宣传材料").click()
+    expect(page.get_by_text("StepFun 未返回可用文案，已保存本地摘录稿")).to_be_visible()
+    page.reload()
+    page.get_by_role("button",name="编辑",exact=True).click()
+    d.get_by_label("发布文案").fill("我已核过这段文字")
+    d.get_by_role("button",name="保存文案").click()
+    page.get_by_role("button",name="用原摘要和引言重新撰写").click()
+    expect(page.locator(".pr-recovery")).to_have_count(0)
+    expect(page.locator(".pr-copy")).to_contain_text("我已核过这段文字")
+    page.locator(".pr-tabs").get_by_role("button",name="公众号").click()
+    expect(page.locator(".pr-copy")).to_contain_text("公众号导读")
+    assert len(calls)==2 and calls[0]==calls[1]
