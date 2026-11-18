@@ -1,11 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   ArrowDownToLine,
   BookOpen,
@@ -32,7 +25,6 @@ import AtlasCompare from "./AtlasCompare";
 import { readFolio, saveFolio, exportFolio, type Folio } from "./atlas-folio";
 import { cropImage, type Crop } from "./atlas-crop";
 import "./atlas.css";
-const Create = lazy(() => import("./AtlasCreate"));
 function subscribe(notify: () => void) {
   window.addEventListener("hashchange", notify);
   return () => window.removeEventListener("hashchange", notify);
@@ -90,7 +82,11 @@ const homePicks = selectWorks([
 ]);
 function Logo() {
   return (
-    <a className="at-logo" href="#home" aria-label="PosterLab 图像档案馆首页">
+    <a
+      className="at-logo"
+      href="#exhibitions"
+      aria-label="PosterLab 图像档案馆首页"
+    >
       <i className="at-mark" aria-hidden="true">
         <i />
         <i />
@@ -394,7 +390,6 @@ export default function DiscoveryHome() {
         saved: "我的收藏",
         compare: "双联对照台",
         index: "作品索引",
-        create: "创作室",
       }[route] ?? "图像档案馆") + " · PosterLab";
   }, [hash]);
   function notify(s: string) {
@@ -428,7 +423,7 @@ export default function DiscoveryHome() {
   }
   const active = (id: string) =>
     route === id ||
-    (id === "home" && route === "exhibit") ||
+    (id === "exhibitions" && route === "exhibit") ||
     (id === "index" && route === "work")
       ? ("page" as const)
       : undefined;
@@ -437,7 +432,7 @@ export default function DiscoveryHome() {
   const currentShow = exhibitions[hero];
   const front =
     route === "home" ||
-    !["index", "work", "exhibit", "create", "compare", "saved"].includes(route);
+    !["index", "work", "exhibit", "compare", "saved"].includes(route);
   return (
     <div className="atlas">
       <a
@@ -454,7 +449,8 @@ export default function DiscoveryHome() {
         <div className="at-headinner">
           <Logo />
           <nav aria-label="主导航">
-            <a href="#home" aria-current={active("home")}>
+            <a href="#home">宣传制作台</a>
+            <a href="#exhibitions" aria-current={active("exhibitions")}>
               展览现场
             </a>
             <a href="#index" aria-current={active("index")}>
@@ -463,9 +459,7 @@ export default function DiscoveryHome() {
             <a href="#compare" aria-current={active("compare")}>
               双联对照
             </a>
-            <a href="#create" aria-current={active("create")}>
-              创作室
-            </a>
+            <a href="#create">设计样张</a>
           </nav>
           <a
             className="at-navsave"
@@ -578,15 +572,6 @@ export default function DiscoveryHome() {
           />
         )}
         {route === "compare" && <AtlasCompare key={hash} ids={ids} />}
-        {route === "create" && (
-          <Suspense
-            fallback={
-              <div className="at-inner at-loading">正在打开创作室…</div>
-            }
-          >
-            <Create />
-          </Suspense>
-        )}
         {route === "exhibit" && currentExhibit && (
           <ExhibitionRoom
             key={currentExhibit.id}

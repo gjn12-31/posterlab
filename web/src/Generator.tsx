@@ -1019,7 +1019,7 @@ export default function Generator() {
               className="back-to-discover"
               onClick={() => navigateHome(true)}
             >
-              <ArrowLeft size={14} /> 返回展馆
+              <ArrowLeft size={14} /> 返回宣传制作台
             </button>
             <button
               className="motion-toggle"

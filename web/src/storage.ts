@@ -15,6 +15,22 @@ export async function listProjects(): Promise<Project[]> {
     })
     .sort((a, b) => b.updated.localeCompare(a.updated));
 }
+export async function getProject(id: string) {
+  const row = await (await db).get("projects", id);
+  const parsed = projectSchema.safeParse(row);
+  return parsed.success ? parsed.data : undefined;
+}
+export async function saveCampaignProject(p: Project, expected?: string) {
+  const next = projectSchema.parse(p);
+  const tx = (await db).transaction("projects", "readwrite");
+  const existing = await tx.store.get(next.id);
+  // Another tab may have changed this artwork since it was opened.
+  if (existing && existing.updated !== expected) next.id = crypto.randomUUID();
+  next.updated = new Date().toISOString();
+  await tx.store.put(next);
+  await tx.done;
+  return next;
+}
 export async function saveProject(p: Project) {
   await (await db).put("projects", projectSchema.parse(p));
 }

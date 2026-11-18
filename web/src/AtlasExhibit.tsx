@@ -161,7 +161,7 @@ export function ExhibitionRoom({
   }, [playing, index, show, zoom]);
   return (
     <main className="at-room at-inner">
-      <a className="at-back" href="#home">
+      <a className="at-back" href="#exhibitions">
         <ArrowLeft size={15} /> 返回展览现场
       </a>
       <div className="at-pagehead">

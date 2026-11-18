@@ -1,3 +1,8 @@
+import {
+  campaignBackground,
+  campaignText,
+  campaignPalettes,
+} from "./campaign-design";
 import QRCode from "qrcode";
 import { editions, editionImage, type Edition } from "./editions";
 import {
@@ -38,6 +43,9 @@ export function makeCover(id: Edition, title?: string) {
   return project;
 }
 export function layerText(s: Snapshot, id: string) {
+  if (id === "credit" && s.layout === "campaign") return s.creditLine ?? "";
+  if (id === "display" && s.layout === "campaign")
+    return s.displayTitle ?? campaignPalettes[s.edition!].tag;
   if (id === "credit")
     return (
       s.creditLine ??
@@ -115,6 +123,8 @@ export function renderCover(project: Project, format: Format) {
     ? ""
     : `<rect width="${w}" height="${h}" fill="url(#${fade})"/>`;
   let content = `<image href="${background}" width="${w}" height="${h}" preserveAspectRatio="${id === "afterglow" && !land ? "xMaxYMid" : "xMidYMid"} slice"/>${overlay}`;
+  if (s.layout === "campaign")
+    content = campaignBackground(s, format, background);
   const logo = s.logoId && project.assets[s.logoId];
   if (logo)
     content += `<image href="${logo.data}" x="${margin}" y="${margin * 0.63}" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`;
@@ -161,6 +171,38 @@ export function renderCover(project: Project, format: Format) {
     }
     const lines: string[] = [];
     for (const paragraph of value.split("\n")) {
+      if (
+        s.layout === "campaign" &&
+        title &&
+        ctx.measureText(paragraph).width > maxW &&
+        ctx.measureText(paragraph).width <= 2 * maxW &&
+        typeof Intl.Segmenter === "function"
+      ) {
+        const segments = Array.from(
+          new Intl.Segmenter("zh", { granularity: "word" }).segment(paragraph),
+        );
+        let best: string[] | undefined,
+          delta = Infinity;
+        for (const part of segments.slice(1)) {
+          const left = paragraph.slice(0, part.index).trimEnd(),
+            right = paragraph.slice(part.index).trimStart();
+          const a = ctx.measureText(left).width,
+            b = ctx.measureText(right).width;
+          if (
+            a > 0 &&
+            b > 0 &&
+            Math.max(a, b) <= maxW &&
+            Math.abs(a - b) < delta
+          ) {
+            best = [left, right];
+            delta = Math.abs(a - b);
+          }
+        }
+        if (best) {
+          lines.push(...best);
+          continue;
+        }
+      }
       let line = "";
       for (const char of paragraph) {
         if (line && ctx.measureText(line + char).width > maxW) {
@@ -196,121 +238,124 @@ export function renderCover(project: Project, format: Format) {
     content += `<g data-layer="${xml(key)}" transform="translate(${left} ${top})"><rect width="${width}" height="${height}" fill="transparent"/><text fill="${xml(settings.color ?? color)}" font-family="${family}" font-size="${px}" font-style="${italic ? "italic" : "normal"}" font-weight="${weight}">${runs}</text></g>`;
     return height / h;
   }
-  const x = margin / w;
-  textLayer(
-    "credit",
-    layerText(s, "credit"),
-    (margin + (logo ? 66 : 0)) / w,
-    (margin * 0.65) / h,
-    unit * 0.022,
-    print?.credit ?? "#ffffff",
-  );
-  const factKeys = (
-    ["speaker", "date", "time", "venue", "description", "cta"] as Field[]
-  ).filter((k) => b[k]);
-  const factWidth = w * (b.url?.trim() ? 0.68 : 0.87);
-  const factSize = unit * 0.026;
-  const display = s.displayTitle ?? art.wordmark,
-    displaySize = unit * (land ? 0.24 : 0.19),
-    titleSize = unit * (land ? 0.076 : 0.067);
-  const displaySpan = textLayer(
-    "display",
-    display,
-    x,
-    0,
-    displaySize,
-    accent,
-    "display",
-    w - 2 * margin,
-    true,
-  );
-  const titleSpan = textLayer(
-    "title",
-    b.title,
-    x,
-    0,
-    titleSize,
-    ink,
-    "title",
-    w - 2 * margin,
-    true,
-  );
-  const factsSpan = factKeys.reduce(
-    (sum, k) =>
-      sum +
-      textLayer(
-        k,
-        b[k],
+  if (s.layout === "campaign") campaignText(s, format, textLayer, issues);
+  else {
+    const x = margin / w;
+    textLayer(
+      "credit",
+      layerText(s, "credit"),
+      (margin + (logo ? 66 : 0)) / w,
+      (margin * 0.65) / h,
+      unit * 0.022,
+      print?.credit ?? "#ffffff",
+    );
+    const factKeys = (
+      ["speaker", "date", "time", "venue", "description", "cta"] as Field[]
+    ).filter((k) => b[k]);
+    const factWidth = w * (b.url?.trim() ? 0.68 : 0.87);
+    const factSize = unit * 0.026;
+    const display = s.displayTitle ?? art.wordmark,
+      displaySize = unit * (land ? 0.24 : 0.19),
+      titleSize = unit * (land ? 0.076 : 0.067);
+    const displaySpan = textLayer(
+      "display",
+      display,
+      x,
+      0,
+      displaySize,
+      accent,
+      "display",
+      w - 2 * margin,
+      true,
+    );
+    const titleSpan = textLayer(
+      "title",
+      b.title,
+      x,
+      0,
+      titleSize,
+      ink,
+      "title",
+      w - 2 * margin,
+      true,
+    );
+    const factsSpan = factKeys.reduce(
+      (sum, k) =>
+        sum +
+        textLayer(
+          k,
+          b[k],
+          x,
+          0,
+          factSize,
+          print?.ink ?? "#fffaf4",
+          "body",
+          factWidth,
+          true,
+        ) +
+        0.009,
+      0,
+    );
+    const preferredY = print
+      ? land
+        ? print.landscapeY
+        : print.portraitY
+      : id === "bloom"
+        ? 0.16
+        : id === "vinyl"
+          ? 0.56
+          : land
+            ? 0.34
+            : 0.51;
+    const titleY = Math.max(
+      0.095,
+      Math.min(preferredY, 0.965 - displaySpan - titleSpan - factsSpan - 0.044),
+    );
+    textLayer("display", display, x, titleY, displaySize, accent, "display");
+    textLayer(
+      "title",
+      b.title,
+      x,
+      titleY + displaySpan + 0.008,
+      titleSize,
+      ink,
+      "title",
+    );
+    let y = Math.max(
+      titleY + displaySpan + titleSpan + 0.038,
+      Math.min(id === "bloom" ? 0.62 : 0.79, 0.965 - factsSpan),
+    );
+    for (const key of factKeys) {
+      const span = textLayer(
+        key,
+        b[key],
         x,
-        0,
+        y,
         factSize,
         print?.ink ?? "#fffaf4",
         "body",
         factWidth,
-        true,
-      ) +
-      0.009,
-    0,
-  );
-  const preferredY = print
-    ? land
-      ? print.landscapeY
-      : print.portraitY
-    : id === "bloom"
-      ? 0.16
-      : id === "vinyl"
-        ? 0.56
-        : land
-          ? 0.34
-          : 0.51;
-  const titleY = Math.max(
-    0.095,
-    Math.min(preferredY, 0.965 - displaySpan - titleSpan - factsSpan - 0.044),
-  );
-  textLayer("display", display, x, titleY, displaySize, accent, "display");
-  textLayer(
-    "title",
-    b.title,
-    x,
-    titleY + displaySpan + 0.008,
-    titleSize,
-    ink,
-    "title",
-  );
-  let y = Math.max(
-    titleY + displaySpan + titleSpan + 0.038,
-    Math.min(id === "bloom" ? 0.62 : 0.79, 0.965 - factsSpan),
-  );
-  for (const key of factKeys) {
-    const span = textLayer(
-      key,
-      b[key],
-      x,
-      y,
-      factSize,
-      print?.ink ?? "#fffaf4",
-      "body",
-      factWidth,
-    );
-    if (y + span > 1 && s.layerStyles?.[format]?.[key]?.y === undefined)
-      issues.push({
-        level: "error",
-        field: key,
-        message:
-          labels[key] + "排版空间不足，请缩短文字、缩小字号或拖动调整位置",
-      });
-    y += span + 0.009;
+      );
+      if (y + span > 1 && s.layerStyles?.[format]?.[key]?.y === undefined)
+        issues.push({
+          level: "error",
+          field: key,
+          message:
+            labels[key] + "排版空间不足，请缩短文字、缩小字号或拖动调整位置",
+        });
+      y += span + 0.009;
+    }
+    for (const [i, note] of (s.notes ?? []).entries())
+      textLayer(
+        note.id,
+        note.text,
+        x,
+        0.28 + i * 0.055,
+        unit * 0.046,
+        print?.ink ?? "#ffffff",
+        "body",
+      );
   }
-  for (const [i, note] of (s.notes ?? []).entries())
-    textLayer(
-      note.id,
-      note.text,
-      x,
-      0.28 + i * 0.055,
-      unit * 0.046,
-      print?.ink ?? "#ffffff",
-      "body",
-    );
   if (b.url && valid.success) {
     try {
       const qr = QRCode.create(b.url),

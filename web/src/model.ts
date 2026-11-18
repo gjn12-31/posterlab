@@ -132,6 +132,7 @@ export const snapshotSchema = z.object({
   locked: z.array(z.enum(fields)).max(8),
   edition: z.enum(editionIds).optional(),
   composition: z.literal("cover").optional(),
+  layout: z.literal("campaign").optional(),
   creditLine: z.string().max(80).optional(),
   displayTitle: z.string().max(90).optional(),
   notes: z

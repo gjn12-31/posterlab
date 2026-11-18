@@ -33,7 +33,7 @@ def test_mobile_first_poster_and_local_resume(studio, tmp_path):
     browser, url = studio
     page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
     page.goto(url)
-    page.get_by_role("link", name="创作室", exact=True).tap()
+    page.get_by_role("link", name="设计样张", exact=True).tap()
     page.get_by_role("button", name="16:9",exact=True).tap()
     page.get_by_role("link", name="编辑深海微光",exact=True).tap()
     canvas = page.locator(".cs-art")
@@ -61,7 +61,7 @@ def test_title_proof_drag_history_and_material_pack(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1360, "height": 880})
     page.goto(url)
-    page.get_by_role("link", name="创作室", exact=True).click()
+    page.get_by_role("link", name="设计样张", exact=True).click()
     page.get_by_role("button", name="试排我的标题").click()
     page.get_by_label("海报标题").fill("植物开放日")
     assert page.locator(".at-proof").get_by_text("植物开放日").count() == 7
@@ -141,6 +141,7 @@ def test_curated_detail_saved_crop_and_offline_folio(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
     page.goto(url)
+    page.get_by_role("link", name="浏览灵感档案").tap()
     page.get_by_role("button", name="放大观察富士山").tap()
     lightbox = page.get_by_role("dialog")
     expect(lightbox.locator("output")).to_have_text("300%")
@@ -180,3 +181,67 @@ def test_comparison_linked_and_independent_zoom(studio):
     expect(areas.last.locator("output")).to_have_text("200%")
     page.get_by_label("右侧作品",exact=True).select_option("blue-fern")
     expect(areas.last.get_by_role("heading")).to_have_text("蓝晒蕨叶")
+
+
+def test_campaign_reschedule_export_and_continue_editing(studio):
+    browser, url = studio
+    context = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
+    page = context.new_page()
+    page.goto(url)
+    page.get_by_label("活动通知").fill(
+        "山野植物观察日\n2026年12月5日 09:30，地点：望山公园。\n带上速写本，观察冬日植物。"
+    )
+    page.get_by_role("button", name="生成并预览").click()
+    dialog = page.get_by_role("dialog")
+    for label in ["竖版海报", "社交方图", "横版封面"]:
+        dialog.get_by_role("button", name=label, exact=True).click()
+        expect(dialog.locator('[data-layer="title"]')).to_have_text("山野植物观察日")
+    dialog.get_by_role("button", name="关闭").click()
+    page.get_by_role("button", name="改时间地点").click()
+    dialog.get_by_label("活动日期").fill("2026-12-06")
+    dialog.get_by_label("活动时间").fill("10:15")
+    dialog.get_by_label("活动地点").fill("南山植物园")
+    dialog.get_by_role("button", name="保存并同步").click()
+    for venue in page.locator('.cp-sheet [data-layer="venue"]').all():
+        expect(venue).to_have_text("南山植物园")
+    page.get_by_role("button", name="复制文案").click()
+    assert "望山公园 → 南山植物园" in page.evaluate("navigator.clipboard.readText()")
+    page.get_by_role("button", name="添加报名二维码").click()
+    dialog.get_by_label("报名链接").fill("https://example.org/walk")
+    dialog.get_by_role("button", name="保存并同步").click()
+    expect(page.locator(".cp-sheet svg svg path")).to_have_count(3)
+    page.get_by_role("button", name="改期通知", exact=True).click()
+    assert "2026-12-05 09:30 → 2026-12-06 10:15" in page.get_by_label("发布文案").input_value()
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="下载整套 ZIP", exact=True).click()
+    with ZipFile(dl.value.path()) as archive:
+        snap = json.loads(archive.read("project.posterlab.json"))["current"]
+        assert snap["brief"]["venue"] == "南山植物园" and snap["layout"] == "campaign"
+        assert "https://example.org/walk" in archive.read("发布文案.txt").decode()
+        assert "望山公园 → 南山植物园" in archive.read("改期通知.txt").decode()
+        sizes = []
+        for name in archive.namelist():
+            if name.endswith(".png"):
+                with Image.open(archive.open(name)) as image:
+                    sizes.append(image.size)
+                    assert len(image.convert("RGB").resize((80, 80)).getcolors(6400)) > 200
+        assert sorted(sizes) == [(1080, 1080), (1080, 1440), (1920, 1080)]
+    page.reload()
+    expect(page.get_by_role("heading", name="山野植物观察日")).to_be_visible()
+    page.get_by_role("button", name="编辑画布").nth(1).click()
+    art = page.locator(".cs-art")
+    expect(art.locator('[data-layer="venue"]')).to_have_text("南山植物园")
+    page.wait_for_function("location.hash==='#studio/square'")
+    art.locator('[data-layer="title"]').click()
+    page.get_by_label("修改图层文字").fill("山野写生会")
+    expect(art.locator('[data-layer="title"]')).to_have_text("山野写生会")
+    expect(page.locator(".cs-status")).to_contain_text("已自动保存")
+    page.get_by_title("返回宣传制作台").click()
+    expect(page.get_by_role("heading", name="山野写生会")).to_be_visible()
+    page.get_by_role("button", name="改时间地点").click()
+    dialog.get_by_label("活动时间").fill("14:00")
+    dialog.get_by_role("button", name="保存并同步").click()
+    page.get_by_role("button", name="编辑画布").last.click()
+    expect(art.locator('[data-layer="time"]')).to_have_text("14:00")
+    expect(art.locator('[data-layer="title"]')).to_have_text("山野写生会")
+    context.close()

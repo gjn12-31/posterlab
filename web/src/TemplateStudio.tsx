@@ -124,9 +124,10 @@ function Modal({
 function App() {
   const [entry] = useState(() => location.hash);
   const fromDiscovery = entry.startsWith("#new?");
+  const openedId = entry.startsWith("#open/") ? entry.split("/")[1] : "";
 
   const [page, setPage] = useState<"studio" | "gallery" | "brand">(
-      fromDiscovery || entry.startsWith("#studio")
+      fromDiscovery || openedId || entry.startsWith("#studio")
         ? "studio"
         : entry === "#gallery"
           ? "gallery"
@@ -167,7 +168,9 @@ function App() {
     [format, setFormat] = useState<Format>(() => {
       const value = fromDiscovery
         ? new URLSearchParams(entry.slice(5)).get("format")
-        : entry.split("/")[1];
+        : openedId
+          ? entry.split("/")[2]
+          : entry.split("/")[1];
       return value === "square" || value === "landscape" ? value : "portrait";
     }),
     [ready, setReady] = useState(false),
@@ -238,10 +241,14 @@ function App() {
         const count = await migrate();
         const rows = await listProjects();
         setProjects(rows);
-        const latest = await setting("current");
+        const latest = openedId || (await setting("current"));
         if (latest && !fromDiscovery) {
           const p = rows.find((p) => p.id === latest);
           if (p) setProject(p);
+          else if (openedId) {
+            setPage("gallery");
+            message("未找到这个作品，请在作品库中选择");
+          }
         }
         const savedBrand = await setting("brand");
         if (savedBrand) setBrand(savedBrand);
@@ -643,7 +650,7 @@ function App() {
           </a>
           <nav aria-label="主导航">
             <a href={import.meta.env.BASE_URL} className="template-home-link">
-              返回展馆
+              返回宣传制作台
             </a>
             <a href={creationRoom}>可编辑样张</a>
             <button

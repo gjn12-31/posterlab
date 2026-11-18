@@ -1,3 +1,4 @@
+import { invitation } from "./campaign-model";
 import { renderCover } from "./cover";
 import { escapeXml, wrap } from "./poster-text";
 export { escapeXml, wrap } from "./poster-text";
@@ -388,18 +389,20 @@ export function download(blob: Blob, name: string) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
-export async function exportPack(p: Project, onProgress: (n: number) => void) {
+export async function exportPack(
+  p: Project,
+  onProgress: (n: number) => void,
+  updateCopy = "",
+) {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const [i, format] of (Object.keys(formats) as Format[]).entries()) {
     zip.file(`${formats[format].name}.png`, await exportBlob(p, format, "png"));
     onProgress(i + 1);
   }
+  if (updateCopy) zip.file("改期通知.txt", updateCopy);
   zip.file("project.posterlab.json", JSON.stringify(p, null, 2));
-  zip.file(
-    "发布文案.txt",
-    `${p.current.brief.title}\n\n${p.current.brief.description}\n\n${p.current.brief.date} ${p.current.brief.time}\n${p.current.brief.venue}\n${p.current.brief.cta}\n${p.current.brief.url}`,
-  );
+  zip.file("发布文案.txt", invitation(p.current.brief));
   zip.file(
     "使用说明.txt",
     "此包包含三种尺寸海报、可重新导入的项目与发布文案。活动信息由创作者提供，请在发布前确认。图片和字体请遵守各自许可。",
