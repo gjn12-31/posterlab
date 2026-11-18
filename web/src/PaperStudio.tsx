@@ -17,11 +17,18 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { paperEntries, openPaper, resumePaper, restoreLibraryDraft, savePaperDraft } from "./paper-library";
+import {
+  paperEntries,
+  openPaper,
+  resumePaper,
+  restoreLibraryDraft,
+  savePaperDraft,
+} from "./paper-library";
 import { writePaper } from "./outreach";
 import { generatePaperArtwork } from "./paper-artwork";
 import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
+import { RewritePaper, VoicePicker } from "./PaperVoice";
 import Dialog from "./PaperDialog";
 import PublicationDesk, { Art } from "./PublicationDesk";
 import { articleFragment, noteParts } from "./paper-publication";
@@ -31,6 +38,10 @@ import { CampaignNav } from "./CampaignNav";
 import {
   channels,
   channelCopy,
+  applyPaperDrafts,
+  channelVoice,
+  voiceNames,
+  type PaperVoice,
   wordingToReview,
   createPaper,
   examplePaper,
@@ -95,6 +106,7 @@ function ImportPaper({
     [label, setLabel] = useState(""),
     [error, setError] = useState(""),
     [drag, setDrag] = useState(false);
+  const [voice, setVoice] = useState<PaperVoice>("author");
   const [useModel, setUseModel] = useState(true),
     [generating, setGenerating] = useState(false);
   const [showSource, setShowSource] = useState(!fileFirst);
@@ -190,6 +202,7 @@ function ImportPaper({
         abstract || intro,
       );
       p.sections = sections;
+      if (withModel) p.voice = voice;
       if (sourceFigure.current) p.figure = sourceFigure.current;
       if (withModel) {
         const [draft, art] = await Promise.all([
@@ -377,6 +390,9 @@ function ImportPaper({
             </span>
           </label>
         )}
+        {ai && useModel && (
+          <VoicePicker value={voice} choose={setVoice} disabled={generating} />
+        )}
         {STATIC_DEMO && <LiveStudioLink route="#papers/import" />}
         {modelState === "unreachable" && (
           <div className="pr-verification" role="status">
@@ -458,12 +474,16 @@ function CopyEditor({
   initial: string;
   ai: boolean;
   close: () => void;
-  apply: (text: string) => void;
+  apply: (text: string, generatedVoice?: PaperVoice) => void;
   selectText: boolean;
 }) {
   const [value, setValue] = useState(initial),
     [state, setState] = useState(""),
     [working, setWorking] = useState(false);
+  const [voice, setVoice] = useState<PaperVoice>(
+    channelVoice(paper, channel) || paper.voice || "author",
+  );
+  const [generatedVoice, setGeneratedVoice] = useState<PaperVoice>();
   const [angle, setAngle] = useState("");
   const field = useRef<HTMLTextAreaElement>(null),
     key = useRef(crypto.randomUUID());
@@ -474,7 +494,8 @@ function CopyEditor({
     setWorking(true);
     setState("");
     try {
-      setValue(await adaptChannel(paper, channel, key.current, angle));
+      setValue(await adaptChannel(paper, channel, key.current, angle, voice));
+      setGeneratedVoice(voice);
       setState("已生成平台草稿，请对照下方原句后保存。");
     } catch (e) {
       setState((e as Error).message);
@@ -505,6 +526,16 @@ function CopyEditor({
     );
   return (
     <Dialog title={"编辑" + platforms[channel].name + "文案"} close={close}>
+      {ai && (
+        <VoicePicker
+          value={voice}
+          disabled={working}
+          choose={(next) => {
+            setVoice(next);
+            key.current = crypto.randomUUID();
+          }}
+        />
+      )}
       {ai && (
         <div className="pr-ai">
           {channel === "red" && (
@@ -569,7 +600,7 @@ function CopyEditor({
       <button
         className="pr-action"
         disabled={working || !valid}
-        onClick={() => apply(value.trim())}
+        onClick={() => apply(value.trim(), generatedVoice)}
       >
         保存文案 <Check size={16} />
       </button>
@@ -835,6 +866,7 @@ function PaperLibrary({
 function starterPaper(): Paper {
   return {
     ...examplePaper(),
+    voice: "author",
     headline: noteParts(exampleCopy.red).title,
     edits: { ...exampleCopy },
   };
@@ -880,9 +912,20 @@ export default function PaperStudio() {
         )}
       </main>
     );
-  return <PaperWorkspace initialPaper={resume.paper} pendingWrite={!!resume.pendingWrite} />;
+  return (
+    <PaperWorkspace
+      initialPaper={resume.paper}
+      pendingWrite={!!resume.pendingWrite}
+    />
+  );
 }
-function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; pendingWrite: boolean }) {
+function PaperWorkspace({
+  initialPaper,
+  pendingWrite,
+}: {
+  initialPaper: Paper;
+  pendingWrite: boolean;
+}) {
   const [paper, setPaper] = useState(initialPaper),
     [channel, setChannel] = useState<Channel>("red"),
     [modal, setModal] = useState<
@@ -890,6 +933,7 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
       | "paste"
       | "evidence"
       | "copy"
+      | "rewrite"
       | "preview"
       | "figure"
       | "library"
@@ -911,6 +955,7 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
   const copy = useMemo(() => channelCopy(paper, channel), [paper, channel]);
   const reviewTerms = paper.model ? wordingToReview(paper, channel) : [];
   const channelInfo = platforms[channel];
+  const activeVoice = channelVoice(paper, channel);
   useEffect(() => {
     function openRoute() {
       const hash = location.hash;
@@ -960,10 +1005,14 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
   }, [statusAttempt]);
   useEffect(() => {
     let active = true;
-    savePaperDraft(paper, paper === initialPaper && !pendingWrite).catch((error) => {
-      if (active) setMessage((error as Error).message);
-    });
-    return () => { active = false; };
+    savePaperDraft(paper, paper === initialPaper && !pendingWrite).catch(
+      (error) => {
+        if (active) setMessage((error as Error).message);
+      },
+    );
+    return () => {
+      active = false;
+    };
   }, [paper, initialPaper, pendingWrite]);
   useEffect(() => {
     if (message) {
@@ -987,14 +1036,15 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
       // A retry may fill untouched local channels. Keep any work the author
       // saved while waiting, including manual text, artwork and cover title.
       const needed = current.localChannels || [];
-      const edits = { ...current.edits };
-      for (const c of needed) if (kit.edits[c]) edits[c] = kit.edits[c];
-      const localChannels = needed.filter((c) => !kit.edits[c]);
+      const accepted = needed.filter((c) => !!kit.edits[c]);
+      if (!accepted.length) {
+        setMessage("模型未补齐缺少的平台，当前草稿已保留。");
+        return;
+      }
+      const merged = applyPaperDrafts(current, kit, accepted);
+      const localChannels = merged.localChannels || [];
       setPaper({
-        ...current,
-        edits,
-        localChannels,
-        model: kit.model,
+        ...merged,
         coverLine: kit.coverLine || current.coverLine,
         coverTitleEn: kit.coverTitleEn || current.coverTitleEn,
         coverLineEn: kit.coverLineEn || current.coverLineEn,
@@ -1135,7 +1185,13 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
               )}
             </div>
             <div>
-              <span>{paper.sample ? "示例论文" : "当前论文"}</span>
+              <span>
+                {paper.sample
+                  ? activeVoice === "author"
+                    ? "示例论文 · 作者口吻示范"
+                    : "示例论文"
+                  : "当前论文"}
+              </span>
               <strong>{paper.title}</strong>
               {paper.sample && !paper.figure ? (
                 <a
@@ -1156,22 +1212,51 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
             <div>
               <div className="pr-eyebrow">
                 <span />
-                {paper.model
-                  ? "模型初稿 · " + paper.model
-                  : paper.sample
-                    ? "示例论文 · 已生成"
-                    : "本地摘录 · 已生成"}
+                {paper.sample
+                  ? "示例论文 · 已生成"
+                  : paper.localChannels?.includes(channel) ||
+                      !paper.edits[channel]
+                    ? "本地摘录"
+                    : [
+                        activeVoice ? voiceNames[activeVoice] : "",
+                        paper.model
+                          ? "模型初稿 · " + paper.model
+                          : activeVoice
+                            ? "已改写"
+                            : "已保存文案",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
               </div>
               <h2>{paper.headline}</h2>
+              {paper.publicationCheck?.channels.includes(channel) && (
+                <small className="pr-copy-checked">
+                  {paper.publicationCheck.revised.includes(channel)
+                    ? "已按平台发布口吻复核并改写"
+                    : "已复核发布口吻，当前保留初稿"}
+                </small>
+              )}
             </div>
-            <button
-              className="pr-action"
-              disabled={!!busy}
-              onClick={() => save("all")}
-            >
-              <Download size={16} />
-              {busy === "all" ? "正在打包…" : "下载整套 ZIP"}
-            </button>
+            <div className="pr-result-actions">
+              {ai && (
+                <button
+                  className="pr-rewrite-open"
+                  disabled={!!busy}
+                  onClick={() => setModal("rewrite")}
+                >
+                  <Sparkles size={16} />
+                  重写四平台宣传稿
+                </button>
+              )}
+              <button
+                className="pr-action"
+                disabled={!!busy}
+                onClick={() => save("all")}
+              >
+                <Download size={16} />
+                {busy === "all" ? "正在打包…" : "下载整套 ZIP"}
+              </button>
+            </div>
           </div>
           {paper.sections && !!paper.localChannels?.length && (
             <div className="pr-recovery">
@@ -1283,16 +1368,37 @@ function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; p
           ai={ai}
           selectText={manualSelect}
           close={() => setModal(null)}
-          apply={(text) => {
+          apply={(text, generatedVoice) => {
             const evidenceIds = { ...paper.evidenceIds };
             delete evidenceIds[channel];
             setPaper({
               ...paper,
               evidenceIds,
+              ...(generatedVoice && {
+                channelVoices: {
+                  ...paper.channelVoices,
+                  [channel]: generatedVoice,
+                },
+              }),
               localChannels: paper.localChannels?.filter((c) => c !== channel),
               edits: { ...paper.edits, [channel]: text },
             });
             setModal(null);
+          }}
+        />
+      )}
+      {modal === "rewrite" && (
+        <RewritePaper
+          paper={paper}
+          close={() => setModal(null)}
+          apply={(kit, selected) => {
+            setPaper(applyPaperDrafts(paper, kit, selected));
+            setModal(null);
+            setMessage(
+              "已更新" +
+                selected.map((c) => platforms[c].name).join("、") +
+                "的宣传稿",
+            );
           }}
         />
       )}

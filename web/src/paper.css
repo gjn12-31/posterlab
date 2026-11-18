@@ -685,3 +685,34 @@
     );
   }
 }
+
+.pr-dialog .pr-voices {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin: 14px 0; padding: 0; border: 0;
+}
+.pr-voices legend { padding: 0 0 7px; color: #25283b; font-weight: 650; font-size: .86rem; }
+.pr-dialog .pr-voices label {
+  display: flex; align-items: flex-start; gap: 9px; padding: 9px 12px;
+  border-radius: 10px; border: 1px solid #d7d8e2; color: #343544;
+  background: #fff; margin: 0; cursor: pointer;
+}
+.pr-dialog .pr-voices label.is-selected { border-color: #8972c6; background: #f5f1ff; }
+.pr-dialog .pr-voices input, .pr-dialog .pr-rewrite-pick input {
+  width: auto; height: auto; margin: 4px 0 0; accent-color: #5c458b;
+}
+.pr-voices b, .pr-voices small { display: block; }
+.pr-dialog .pr-voices small { font-size: .75rem; color: #5a5566; padding: 1px 0 0; }
+.pr-result-actions, .pr-rewrite-tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.pr-rewrite-open, .pr-rewrite-tabs button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid #d7d5e2; border-radius: 9px;
+  padding: 8px 12px; color: #41374e; background: white; font: inherit; font-weight: 600; cursor: pointer;
+}
+.pr-rewrite-tabs button[aria-pressed="true"] { background: #423659; color: white; border-color: #423659; }
+.pr-rewrite-tabs button:disabled { opacity: .45; cursor: default; }
+.pr-dialog.pr-rewrite { width: min(860px, 94vw); }
+.pr-rewrite-comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+.pr-rewrite-comparison section { min-width: 0; border: 1px solid #dddbe3; border-radius: 10px; padding: 12px; }
+.pr-rewrite-comparison h3 { margin: 0 0 8px; font-size: .95rem; }
+.pr-rewrite-comparison p { white-space: pre-line; overflow-wrap: anywhere; height: min(29vh, 260px); overflow: auto; margin: 0; line-height: 1.6; }
+.pr-dialog label.pr-rewrite-pick { display: flex; gap: 8px; align-items: center; margin: 10px 0; }
+.pr-copy-checked { display: inline-block; margin-top: 7px; color: #625d6a; }

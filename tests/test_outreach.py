@@ -173,3 +173,106 @@ def test_optional_cover_copy_and_channel_specific_rewrite(tmp_path):
         })
         assert rewrite.is_success
         assert '英文帖子' in calls[1] and '公众号编辑器' not in calls[1]
+
+
+def test_paper_voices_change_the_kit_and_one_channel_brief(tmp_path):
+    prompts = []
+
+    def handler(request):
+        prompt = json.loads(request.content)['messages'][0]['content']
+        prompts.append(prompt)
+        return completion({'fields': {'description': '推荐给做公园设计的同行。'}} if '改写任务' in prompt else PAPER_RESULT)
+
+    with TestClient(create_app(tmp_path, api_key='test', transport=httpx.MockTransport(handler), serve_site=False)) as client:
+        assert client.post('/api/outreach/paper', headers=HEADERS, json=PAPER).is_success
+        assert '发布身份：论文作者' in prompts[0]
+        assert client.post('/api/outreach/paper', headers=HEADERS, json={**PAPER, 'voice':'editor'}).status_code == 409
+        second = client.post('/api/outreach/paper', headers={'Idempotency-Key':'editor-kit-test'}, json={**PAPER,'voice':'editor'})
+        assert second.is_success and '发布身份：第三方编辑' in prompts[-1]
+        ask = {'brief':{'title':'Park shade'}, 'locked':[], 'theme':'paper', 'titleScale':1, 'workflow':'paper',
+               'paper_channel':'red', 'paper_voice':'editor', 'instruction':'请改写这篇小红书发布稿。'}
+        assert client.post('/api/assist', headers=HEADERS, json=ask).is_success
+        assert '发布身份：第三方编辑' in prompts[-1] and '公众号编辑器' not in prompts[-1]
+
+
+@pytest.mark.parametrize('repair', ['valid', 'still_summary', 'outage', 'no_budget'])
+def test_summary_rewrite_is_partial_cached_and_preserves_the_first_draft(tmp_path, repair):
+    calls = []
+    source = {'title':'Park shade','voice':'author','sections':{'abstract':'Four parks showed higher summer footfall on shaded paths.', 'introduction':''}}
+    original = {**PAPER_RESULT, 'moments':'本研究提出了一种路径计数方法。实验结果表明阴凉路段行人更多。'}
+    replacement = '把我们在四座公园数到的一个细节分享给做步道设计的朋友：夏季阴凉路段的人更多。'
+
+    def upstream(request):
+        payload = json.loads(request.content)['messages']
+        calls.append(json.loads(payload[1]['content']))
+        if len(calls) == 1:
+            return completion(original)
+        if repair == 'outage':
+            return httpx.Response(503)
+        return completion({'moments': replacement if repair == 'valid' else original['moments'], 'x':['unrequested']})
+
+    app = create_app(tmp_path, api_key='test', budget=.1 if repair == 'no_budget' else 5,
+                     transport=httpx.MockTransport(upstream), serve_site=False)
+    with TestClient(app) as client:
+        first = client.post('/api/outreach/paper', headers=HEADERS, json=source)
+        assert first.is_success
+        result = first.json()
+        assert client.post('/api/outreach/paper', headers=HEADERS, json=source).json() == result
+    assert len(calls) == (1 if repair == 'no_budget' else 2)
+    if len(calls) == 2:
+        assert list(calls[1]['drafts']) == ['moments'] and calls[1]['source']['sections'] == source['sections']
+    assert result['publication_check'] == {'channels':['moments'], 'revised':['moments'] if repair == 'valid' else [],
+                                           'status':'revised' if repair == 'valid' else 'kept', 'model_calls':len(calls)}
+    assert result['moments'] == (replacement if repair == 'valid' else original['moments'])
+    assert all(result[channel] == original[channel] for channel in ('x','red','wechat'))
+
+
+def test_respects_research_ownership_and_flags_verbatim_abstract_lead():
+    from posterlab.outreach_strategy import publication_issues
+
+    sentence = 'We built an interactive archive where readers can compare summer foot traffic measured by the same four observation counters.'
+    payload = {'voice':'author','sections':{'abstract':sentence}}
+    assert publication_issues({'x':[sentence]},payload).keys() == {'x'}
+    assert not publication_issues({'x':['We built a map of the counts.'],'moments':'把这张夏日步道图分享给同事。'},payload)
+    assert publication_issues({'moments':'我们测量了四个路口。'}, {**payload,'voice':'editor'}).keys() == {'moments'}
+
+
+def test_unverified_resource_links_are_removed_even_when_the_revision_fails(tmp_path):
+    actual = 'https://github.com/fieldnotebook/shade'
+    fabricated = 'https://example.org/demo'
+    source = {'title':'Park shade','sections':{'abstract':'We release our code at ' + actual + '.'}}
+    original = {**PAPER_RESULT, 'red':'看步道阴影\n\n代码：' + actual,
+                'x':['Compare the two paths. See the counts in our paper. Code: ' + fabricated],
+                'wechat':'看看街道两侧。\n\n[演示](' + fabricated + ')'}
+    calls = []
+
+    def handler(request):
+        calls.append(json.loads(request.content)['messages'])
+        return completion(original) if len(calls)==1 else httpx.Response(503)
+
+    with TestClient(create_app(tmp_path, api_key='test', transport=httpx.MockTransport(handler), serve_site=False)) as c:
+        out = c.post('/api/outreach/paper', json=source, headers=HEADERS).json()
+        assert len(calls)==2 and out['publication_check']['status']=='kept'
+        assert out['x']==['Compare the two paths. See the counts in our paper.']
+        assert out['wechat']=='看看街道两侧。' and out['red']==original['red']
+        assert fabricated not in json.dumps(out,ensure_ascii=False)
+
+
+def test_number_piling_gets_targeted_but_a_single_conditioned_comparison_is_preserved():
+    from posterlab.outreach_strategy import publication_issues
+    payload={'voice':'author', 'sections':{'abstract':'We test an update rule.'}}
+    two={'x':['Meet the update rule.', 'Against the same baseline, trainable parameters fell 10,000× and memory 3×.']}
+    assert list(publication_issues(two,payload))==['x']
+    single={'x':['Meet the update rule.', 'Against the same baseline, trainable parameters fell 10,000×.']}
+    assert not publication_issues(single,payload)
+
+
+def test_single_channel_rewrite_keeps_only_resource_url_in_the_supplied_material(tmp_path):
+    github = 'https://github.com/fieldnotebook/shade'
+    fields = {'description': '看看树冠下的步道。\n代码：' + github + '\n演示：https://example.org/not-released'}
+    app = create_app(tmp_path, api_key='test', transport=httpx.MockTransport(lambda _: completion({'fields':fields})), serve_site=False)
+    ask = {'brief':{'title':'Shade'},'locked':[],'theme':'paper','titleScale':1,'workflow':'paper','paper_channel':'moments',
+           'paper_voice':'author','instruction':'改稿。\n' + json.dumps({'sections':{'abstract':'We release our code at ' + github + '.'}})}
+    with TestClient(app) as c:
+        out = c.post('/api/assist', json=ask, headers=HEADERS)
+        assert out.is_success and out.json()['fields']['description'] == '看看树冠下的步道。\n代码：' + github

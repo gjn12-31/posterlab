@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from .outreach_strategy import paper_edit_system, publication_text
+from .outreach_strategy import paper_edit_system, publication_text, remove_unverified_links
 
 FIELDS = ('title', 'speaker', 'date', 'time', 'venue', 'description', 'cta', 'url')
 THEMES = Literal['violet', 'mint', 'orange', 'paper', 'blue', 'night']
@@ -62,6 +62,7 @@ class Assist(BaseModel):
     kind: Literal['edit', 'extract'] = 'edit'
     workflow: Literal['paper'] | None = None
     paper_channel: Literal['x', 'red', 'moments', 'wechat'] | None = None
+    paper_voice: Literal['author', 'editor'] | None = None
 
 class Suggestion(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -84,6 +85,7 @@ class Ledger:
             db.execute('CREATE TABLE IF NOT EXISTS calls (key TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, state TEXT NOT NULL, reserved REAL NOT NULL, spent REAL NOT NULL DEFAULT 0, result TEXT, created TEXT DEFAULT CURRENT_TIMESTAMP)')
             # This is the single-process service startup, not a per-request ledger.
             # Keep uncertain funds reserved, but release stale concurrency slots.
+            db.execute("UPDATE calls SET state='complete' WHERE state='pending' AND result IS NOT NULL")
             db.execute("UPDATE calls SET state='unknown' WHERE state='pending'")
 
     def connect(self):
@@ -116,6 +118,12 @@ class Ledger:
         with self.connect() as db:
             db.execute('UPDATE calls SET state=?,reserved=?,spent=?,result=? WHERE key=?',
                        (state, RESERVE if spent is None else 0, spent or 0, json.dumps(result, ensure_ascii=False) if result else None, key))
+
+    def checkpoint(self, key, result):
+        # Keep the first paid draft recoverable while its optional editorial pass runs.
+        with self.connect() as db:
+            db.execute("UPDATE calls SET result=? WHERE key=? AND state='pending'",
+                       (json.dumps(result, ensure_ascii=False), key))
 
 
 def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_site=True):
@@ -184,7 +192,7 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             raise HTTPException(400, '缺少有效的 Idempotency-Key')
         payload = data.model_dump(exclude_none=True)
         model = gateway.defaults[data.workflow or 'chat']
-        system = paper_edit_system(data.paper_channel) if data.workflow == 'paper' else SYSTEM
+        system = paper_edit_system(data.paper_channel, data.paper_voice or 'author') if data.workflow == 'paper' else SYSTEM
         fingerprint_input = [system, payload] if data.workflow == 'paper' else payload
         fingerprint = hashlib.sha256(json.dumps(fingerprint_input, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         cached = ledger.reserve(request_key, gateway.identity(model, fingerprint))
@@ -210,9 +218,14 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             result = Suggestion.model_validate_json(content).model_dump(exclude_none=True)
             if data.workflow == 'paper' and data.paper_channel and result['fields'].get('description'):
                 fields = result['fields']
-                fields['description'] = publication_text(
+                copy = publication_text(
                     data.paper_channel, fields['description'].strip(), fields.get('title', ''), data.brief.title,
                 )
+                supplied = {'evidence': [data.instruction, data.brief.description]}
+                cleaned = remove_unverified_links({data.paper_channel: copy}, supplied)
+                if data.paper_channel not in cleaned:
+                    raise ValueError('No publishable draft remains')
+                fields['description'] = cleaned[data.paper_channel]
             if data.kind == 'edit':
                 result['fields'] = {k:v for k,v in result['fields'].items() if k not in data.locked and v != getattr(data.brief,k)}
                 if result.get('theme') == data.theme:

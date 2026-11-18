@@ -182,7 +182,7 @@ function Sample({
             target="_blank"
             rel="noreferrer"
           >
-            Figure 1 · LIGO / Virgo · CC BY 3.0
+            作者口吻示范 · PosterLab 拟稿 · 图 1 来自 LIGO / Virgo · CC BY 3.0
           </a>
         )}
         <a

@@ -8,7 +8,7 @@ import httpx
 from fastapi import HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
-from .outreach_strategy import build_messages, publication_text
+from .outreach_strategy import build_messages, publication_issues, publication_text, remove_unverified_links, revision_messages
 from .server import Brief
 
 Channel = Literal['x', 'red', 'moments', 'wechat']
@@ -50,6 +50,7 @@ class PaperRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: str = Field(min_length=1, max_length=500)
     byline: str = Field(default='', max_length=240)
+    voice: Literal['author', 'editor'] = 'author'
     evidence: list[Quote] = Field(default_factory=list, max_length=5)
     sections: PaperSections | None = None
 
@@ -138,6 +139,67 @@ def checked_result(kind, result, payload):
 
 
 def register_outreach(app, ledger, gateway, transport):
+    async def polish_paper(result, payload, token, model):
+        issues = publication_issues(result, payload)
+        if not issues:
+            return
+        check = {'channels': list(issues), 'revised': [], 'status': 'kept', 'model_calls': 1}
+        result['publication_check'] = check
+        messages = revision_messages(payload, result, issues)
+        fingerprint = hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode()).hexdigest()
+        key = 'publication-review-' + token
+        try:
+            cached = ledger.reserve(key, gateway.identity(model, fingerprint))
+        except HTTPException:
+            # Budget/concurrency limits never discard the completed first call.
+            return
+        check['model_calls'] = 2
+        ledger.checkpoint(token, remove_unverified_links(result, payload))
+        if cached is not None:
+            result.update(cached)
+            return
+        cost = None
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(150, connect=10), transport=transport) as client:
+                response = await gateway.complete(client, model, messages, 'paper')
+            if response.status_code != 200:
+                rejected = 400 <= response.status_code < 500
+                ledger.finish(key, 'rejected' if rejected else 'unknown', 0 if rejected else None)
+                return
+            raw = response.json()
+            cost = gateway.cost(model, raw.get('usage', {}))
+            choice = raw['choices'][0]
+            if choice.get('finish_reason') != 'stop':
+                raise ValueError
+            patch = json.loads(choice['message']['content'].strip().removeprefix('```json').removesuffix('```').strip())
+            if not isinstance(patch, dict):
+                raise ValueError
+            for channel in issues:
+                if channel not in patch:
+                    continue
+                candidate = {**result, channel: patch[channel]}
+                if not payload.get('sections'):
+                    refs = patch.get('evidence_ids')
+                    if not isinstance(refs, dict) or not refs.get(channel):
+                        continue
+                    candidate['evidence_ids'] = {**result['evidence_ids'], channel: refs[channel]}
+                try:
+                    proposed = checked_result('paper', candidate, payload)
+                except (ValueError, TypeError, KeyError):
+                    continue
+                if channel not in proposed or channel in publication_issues(proposed, payload):
+                    continue
+                result[channel] = proposed[channel]
+                result['evidence_ids'] = proposed['evidence_ids']
+                check['revised'].append(channel)
+            check['status'] = ('revised' if len(check['revised']) == len(issues)
+                               else 'partial' if check['revised'] else 'kept')
+            ledger.finish(key, 'complete', cost, result)
+        except httpx.TransportError:
+            ledger.finish(key, 'unknown')
+        except (ValueError, KeyError, TypeError, IndexError, AttributeError):
+            ledger.finish(key, 'invalid', cost)
+
     async def generate(kind, data, request):
         model = gateway.defaults[kind]
         if not gateway.api_key:
@@ -174,6 +236,11 @@ def register_outreach(app, ledger, gateway, transport):
                 content = content.partition('\n')[2].removesuffix('```').strip()
             result = checked_result(kind, json.loads(content), payload)
             result.update(provider=gateway.name, model=model)
+            if kind == 'paper':
+                await polish_paper(result, payload, token, model)
+                result = remove_unverified_links(result, payload)
+                if not any(result.get(c) for c in ('x','red','moments','wechat')):
+                    raise ValueError('No publishable channel remains')
             ledger.finish(token, 'complete', cost, result)
             return result
         except HTTPException:

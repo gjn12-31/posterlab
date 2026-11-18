@@ -33,6 +33,6 @@
 
 ## 进入产品的部分
 
-后端的 `build_messages("paper", payload)` 改编了 Paper2Blog 的 `LLMHandler.generate_blog_post` 角色与写作指令。上游将语言、角色和原文明确区分，并要求首次解释术语。本项目让相同的证据同时生成英文短帖串、中文笔记、短分享语及公众号导读。调用者得到四个平台所引用的原句编号，可以与本地原文对照。上游自带的 Markdown 图像链接、Marker 子模块和模型配置没有打包。[上游实现](https://github.com/pprp/Paper2Blog/blob/10c42401235d07727052deda13c19baa6d5ae586/paper2blog/llm_handler.py) · [保留的 MIT 许可](licenses/paper2blog.txt) · [本项目后端策略](../src/posterlab/outreach_strategy.py)
+后端的 `build_messages("paper", payload)` 改编了 Paper2Blog 的 `LLMHandler.generate_blog_post` 角色与写作指令。上游将语言、角色和原文明确区分，并要求首次解释术语。最初版本使用上述技术博客思路。现在的产品以作者发布或读者推荐为写作任务，用同一来源生成英文串帖、小红书笔记、朋友圈分享语和公众号推文。作者发布时用研究团队的口吻，推荐分享时说明推荐理由。原文明示发布的软件或数据可以作为读者下一步可操作的入口。调用者得到四个平台所引用的原句编号，可以与本地原文对照。上游自带的 Markdown 图像链接、Marker 子模块和模型配置没有打包。[上游实现](https://github.com/pprp/Paper2Blog/blob/10c42401235d07727052deda13c19baa6d5ae586/paper2blog/llm_handler.py) · [保留的 MIT 许可](licenses/paper2blog.txt) · [本项目后端策略](../src/posterlab/outreach_strategy.py)
 
 库、模型权重、训练数据和示例图片可能适用不同条款。上表的许可判断仅对应所链接提交的仓库；随这次改编分发的是 Paper2Blog 编辑指令的改编及其许可。活动海报的版式选型另见[活动设计方法](activity-layout.md)。

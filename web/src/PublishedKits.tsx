@@ -62,7 +62,7 @@ function KitPreview({
         <p role="status">正在读取成品…</p>
       )}
       {kit.id === "ligo" && (
-        <footer className="pg-credit">上方概念图由 Seedream 生成。Figure 1 摘自 B. P. Abbott 等（LIGO / Virgo），Phys. Rev. Lett. 116, 061102 (2016)，取自原文第 2 页。{" "}
+        <footer className="pg-credit">PosterLab 按作者口吻拟写回顾文案。概念图由 Seedream 生成，图 1 来自 LIGO 与 Virgo 合作组 2016 年发现论文的第 2 页。{" "}
           <a href="https://doi.org/10.1103/PhysRevLett.116.061102" target="_blank" rel="noreferrer">论文原文</a> ·{" "}
           <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>
         </footer>
@@ -78,8 +78,7 @@ function KitPreview({
       )}
       {kit.id === "ponder-live" && (
         <footer className="pg-credit">
-          Kimi-K3.1-Pro 撰写四个平台的初稿。方法图依据论文图 2
-          重绘，署名和引文经原文校订。{" "}
+          PosterLab 按作者口吻拟写会议论文宣传文案。依据 Boyi Zeng 等作者的 PonderLM 论文编辑，方法示意图依据原文图 2 重绘。{" "}
           <a
             href="https://proceedings.iclr.cc/paper_files/paper/2026/hash/94572a66c6b0710c5263f15d8ef6b463-Abstract-Conference.html"
             target="_blank"
@@ -91,7 +90,7 @@ function KitPreview({
       )}
       {kit.id === "paper" && (
         <footer className="pg-credit">
-          本文案经原句校订。图像由 EHT Collaboration 提供，配图经过裁切。{" "}
+          PosterLab 按作者口吻拟写回顾文案。图像由 EHT Collaboration 提供，配图经过裁切。{" "}
           <a
             href="https://www.eso.org/public/images/eso1907a/"
             target="_blank"
@@ -213,6 +212,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
         </div>
         <div className="pg-copy">
           <h3>{kit.title}</h3>
+          {!("editable" in kit) && <small>作者口吻示范 · PosterLab 拟稿</small>}
           {item && (
             <p>
               {item.text.startsWith(kit.title + "\n")

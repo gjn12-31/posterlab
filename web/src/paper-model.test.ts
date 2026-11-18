@@ -188,3 +188,16 @@ it("selects complete, verbatim abstract evidence without an interrupted two-page
     "Earlier work considered these methods.",
   ]);
 });
+
+it("keeps the paper link with the closing X post and follows bibliography edits", () => {
+  const p = examplePaper();
+  p.source = "https://example.org/old-paper";
+  p.edits = { x: threadPosts(["Meet the method.", "Here are the comparisons.", p.source]).join("\n\n") };
+  expect(p.edits.x).toBe("1/2 Meet the method.\n\n2/2 Here are the comparisons.\nPaper: " + p.source);
+  const updated = updateBibliography(p, { ...p, source: "https://example.org/new-paper" });
+  expect(updated.edits.x).toContain("2/2 Here are the comparisons.\nPaper: " + updated.source);
+  expect(updateBibliography(updated, { ...updated, source: "" }).edits.x).toBe("1/2 Meet the method.\n\n2/2 Here are the comparisons.");
+  const full = threadPosts(["a".repeat(260), p.source]);
+  expect(full[1]).toBe("2/2 Read the paper: " + p.source);
+  expect(full.every(post => twitterText.parseTweet(post).weightedLength <= 280)).toBe(true);
+});

@@ -4,6 +4,7 @@ import { editionIds } from "./editions";
 import type { Brief } from "./model";
 import {
   channels,
+  publicationCheckSchema,
   publicationVoice,
   threadPosts,
   type Paper,
@@ -15,6 +16,7 @@ const provenance = {
 };
 const kitSchema = z.object({
   ...provenance,
+  publication_check: publicationCheckSchema.optional(),
   headline: z.string().min(1).max(180),
   cover_line: z.string().max(150).optional(),
   cover_title_en: z.string().max(160).optional(),
@@ -77,11 +79,13 @@ export async function writeCampaign(brief: Brief, key: string) {
   return campaignSchema.parse(await submit("campaign", { brief }, key));
 }
 export async function writePaper(p: Paper, key: string): Promise<Paper> {
+  const voice = p.voice || "author";
   const k = kitSchema.parse(
     await submit(
       "paper",
       {
         title: p.title,
+        voice,
         byline: p.byline || "",
         ...(p.sections
           ? { sections: p.sections }
@@ -100,6 +104,8 @@ export async function writePaper(p: Paper, key: string): Promise<Paper> {
   const citation = p.source ? "原文：" + p.source : "论文：" + p.title;
   return {
     ...p,
+    voice,
+    publicationCheck: k.publication_check,
     headline: k.headline,
     coverLine: k.cover_line,
     coverTitleEn: k.cover_title_en,
@@ -111,19 +117,21 @@ export async function writePaper(p: Paper, key: string): Promise<Paper> {
       ...(k.x
         ? {
             x: threadPosts([
-              ...k.x.map(publicationVoice),
+              ...k.x.map((post) => publicationVoice(post, voice)),
               ...(p.source ? [p.source] : []),
             ]).join("\n\n"),
           }
         : {}),
-      ...(k.red ? { red: publicationVoice(k.red) + "\n\n" + citation } : {}),
+      ...(k.red
+        ? { red: publicationVoice(k.red, voice) + "\n\n" + citation }
+        : {}),
       ...(k.moments
-        ? { moments: publicationVoice(k.moments) + "\n\n" + citation }
+        ? { moments: publicationVoice(k.moments, voice) + "\n\n" + citation }
         : {}),
       ...(k.wechat
         ? {
             wechat:
-              publicationVoice(k.wechat) +
+              publicationVoice(k.wechat, voice) +
               "\n\n" +
               [p.title, p.byline, p.source].filter(Boolean).join("\n"),
           }

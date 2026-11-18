@@ -1,5 +1,6 @@
 import twitterText from "twitter-text";
 import { cleanManuscriptText } from "./paper-clean";
+import exampleCopy from "./paper-example-copy.json";
 import { z } from "zod";
 import { storySchema } from "./paper-story-model";
 
@@ -31,7 +32,25 @@ export type Channel = keyof typeof platforms;
 export const channels = Object.keys(platforms) as Channel[];
 export const doi = "https://doi.org/10.3847/2041-8213/ab0ec7";
 export const imageCredit = "EHT Collaboration / ESO · CC BY 4.0";
+const voiceSchema = z.enum(["author", "editor"]);
+export type PaperVoice = z.infer<typeof voiceSchema>;
+export const voiceNames: Record<PaperVoice, string> = {
+  author: "作者发布",
+  editor: "推荐分享",
+};
+const channelSchema = z.enum(["x", "red", "moments", "wechat"]);
+export const publicationCheckSchema = z.object({
+  channels: z.array(channelSchema),
+  revised: z.array(channelSchema),
+  status: z.enum(["revised", "partial", "kept"]),
+  model_calls: z.union([z.literal(1), z.literal(2)]),
+});
 export const paperSchema = z.object({
+  publicationCheck: publicationCheckSchema.optional(),
+  voice: voiceSchema.optional(),
+  channelVoices: z
+    .partialRecord(z.enum(["x", "red", "moments", "wechat"]), voiceSchema)
+    .optional(),
   id: z
     .string()
     .min(1)
@@ -129,11 +148,54 @@ export function examplePaper(): Paper {
 export const paperKey = "posterlab.paper.v1";
 const flatText = (text: string) => text.replace(/\s+/g, " ").trim();
 
+// Match each shipped channel separately so that hand-edited example drafts survive.
+const originalExampleFingerprints: Record<Channel, string> = {
+  x: "476-55580ff17d6b879d",
+  red: "211-c8381c3eade55aee",
+  moments: "129-b4e6d618d5b564ca",
+  wechat: "370-f2770ec67ffe8429",
+};
+
+function migrateExample(p: Paper): Paper {
+  if (!p.sample || p.id !== "example-m87" || p.voice) return p;
+  const edits = { ...p.edits },
+    voices = { ...p.channelVoices };
+  let migrated = 0;
+  for (const c of channels) {
+    const old = edits[c];
+    if (!old || voices[c]) continue;
+    let hash = 14695981039346656037n;
+    for (let i = 0; i < old.length; i++)
+      hash = BigInt.asUintN(
+        64,
+        (hash ^ BigInt(old.charCodeAt(i))) * 1099511628211n,
+      );
+    if (
+      old.length + "-" + hash.toString(16) === originalExampleFingerprints[c] &&
+      old !== exampleCopy[c]
+    ) {
+      edits[c] = exampleCopy[c];
+      voices[c] = "author";
+      migrated++;
+    }
+  }
+  if (!migrated) return p;
+  return {
+    ...p,
+    edits,
+    channelVoices: voices,
+    ...(migrated === channels.length && { voice: "author" as const }),
+    headline:
+      voices.red && p.headline === "M87 中心的亮环有多大？"
+        ? exampleCopy.red.split("\n")[0]
+        : p.headline,
+  };
+}
 // Earlier versions saved review stamps as editable evidence. Repair the sources
 // at both storage entry points. Published drafts and authored paraphrases stay
 // intact; a missing source must never attribute a claim to a different sentence.
 export function readSavedPaper(value: unknown): Paper {
-  const p = paperSchema.parse(value);
+  const p = migrateExample(paperSchema.parse(value));
   const sections = p.sections && {
     abstract: cleanManuscriptText(p.sections.abstract),
     introduction: cleanManuscriptText(p.sections.introduction),
@@ -334,7 +396,8 @@ export function createPaper(
 }
 // Apply only to model drafts, before numbering posts and adding citations.
 // Keep the author's words intact when the user edits, quotes or pastes text.
-export function publicationVoice(draft: string) {
+export function publicationVoice(draft: string, voice: PaperVoice = "editor") {
+  if (voice === "author") return draft;
   return draft
     .replace(
       /^(\s*)We (?=propose|introduce|present|evaluate|test|find|show|compare|demonstrate|report)/gm,
@@ -350,9 +413,24 @@ export function publicationVoice(draft: string) {
     );
 }
 
+export function channelVoice(
+  paper: Paper,
+  channel: Channel,
+): PaperVoice | undefined {
+  if (paper.localChannels?.includes(channel)) return undefined;
+  return (
+    paper.channelVoices?.[channel] ||
+    (paper.model || paper.sample ? paper.voice : undefined)
+  );
+}
+
 export function threadPosts(texts: string[]): string[] {
   const chunks: string[] = [];
-  for (const text of texts.filter(Boolean)) {
+  const posts = texts.map((text) => text.trim()).filter(Boolean);
+  const last = posts.at(-1) || "";
+  const citation =
+    posts.length > 1 && /^https?:\/\/\S+$/.test(last) ? posts.pop() : undefined;
+  for (const text of posts) {
     // Preserve URLs as single tokens; X counts them using its t.co rules.
     let part = "";
     for (const word of text.match(
@@ -377,8 +455,75 @@ export function threadPosts(texts: string[]): string[] {
     }
     if (part.trim()) chunks.push(part.trim());
   }
+  if (citation) {
+    const lastIndex = chunks.length - 1;
+    const withLink = chunks[lastIndex] + "\nPaper: " + citation;
+    if (twitterText.parseTweet(withLink).weightedLength <= 266) {
+      chunks[lastIndex] = withLink;
+    } else {
+      chunks.push("Read the paper: " + citation);
+    }
+  }
   return chunks.map((s, i) => i + 1 + "/" + chunks.length + " " + s);
 }
+export function applyPaperDrafts(
+  paper: Paper,
+  kit: Paper,
+  selected: Channel[],
+): Paper {
+  const changed = channels.filter(
+    (c) => selected.includes(c) && !!kit.edits[c],
+  );
+  if (!changed.length) return paper;
+  const edits = { ...paper.edits },
+    channelVoices = { ...paper.channelVoices },
+    evidenceIds = { ...paper.evidenceIds };
+  for (const c of changed) {
+    edits[c] = kit.edits[c]!;
+    channelVoices[c] = kit.voice;
+    if (kit.evidenceIds?.[c]) evidenceIds[c] = kit.evidenceIds[c];
+    else delete evidenceIds[c];
+  }
+  const localChannels = paper.localChannels?.filter(
+    (c) => !changed.includes(c),
+  );
+  const oldCheck = paper.publicationCheck,
+    newCheck = kit.publicationCheck;
+  const checked = channels.filter((c) =>
+    (changed.includes(c) ? newCheck : oldCheck)?.channels.includes(c),
+  );
+  const revised = checked.filter((c) =>
+    (changed.includes(c) ? newCheck : oldCheck)?.revised.includes(c),
+  );
+  return {
+    ...paper,
+    edits,
+    channelVoices,
+    evidenceIds,
+    localChannels,
+    model: kit.model,
+    modelNotice: localChannels?.length ? paper.modelNotice : undefined,
+    publicationCheck: checked.length
+      ? {
+          channels: checked,
+          revised,
+          status:
+            revised.length === checked.length
+              ? "revised"
+              : revised.length
+                ? "partial"
+                : "kept",
+          model_calls: Math.max(
+            1,
+            newCheck?.model_calls || 0,
+            oldCheck?.model_calls || 0,
+          ) as 1 | 2,
+        }
+      : undefined,
+    ...(changed.length === channels.length && { voice: kit.voice }),
+  };
+}
+
 export function channelCopy(p: Paper, c: Channel) {
   if (p.edits[c] !== undefined) return p.edits[c]!;
   const lines = p.evidence.map((e) => e.line),
@@ -451,7 +596,24 @@ export function updateBibliography(
     const numbered = posts.every((post, i) =>
       post.startsWith(`${i + 1}/${posts.length} `),
     );
+    const last = posts.at(-1) || "";
+    const inlineCitation = "\nPaper: " + p.source;
+    const separateCitation =
+      posts.length + "/" + posts.length + " Read the paper: " + p.source;
     if (
+      numbered &&
+      p.source &&
+      (last.endsWith(inlineCitation) || last === separateCitation)
+    ) {
+      const bodies = posts.map((post) => post.slice(post.indexOf(" ") + 1));
+      if (last === separateCitation) bodies.pop();
+      else
+        bodies[bodies.length - 1] = bodies[bodies.length - 1].slice(
+          0,
+          -inlineCitation.length,
+        );
+      next.edits.x = threadPosts([...bodies, next.source]).join("\n\n");
+    } else if (
       numbered &&
       (!p.source ||
         posts.at(-1) === `${posts.length}/${posts.length} ${p.source}`)
@@ -505,7 +667,8 @@ export function wordingToReview(paper: Paper, channel: Channel) {
   const identity = draft.match(
     /我们(?:团队|提出|设计|做了|验证|在.{0,16}(?:验证|研究|发现))|our (?:team|new method)/i,
   );
-  if (paper.model && identity) terms.push(identity[0]);
+  if (paper.model && identity && channelVoice(paper, channel) !== "author")
+    terms.push(identity[0]);
   const savings = draft.match(
     /(?:算力|计算成本|训练时间)(?:还|也|更)?(?:省了|更少|降低|减少|节省)|(?:节省|减少|降低)(?:了)?(?:算力|计算成本|训练时间)/,
   );
