@@ -17,6 +17,16 @@ export function campaignLines(
   balance = false,
 ): string[] {
   if (!paragraph || measure(paragraph) <= width) return [paragraph];
+  // The printed line break itself separates a title and subtitle. Keep the
+  // original punctuation in the editable source, invitations and exports.
+  if (balance) {
+    const parts = paragraph.split(/\s+[·|｜—]\s+/u);
+    if (
+      parts.length === 2 &&
+      parts.every((part) => part && measure(part) <= width)
+    )
+      return parts;
+  }
   const breaker = new LineBreaker(paragraph);
   const ends: number[] = [];
   for (let point = breaker.nextBreak(); point; point = breaker.nextBreak())

@@ -91,3 +91,48 @@ def test_supports_embedded_image_response(make_client):
     client = make_client(lambda _: httpx.Response(200, json={'data': [{'b64_json': raw}]}))
     response = client.post('/api/outreach/artwork', json=BODY, headers=HEADERS)
     assert response.status_code == 200 and response.json()['data_url'].startswith('data:image/webp;base64,')
+
+
+def test_current_print_proof_review_is_grounded_in_pixels_and_cached(make_client):
+    from test_evaluation import vision_result
+    seen = []
+
+    def upstream(req):
+        seen.append(json.loads(req.content))
+        return vision_result() if len(seen) == 1 else vision_result({'summary': '不完整的结果'})
+
+    buf = BytesIO()
+    Image.new('RGB', (360, 480), 'navy').save(buf, 'JPEG')
+    jpeg = base64.b64encode(buf.getvalue()).decode()
+    body = {'brief': {'title': '蓝晒工坊'}, 'format': 'portrait', 'jpeg': jpeg}
+    client = make_client(upstream)
+    route = '/api/outreach/campaign-review'
+    reply = client.post(route, headers=HEADERS, json=body)
+    assert reply.status_code == 200 and len(reply.json()['priorities']) == 2
+    assert seen[0]['messages'][1]['content'][1]['image_url']['url'] == 'data:image/jpeg;base64,' + jpeg
+    assert client.post(route, headers=HEADERS, json=body).json() == reply.json()
+    assert len(seen) == 1
+    assert client.post(route, headers=HEADERS, json={**body, 'format': 'square'}).status_code == 422
+    bad = client.post(route, headers={'Idempotency-Key':'invalid-review'}, json=body)
+    assert bad.status_code == 502 and 'priorities' not in bad.json()
+
+
+def test_paper_artwork_uses_its_own_prompt_and_cache(make_client):
+    calls = []
+    encoded = base64.b64encode(image_bytes()).decode()
+
+    def upstream(request):
+        calls.append(json.loads(request.content))
+        return httpx.Response(200, json={'data': [{'b64_json': encoded}]})
+
+    client = make_client(upstream)
+    body = {'title': 'Measuring shade', 'abstract': 'Two parks were observed.'}
+    art = client.post('/api/outreach/paper-artwork', json=body, headers=HEADERS)
+    assert art.status_code == 200 and art.json()['data_url'].startswith('data:image/webp;base64,')
+    assert client.post('/api/outreach/paper-artwork', json=body, headers=HEADERS).json() == art.json()
+    assert 'Two parks were observed.' in calls[0]['prompt']
+    assert 'original published figure' in calls[0]['prompt']
+    # Same caller token is independent between a paper and an event.
+    assert client.post('/api/outreach/artwork', json=BODY, headers=HEADERS).status_code == 200
+    assert len(calls) == 2 and calls[0]['prompt'] != calls[1]['prompt']
+    assert client.post('/api/outreach/paper-artwork', json={**body, 'abstract':''}, headers=HEADERS).status_code == 422

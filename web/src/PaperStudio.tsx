@@ -17,8 +17,9 @@ import {
   Sparkles,
   Upload,
 } from "lucide-react";
-import { paperEntries, openPaper, keepPaper } from "./paper-library";
-import { ModelUnavailable, writePaper } from "./outreach";
+import { paperEntries, openPaper, resumePaper, savePaperDraft } from "./paper-library";
+import { writePaper } from "./outreach";
+import { generatePaperArtwork } from "./paper-artwork";
 import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
 import Dialog from "./PaperDialog";
@@ -33,10 +34,8 @@ import {
   wordingToReview,
   createPaper,
   examplePaper,
-  paperKey,
   paperSchema,
   platforms,
-  recoverPaper,
   sentences,
   updateBibliography,
   type Paper,
@@ -48,6 +47,7 @@ import { download } from "./render";
 import { studioFetch, STATIC_DEMO } from "./studio-api";
 import twitterText from "twitter-text";
 import "./paper.css";
+import LiveStudioLink from "./LiveStudioLink";
 import "./publicity-workroom.css";
 import "./publication-desk.css";
 
@@ -75,12 +75,14 @@ function ImportPaper({
   apply,
   fileFirst,
   modelState,
+  imageModel,
   retryConnection,
 }: {
   close: () => void;
   apply: (p: Paper, file?: File) => void;
   fileFirst: boolean;
   modelState: ModelState;
+  imageModel: string;
   retryConnection: () => void;
 }) {
   const ai = modelState === "ready";
@@ -103,8 +105,8 @@ function ImportPaper({
         ? "引言"
         : "";
   const generateLock = useRef(false);
-  const [modelFailed, setModelFailed] = useState(false);
   const openFile = useRef<File | undefined>(undefined),
+    sourceFigure = useRef<Paper["figure"]>(undefined),
     file = useRef<HTMLInputElement>(null),
     inFlight = useRef(0);
   useEffect(
@@ -118,7 +120,6 @@ function ImportPaper({
     const ticket = ++inFlight.current;
     setError("");
     setReading(true);
-    setModelFailed(false);
     try {
       if (f.size > 40 * 1024 * 1024)
         throw Error("请选择 40 MB 以内的文件，或粘贴摘要。");
@@ -127,9 +128,10 @@ function ImportPaper({
         throw Error("支持 PDF、TXT 和 Markdown 文件。");
       const d = pdf
         ? await (await import("./paper-pdf")).readPdf(f)
-        : extractSections(await f.text());
+        : { ...extractSections(await f.text()), figure: undefined };
       if (ticket !== inFlight.current) return;
       openFile.current = pdf ? f : undefined;
+      sourceFigure.current = d.figure;
       setText(d.abstract);
       setIntroduction(d.introduction);
       setTitle(d.title || f.name.replace(/\.[^.]+$/, ""));
@@ -138,6 +140,9 @@ function ImportPaper({
       const details = [
         "pagesRead" in d ? "已读取前 " + d.pagesRead + " 页" : "已读取文本",
       ];
+      if (sourceFigure.current)
+        details.push("已提取 " + sourceFigure.current.credit);
+      else if (pdf) details.push("未定位到 Figure 1，可在生成后手动选图");
       if (!d.namedAbstract)
         details.push(
           d.abstract ? "未识别摘要标题，请确认提取文字" : "未识别到摘要",
@@ -163,8 +168,6 @@ function ImportPaper({
     if (generateLock.current || modelState === "checking" || tooLong) return;
     generateLock.current = true;
     setGenerating(true);
-    setModelFailed(false);
-    let contactedModel = false;
     setError("");
     try {
       const extracted = label ? null : extractSections(text);
@@ -187,22 +190,32 @@ function ImportPaper({
         abstract || intro,
       );
       p.sections = sections;
-      contactedModel = withModel;
+      if (sourceFigure.current) p.figure = sourceFigure.current;
       if (withModel) {
-        try {
-          const kit = await writePaper(p, crypto.randomUUID());
-          apply(kit, openFile.current);
-        } catch (error) {
-          if (!(error instanceof ModelUnavailable)) throw error;
-          apply(
-            { ...p, localChannels: [...channels], modelNotice: error.message },
-            openFile.current,
-          );
-        }
+        const [draft, art] = await Promise.all([
+          writePaper(p, crypto.randomUUID()).catch((error) => {
+            // A rejected or malformed text response still owns its own retry.
+            // Keep an independently completed image and the original sources.
+            const notice =
+              error instanceof TypeError
+                ? "无法连接文案服务。"
+                : error instanceof Error && error.name !== "ZodError"
+                  ? error.message
+                  : "模型返回的发布稿格式有误。";
+            return {
+              ...p,
+              localChannels: [...channels],
+              modelNotice: notice.slice(0, 700),
+            };
+          }),
+          imageModel
+            ? generatePaperArtwork(p, crypto.randomUUID())
+            : Promise.resolve({}),
+        ]);
+        apply({ ...draft, ...art }, openFile.current);
       } else apply(p, openFile.current);
     } catch (e) {
       setError((e as Error).message);
-      setModelFailed(contactedModel);
     } finally {
       generateLock.current = false;
       setGenerating(false);
@@ -217,7 +230,7 @@ function ImportPaper({
     >
       <fieldset className="ds-fieldset paper-intake" disabled={generating}>
         <p className="pr-help">
-          读取前两页的摘要与引言，生成四个平台的发布稿。
+          提取前两页的摘要和引言，自动查找 Figure 1，生成四个平台的文案和配图。
         </p>
         <input
           type="file"
@@ -355,11 +368,16 @@ function ImportPaper({
               onChange={(e) => setUseModel(e.target.checked)}
             />
             <span>
-              使用模型撰写四个平台的文案
-              <small>仅发送标题、署名、摘要与引言，PDF 留在浏览器中</small>
+              {imageModel
+                ? "用 AI 制作主视觉和四个平台的文案"
+                : "使用模型撰写四个平台的文案"}
+              <small>
+                PDF 和论文插图留在浏览器中。模型使用标题、署名和提取的文字。
+              </small>
             </span>
           </label>
         )}
+        {STATIC_DEMO && <LiveStudioLink route="#papers/import" />}
         {modelState === "unreachable" && (
           <div className="pr-verification" role="status">
             暂时连不上模型服务。{" "}
@@ -378,7 +396,13 @@ function ImportPaper({
             <span>来源已就绪</span>
             <i aria-hidden="true" />
             <LoaderCircle className="wx-spin" size={16} />
-            <b>{ai && useModel ? "正在撰写发布稿" : "正在整理本地摘录"}</b>
+            <b>
+              {ai && useModel
+                ? imageModel
+                  ? "正在并行制作主视觉与发布稿"
+                  : "正在撰写发布稿"
+                : "正在整理本地摘录"}
+            </b>
           </div>
         )}
         {tooLong && (
@@ -416,15 +440,6 @@ function ImportPaper({
                 : "生成四套本地摘录稿"}{" "}
           <ArrowUpRight size={16} />
         </button>
-        {modelFailed && (
-          <button
-            type="button"
-            className="pr-reset"
-            onClick={() => generate(false)}
-          >
-            使用已提取的文字生成本地摘录稿
-          </button>
-        )}
       </fieldset>
     </Dialog>
   );
@@ -825,14 +840,50 @@ function starterPaper(): Paper {
   };
 }
 export default function PaperStudio() {
-  const [paper, setPaper] = useState<Paper>(() => {
-      try {
-        const previous = localStorage.getItem(paperKey);
-        return previous ? recoverPaper(previous) : starterPaper();
-      } catch {
-        return starterPaper();
-      }
-    }),
+  const [resume, setResume] = useState(() => resumePaper(starterPaper));
+  const [attempt, retry] = useState(0);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!("libraryId" in resume)) return;
+    let active = true;
+    openPaper(resume.libraryId)
+      .then((paper) => {
+        if (active) setResume({ paper });
+      })
+      .catch(() => {
+        if (active) setFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [attempt, resume]);
+  if (!("paper" in resume))
+    return (
+      <main className="pr-library" aria-busy={!failed}>
+        <p role="status">
+          {failed ? "暂时无法恢复上次打开的论文。" : "正在恢复论文草稿…"}
+        </p>
+        {failed && (
+          <>
+            <button
+              onClick={() => {
+                setFailed(false);
+                retry(attempt + 1);
+              }}
+            >
+              重新读取
+            </button>
+            <button onClick={() => setResume({ paper: starterPaper() })}>
+              打开示例论文
+            </button>
+          </>
+        )}
+      </main>
+    );
+  return <PaperWorkspace initialPaper={resume.paper} pendingWrite={!!resume.pendingWrite} />;
+}
+function PaperWorkspace({ initialPaper, pendingWrite }: { initialPaper: Paper; pendingWrite: boolean }) {
+  const [paper, setPaper] = useState(initialPaper),
     [channel, setChannel] = useState<Channel>("red"),
     [modal, setModal] = useState<
       | "file"
@@ -851,6 +902,7 @@ export default function PaperStudio() {
     [modelState, setModelState] = useState<ModelState>(
       STATIC_DEMO ? "offline" : "checking",
     ),
+    [imageModel, setImageModel] = useState(""),
     [statusAttempt, setStatusAttempt] = useState(0);
   const ai = modelState === "ready";
   const originalFile = useRef<File | undefined>(undefined);
@@ -892,7 +944,12 @@ export default function PaperStudio() {
         if (!r.ok) throw Error();
         const d = await r.json();
         if (typeof d.ai !== "boolean") throw Error();
-        if (live) setModelState(d.ai ? "ready" : "offline");
+        if (live) {
+          setModelState(d.ai ? "ready" : "offline");
+          setImageModel(
+            d.ai && typeof d.artwork_model === "string" ? d.artwork_model : "",
+          );
+        }
       })
       .catch(() => {
         if (live) setModelState("unreachable");
@@ -902,15 +959,12 @@ export default function PaperStudio() {
     };
   }, [statusAttempt]);
   useEffect(() => {
-    keepPaper(paper).catch(() =>
-      setMessage("当前浏览器无法保存到论文库，请下载备份。"),
-    );
-    try {
-      localStorage.setItem(paperKey, JSON.stringify(paper));
-    } catch {
-      setMessage("浏览器未能保存草稿，请及时下载整套宣传材料。");
-    }
-  }, [paper]);
+    let active = true;
+    savePaperDraft(paper, paper === initialPaper && !pendingWrite).catch((error) => {
+      if (active) setMessage((error as Error).message);
+    });
+    return () => { active = false; };
+  }, [paper, initialPaper, pendingWrite]);
   useEffect(() => {
     if (message) {
       const timer = setTimeout(() => setMessage(""), 5500);
@@ -941,6 +995,9 @@ export default function PaperStudio() {
         edits,
         localChannels,
         model: kit.model,
+        coverLine: kit.coverLine || current.coverLine,
+        coverTitleEn: kit.coverTitleEn || current.coverTitleEn,
+        coverLineEn: kit.coverLineEn || current.coverLineEn,
         modelNotice: undefined,
         headline:
           current.headline === current.title ? kit.headline : current.headline,
@@ -955,6 +1012,30 @@ export default function PaperStudio() {
     } finally {
       lock.current = false;
       setBusy("");
+    }
+  }
+  async function renderArtwork() {
+    if (lock.current || !imageModel) return;
+    lock.current = true;
+    setBusy("artwork");
+    const { id } = paper;
+    try {
+      const art = await generatePaperArtwork(
+        paper,
+        paper.artworkRetryKey || crypto.randomUUID(),
+      );
+      setPaper((current) =>
+        current.id === id ? { ...current, ...art } : current,
+      );
+      if (activePaper.current.id === id)
+        setMessage(
+          art.artwork
+            ? "四个平台的配图已更新"
+            : art.artworkNotice || "主视觉暂时无法生成",
+        );
+    } finally {
+      setBusy("");
+      lock.current = false;
     }
   }
   async function save(which: "all" | "channel" | "image") {
@@ -1132,6 +1213,7 @@ export default function PaperStudio() {
             }}
             evidence={() => setModal("evidence")}
             figure={() => setModal("figure")}
+            makeArtwork={imageModel ? renderArtwork : undefined}
             zoom={() => setModal("preview")}
             exportFile={save}
             clipboard={clipboard}
@@ -1154,6 +1236,7 @@ export default function PaperStudio() {
       {(modal === "file" || modal === "paste") && (
         <ImportPaper
           modelState={modelState}
+          imageModel={imageModel}
           retryConnection={() => {
             setModelState("checking");
             setStatusAttempt((attempt) => attempt + 1);

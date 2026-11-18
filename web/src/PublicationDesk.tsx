@@ -14,6 +14,7 @@ import {
   NotebookPen,
   PencilLine,
   ScanText,
+  Sparkles,
 } from "lucide-react";
 import twitterText from "twitter-text";
 import { drawPaper } from "./paper-art";
@@ -44,6 +45,10 @@ export function Art({ paper, channel }: { paper: Paper; channel: Channel }) {
     paper.headline,
     paper.sample,
     paper.figure,
+    paper.artwork,
+    paper.coverLine,
+    paper.coverTitleEn,
+    paper.coverLineEn,
     paper.evidence,
     channel,
   ]);
@@ -95,6 +100,7 @@ export default function PublicationDesk({
   edit,
   evidence,
   figure,
+  makeArtwork,
   zoom,
   exportFile,
   clipboard,
@@ -108,6 +114,7 @@ export default function PublicationDesk({
   edit: () => void;
   evidence: () => void;
   figure: () => void;
+  makeArtwork?: () => void;
   zoom: () => void;
   exportFile: (what: "image" | "channel") => void;
   clipboard: (s: string, rich?: boolean) => Promise<boolean>;
@@ -204,7 +211,30 @@ export default function PublicationDesk({
               </span>
               <span>PNG</span>
             </div>
+            {paper.artwork && (
+              <small className="pub-art-credit">
+                主视觉 · {paper.artwork.model}
+                {paper.figure ? "　/　论文原图合成" : ""}
+              </small>
+            )}
+            {paper.artworkNotice && (
+              <p className="pub-local" role="status">
+                AI 主视觉未更新。{paper.artworkNotice}
+              </p>
+            )}
             <div className="pub-media-tools">
+              {makeArtwork && (
+                <button disabled={!!busy} onClick={makeArtwork}>
+                  <Sparkles size={15} />
+                  {busy === "artwork"
+                    ? "正在制作…"
+                    : paper.artwork
+                      ? "重新设计主视觉"
+                      : paper.artworkNotice
+                        ? "重试主视觉"
+                        : "生成 AI 主视觉"}
+                </button>
+              )}
               <button onClick={figure}>
                 <Images size={15} />
                 {paper.figure ? "更换论文插图" : "选取论文插图"}

@@ -53,6 +53,20 @@ export const paperSchema = z.object({
       credit: z.string().min(1).max(160),
     })
     .optional(),
+  artwork: z
+    .object({
+      data: z
+        .string()
+        .max(11000000)
+        .regex(/^data:image\/webp;base64,[A-Za-z0-9+/=]+$/),
+      model: z.string().min(1).max(120),
+    })
+    .optional(),
+  artworkNotice: z.string().max(700).optional(),
+  artworkRetryKey: z.string().max(100).optional(),
+  coverLine: z.string().max(150).optional(),
+  coverTitleEn: z.string().max(160).optional(),
+  coverLineEn: z.string().max(220).optional(),
   sections: z
     .object({ abstract: z.string(), introduction: z.string() })
     .optional(),

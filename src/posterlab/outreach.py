@@ -90,11 +90,12 @@ class CampaignKit(BaseModel):
     edition: Edition
     tag: str = Field(min_length=1, max_length=80)
     reason: str = Field(min_length=1, max_length=300)
+    art_direction: str = Field(default='', max_length=850)
 
 
 def checked_result(kind, result, payload):
     if kind == 'campaign':
-        return CampaignKit.model_validate(result).model_dump()
+        return CampaignKit.model_validate(result).model_dump(exclude_defaults=True)
     if payload.get('sections'):
         # The new workflow cites the confirmed sections as a whole. Optional
         # sentence IDs from a model are not a prerequisite for an otherwise usable kit.
@@ -127,6 +128,12 @@ def checked_result(kind, result, payload):
     for channel in ('red', 'wechat'):
         if channel in drafts:
             drafts[channel] = publication_text(channel, drafts[channel], drafts['headline'], payload['title'])
+    for field, limit in (('cover_line', 90), ('cover_title_en', 100), ('cover_line_en', 200)):
+        value = result.get(field)
+        if isinstance(value, str):
+            line = ' '.join(value.split())
+            if 0 < len(line) <= limit:
+                drafts[field] = line
     return drafts
 
 

@@ -148,3 +148,28 @@ def test_direct_paper_requests_exclude_review_watermarks_and_preserve_scientific
         PaperRequest(title='Light', evidence=[notice, finding])
     context = 'We study the phrase “do not distribute”. CVPR 2027 submission rates were measured.'
     assert PaperRequest(title='Decisions', evidence=[context]).evidence == [context]
+
+
+def test_optional_cover_copy_and_channel_specific_rewrite(tmp_path):
+    calls = []
+
+    def complete(request):
+        system = json.loads(request.content)['messages'][0]['content']
+        calls.append(system)
+        if len(calls) == 1:
+            return completion({**PAPER_RESULT, 'cover_line': '  一次有参照的测量  ', 'cover_title_en': 'Reading the shade',
+                               'cover_line_en': 'x' * 201})
+        return completion({'fields': {'description': 'Shade drew more walkers.'}})
+
+    app = create_app(tmp_path, api_key='test', transport=httpx.MockTransport(complete), serve_site=False)
+    with TestClient(app) as client:
+        result = client.post('/api/outreach/paper', headers=HEADERS, json=PAPER)
+        assert result.is_success
+        assert result.json()['cover_line'] == '一次有参照的测量'
+        assert result.json()['cover_title_en'] == 'Reading the shade' and 'cover_line_en' not in result.json()
+        rewrite = client.post('/api/assist', headers=HEADERS, json={
+            'brief': {'title': PAPER['title']}, 'locked': [], 'theme': 'paper', 'titleScale': 1,
+            'workflow': 'paper', 'paper_channel': 'x', 'instruction': '改写首帖',
+        })
+        assert rewrite.is_success
+        assert '英文帖子' in calls[1] and '公众号编辑器' not in calls[1]

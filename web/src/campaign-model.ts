@@ -254,6 +254,7 @@ export type Draft = {
   concept?: {
     edition?: Edition;
     invitation: string;
+    art_direction?: string;
     model: string;
     tag: string;
     reason: string;

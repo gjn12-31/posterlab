@@ -10,10 +10,11 @@ import {
   FileStack,
   Images,
 } from "lucide-react";
+import LiveStudioLink from "./LiveStudioLink";
 import { kits, kitBase, useKitFiles } from "./published-kits";
 
-const paperKit = kits.find((kit) => kit.id === "paper")!;
-const eventKit = kits.find((kit) => kit.id === "bookfair")!;
+const paperKit = kits.find((kit) => kit.id === "ligo")!;
+const eventKit = kits.find((kit) => kit.id === "cyanotype")!;
 const chapters = [
   {
     name: "论文宣传",
@@ -174,14 +175,14 @@ function Sample({
       </div>
       <div className="pl-output-foot">
         {event ? (
-          <span>秋夜设计书展 · 纸间书房</span>
+          <span>蓝晒工作坊 · 海边印刷室</span>
         ) : (
           <a
-            href="https://www.eso.org/public/images/eso1907a/"
+            href="https://doi.org/10.1103/PhysRevLett.116.061102"
             target="_blank"
             rel="noreferrer"
           >
-            图像 © EHT Collaboration · CC BY 4.0
+            Figure 1 · LIGO / Virgo · CC BY 3.0
           </a>
         )}
         <a
@@ -316,6 +317,7 @@ export default function StudioWorkbench() {
                   <a className="pl-launch" href={item.path}>
                     {item.primary} <ArrowUpRight size={15} />
                   </a>
+                  <LiveStudioLink route={item.path} />
                   <a href={item.deep}>
                     {item.secondary} <ArrowRight size={15} />
                   </a>

@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from .outreach_strategy import publication_text
+from .outreach_strategy import paper_edit_system, publication_text
 
 FIELDS = ('title', 'speaker', 'date', 'time', 'venue', 'description', 'cta', 'url')
 THEMES = Literal['violet', 'mint', 'orange', 'paper', 'blue', 'night']
@@ -61,7 +61,7 @@ class Assist(BaseModel):
     instruction: str = Field(min_length=1, max_length=12000)
     kind: Literal['edit', 'extract'] = 'edit'
     workflow: Literal['paper'] | None = None
-    paper_channel: Literal['red', 'wechat'] | None = None
+    paper_channel: Literal['x', 'red', 'moments', 'wechat'] | None = None
 
 class Suggestion(BaseModel):
     model_config = ConfigDict(extra='forbid')
@@ -154,7 +154,7 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             if request.headers.get('content-type','').split(';')[0] != 'application/json':
                 return JSONResponse({'detail':'仅接受 JSON'}, status_code=415)
             # Two 45k-character sections can exceed 64 KB even before JSON escaping.
-            body_limit = 1_200_000 if request.url.path == '/api/outreach/paper' else 64_000
+            body_limit = {'/api/outreach/paper': 1_200_000, '/api/outreach/campaign-review': 1_700_000}.get(request.url.path, 64_000)
             chunks, size = [], 0
             async for chunk in request.stream():
                 size += len(chunk)
@@ -184,14 +184,16 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             raise HTTPException(400, '缺少有效的 Idempotency-Key')
         payload = data.model_dump(exclude_none=True)
         model = gateway.defaults[data.workflow or 'chat']
-        fingerprint = hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        system = paper_edit_system(data.paper_channel) if data.workflow == 'paper' else SYSTEM
+        fingerprint_input = [system, payload] if data.workflow == 'paper' else payload
+        fingerprint = hashlib.sha256(json.dumps(fingerprint_input, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         cached = ledger.reserve(request_key, gateway.identity(model, fingerprint))
         if cached is not None:
             return cached
         spent = None
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(180 if gateway.name == 'Paratera' else 60, connect=10), transport=transport, follow_redirects=False) as client:
-                messages = [{'role':'system','content':SYSTEM}, {'role':'user','content':json.dumps(payload, ensure_ascii=False)}]
+                messages = [{'role':'system','content':system}, {'role':'user','content':json.dumps(payload, ensure_ascii=False)}]
                 response = await gateway.complete(client, model, messages, 'assist')
             if response.status_code != 200:
                 ledger.finish(request_key, 'rejected' if response.status_code < 500 else 'unknown', 0 if response.status_code < 500 else None)
@@ -234,6 +236,8 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
     from .outreach import register_outreach
     register_outreach(app, ledger, gateway, transport)
     register_artwork(app, ledger, gateway, transport)
+    from .campaign_review import register_campaign_review
+    register_campaign_review(app, ledger, gateway, transport)
 
     from .generation import register_generation
     register_generation(app, ledger, gateway, transport)

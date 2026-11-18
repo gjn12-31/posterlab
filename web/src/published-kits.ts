@@ -12,6 +12,8 @@ const campaignFormats = {
   copy: () => "发布文案.txt",
 };
 export const kits = [
+  { id: "ligo", label: "LIGO 双黑洞并合", title: "两台探测器，一段引力波", ...paperFormats },
+  { id: "cyanotype", label: "蓝晒工作坊", title: "晒出一片海 · 蓝晒工作坊", ...campaignFormats },
   {
     id: "bookfair",
     label: "秋夜设计书展",

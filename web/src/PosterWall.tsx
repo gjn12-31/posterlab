@@ -25,16 +25,18 @@ const posters = [
     href: "#collection/bookfair",
   },
   {
-    image: "wall-afterglow",
-    title: "深海回响",
-    kind: "数字艺术",
-    href: editionHref("afterglow"),
+    image: "gallery-ligo",
+    title: "两台探测器，一段引力波",
+    kind: "论文宣传",
+    href: "#collection/ligo",
+    credit: "Figure 1 · B. P. Abbott et al. (LIGO / Virgo) · CC BY 3.0",
+    source: "https://doi.org/10.1103/PhysRevLett.116.061102",
   },
   {
-    image: "wall-bloom",
-    title: "花间来信",
-    kind: "艺术展览",
-    href: editionHref("bloom"),
+    image: "gallery-cyanotype",
+    title: "晒出一片海 · 蓝晒工作坊",
+    kind: "活动宣传",
+    href: "#collection/cyanotype",
   },
   {
     image: "wall-launch",
@@ -117,7 +119,7 @@ function WallPreview({
             {poster.credit && (
               <a
                 className="wall-credit"
-                href="https://www.eso.org/public/images/eso1907a/"
+                href={poster.source || "https://www.eso.org/public/images/eso1907a/"}
                 target="_blank"
                 rel="noreferrer"
               >

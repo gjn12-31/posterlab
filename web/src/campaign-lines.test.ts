@@ -4,6 +4,12 @@ import { campaignLines } from "./campaign-lines";
 const graphemes = new Intl.Segmenter("zh", { granularity: "grapheme" });
 const width = (s: string) => Array.from(graphemes.segment(s)).length;
 describe("campaign line breaking", () => {
+  it("breaks a display title at its subtitle divider without an orphan dot", () => {
+    expect(campaignLines("晒出一片海 · 蓝晒工作坊", 6, width, true)).toEqual([
+      "晒出一片海",
+      "蓝晒工作坊",
+    ]);
+  });
   it("keeps punctuation with Chinese words and balances two-line headlines", () => {
     const lines = campaignLines("山野观察，周末集合", 5, width, true);
     expect(lines.join("")).toBe("山野观察，周末集合");

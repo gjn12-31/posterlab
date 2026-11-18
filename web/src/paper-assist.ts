@@ -47,7 +47,7 @@ async function requestDraft(
       titleScale: 1,
       kind: "edit",
       ...(status?.paper_model ? { workflow: "paper" } : {}),
-      ...(status?.paper_model && (channel === "red" || channel === "wechat")
+      ...(status?.paper_model && channel
         ? { paper_channel: channel }
         : {}),
       instruction,
@@ -84,12 +84,10 @@ export async function adaptEvidence(p: Paper, requestId: string) {
   return { headline: data.headline, lines: matches.map((m) => m[2].trim()) };
 }
 const briefs: Record<Channel, string> = {
-  x: "为 X 写 2 至 4 条英文短帖。每条仅讲一个研究问题、结果或限制，每条少于 235 个字符。直接输出帖子，以空行分隔，不加编号。",
-  red: "写给领域同行。description 首行单独写一个自然完整的中文标题，最多20个字符，英文、空格和标点也计数。title 另写同样限长的封面标题。优先点出研究问题或方法动作；完整基线和限定条件放不下时移入正文。标题之后空一行，分段交代旧方法卡在哪里、本文改了哪一步、在什么条件下得到结果。数字带上指标和比较对象，保留接近、约等限定词。把观察、已验证结果和未来工作分开。只有原文提供时才引用图号或硬件条件，Workshop 保留全称。不冒充作者、不猜会议奖项。",
-  moments:
-    "写一段可以直接分享到朋友圈的中文导语。用两三句话交代这项研究为什么值得读和一个有依据的发现。避免广告腔、虚构身份或亲身经历。",
-  wechat:
-    "写可以直接粘贴到公众号编辑器的纯文本导读。小标题独占一行，与正文之间空一行，不加井号和加粗标记。介绍研究问题、方法、关键发现与研究边界。约 250 到 450 字，材料缺少的信息略去。",
+  x: "写英文 X 串帖，让第一条独立讲出同行为什么会关心这项研究；下一条给实证，最后可留一条原文阅读线索。2–4 条，以空行分开，不加序号。",
+  red: "从最值得分享的反差、观察或做法切入，首行写自然的中文笔记标题，最多20个字符。第一屏兑现标题。正文分两三个短段，挑一次有依据的具体对照讲透，写清限制，留下可去原文核对的线索。",
+  moments: "写同事之间愿意转发的两三句话。先说一个与读者有关的具体观察或选择，再给分享理由，不虚构个人经历。",
+  wechat: "写一篇公众号短推文，独立标题先给看点，首段让读者想追一个具体问题，后面两到四个短段用证据兑现。可写一到两个具体的小标题，用纯文本。",
 };
 export async function adaptChannel(
   p: Paper,

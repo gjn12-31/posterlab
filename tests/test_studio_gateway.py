@@ -33,7 +33,8 @@ def test_paratera_routing_and_real_image_review(tmp_path, monkeypatch):
             image = body['messages'][1]['content'][1]['image_url']['url']
             assert image.startswith('data:image/png;base64,')
             return vision_result()
-        if '活动海报编辑' in body['messages'][0]['content']:
+        user_content = body['messages'][1]['content']
+        if user_content.startswith('{') and 'locked' in json.loads(user_content):
             return response()
         if body['model'] == 'demo-chat':
             return chat_result('reply')

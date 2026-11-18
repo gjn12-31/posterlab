@@ -1,0 +1,1 @@
+import{i as e}from"./rolldown-runtime-COiEfhsA.js";import{n as t,r as n}from"./index-C5nhbgGO.js";import"./arrow-up-right-QSLKdVre.js";import"./x-BNrABF3j.js";import"./studio-api-ZcE1Py72.js";var r=e(n(),1);t();function i({route:e}){let t=(0,r.useRef)(null),[n,i]=(0,r.useState)(!1);return(0,r.useEffect)(()=>{n&&t.current?.showModal()},[n]),null}export{i as t};

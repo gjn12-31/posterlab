@@ -148,13 +148,17 @@ export const snapshotSchema = z.object({
   edition: z.enum(editionIds).optional(),
   composition: z.literal("cover").optional(),
   layout: z.literal("campaign").optional(),
-  campaignVersion: z.literal(2).optional(),
+  campaignVersion: z.union([z.literal(2), z.literal(3)]).optional(),
+  artworkPalette: z
+    .object({ assetId: id, paper: hex, ink: hex, signal: hex })
+    .optional(),
   campaignPlan: campaignPlanSchema.optional(),
   campaignCopy: z
     .object({
       invitation: z.string().max(900),
       model: z.string().max(100),
       reason: z.string().max(300),
+      art_direction: z.string().max(850).optional(),
     })
     .optional(),
   creditLine: z.string().max(80).optional(),

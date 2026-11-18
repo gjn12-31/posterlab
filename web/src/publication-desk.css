@@ -409,3 +409,6 @@
     gap: 7px;
   }
 }
+
+.pub-art-credit { display: block; margin: 0 0 .7rem; color: #534a70; line-height: 1.4; }
+.pub-media-tools { flex-wrap: wrap; }

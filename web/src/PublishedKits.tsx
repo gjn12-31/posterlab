@@ -61,6 +61,15 @@ function KitPreview({
       ) : (
         <p role="status">正在读取成品…</p>
       )}
+      {kit.id === "ligo" && (
+        <footer className="pg-credit">上方概念图由 Seedream 生成。Figure 1 摘自 B. P. Abbott 等（LIGO / Virgo），Phys. Rev. Lett. 116, 061102 (2016)，取自原文第 2 页。{" "}
+          <a href="https://doi.org/10.1103/PhysRevLett.116.061102" target="_blank" rel="noreferrer">论文原文</a> ·{" "}
+          <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noreferrer">CC BY 3.0</a>
+        </footer>
+      )}
+      {kit.id === "cyanotype" && (
+        <footer className="pg-credit">示例活动 · DeepSeek 策划视觉方向，Seedream 生成蓝晒主视觉。文字与日期可在画布内编辑。</footer>
+      )}
       {kit.id === "bookfair" && (
         <footer className="pg-credit">
           示例活动 · DeepSeek 撰写邀请，Seedream 4.5 生成主视觉，三种画幅在

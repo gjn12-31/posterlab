@@ -5,6 +5,7 @@ import {
   metadataTitle,
 } from "./paper-frontmatter";
 import worker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { firstPaperFigure } from "./pdf-figure";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import {
   abstractBeforeFigure,
@@ -60,6 +61,8 @@ export async function readPdf(file: File) {
     const parsed = extractSections(text, title || printed.title);
     return {
       ...parsed,
+      // A malformed graphic must not prevent a successful text import.
+      figure: await firstPaperFigure(doc).catch(() => undefined),
       abstract: pdfProse(
         parsed.namedAbstract
           ? abstractBeforeFigure(parsed.abstract)

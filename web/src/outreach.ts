@@ -16,6 +16,9 @@ const provenance = {
 const kitSchema = z.object({
   ...provenance,
   headline: z.string().min(1).max(180),
+  cover_line: z.string().max(150).optional(),
+  cover_title_en: z.string().max(160).optional(),
+  cover_line_en: z.string().max(220).optional(),
   x: z.array(z.string().min(1)).min(1).optional(),
   red: z.string().min(1).optional(),
   moments: z.string().min(1).optional(),
@@ -31,6 +34,7 @@ const campaignSchema = z.object({
   edition: z.enum(editionIds),
   tag: z.string().min(1),
   reason: z.string().min(1),
+  art_direction: z.string().max(850).optional(),
 });
 export async function connectedModel(): Promise<string> {
   if (STATIC_DEMO) return "";
@@ -42,8 +46,6 @@ export async function connectedModel(): Promise<string> {
     return "";
   }
 }
-export class ModelUnavailable extends Error {}
-
 async function submit(kind: string, payload: unknown, key: string) {
   const r = await studioFetch("/outreach/" + kind, {
     method: "POST",
@@ -52,7 +54,7 @@ async function submit(kind: string, payload: unknown, key: string) {
   });
   const data = await r.json().catch(() => null);
   if (r.status >= 500)
-    throw new ModelUnavailable(
+    throw new Error(
       typeof data?.detail === "string"
         ? data.detail
         : "模型服务暂时无法返回文案。",
@@ -99,6 +101,9 @@ export async function writePaper(p: Paper, key: string): Promise<Paper> {
   return {
     ...p,
     headline: k.headline,
+    coverLine: k.cover_line,
+    coverTitleEn: k.cover_title_en,
+    coverLineEn: k.cover_line_en,
     model: k.model,
     localChannels,
     evidenceIds: k.evidence_ids,

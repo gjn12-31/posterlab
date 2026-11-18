@@ -172,7 +172,7 @@ export function renderCover(project: Project, format: Format) {
     }
     const lines: string[] = [];
     for (const paragraph of value.split("\n")) {
-      if (s.layout === "campaign" && s.campaignVersion === 2) {
+      if (s.layout === "campaign" && s.campaignVersion) {
         lines.push(
           ...campaignLines(
             paragraph,

@@ -1,5 +1,6 @@
 import { campaignLines as wrapLines } from "./campaign-lines";
 import { samplePaperImage } from "./paper-image";
+import { composePaperPoster } from "./paper-poster";
 import { articleFragment, noteParts, postParts } from "./paper-publication";
 import { loadFonts } from "./render";
 import {
@@ -122,7 +123,16 @@ export async function drawPaper(p: Paper, c: Channel) {
   const g = canvas.getContext("2d")!;
   const title = c === "x" ? p.title : p.headline;
   await loadFonts(title + "科研笔记论文导读研究分享");
-  if (!p.figure && !p.sample) {
+  if (p.artwork || p.figure) {
+    await loadFonts(
+      [title, p.coverLine, p.coverLineEn, p.coverTitleEn, p.byline]
+        .filter(Boolean)
+        .join(" "),
+    );
+    await composePaperPoster(g, p, c);
+    return canvas;
+  }
+  if (!p.sample) {
     editorialCover(g, p, c, w, h);
     return canvas;
   }
@@ -133,22 +143,7 @@ export async function drawPaper(p: Paper, c: Channel) {
     accent = warm ? "#ffa16d" : "#cdc6ff";
   g.fillStyle = dark;
   g.fillRect(0, 0, w, h);
-  if (p.figure) {
-    const img = new Image();
-    img.src = p.figure.data;
-    await img.decode();
-    const box = wide
-      ? { x: w * 0.62, y: h * 0.13, w: w * 0.33, h: h * 0.66 }
-      : { x: pad, y: h * 0.13, w: w - pad * 2, h: h * 0.34 };
-    const scale = Math.min(box.w / img.width, box.h / img.height);
-    g.drawImage(
-      img,
-      box.x + (box.w - img.width * scale) / 2,
-      box.y + (box.h - img.height * scale) / 2,
-      img.width * scale,
-      img.height * scale,
-    );
-  } else if (warm) {
+  if (warm) {
     const img = await samplePaperImage();
     const size = wide ? h * 1.27 : w * 0.84,
       cx = wide ? w * 0.77 : w * 0.5,
@@ -230,18 +225,7 @@ export async function drawPaper(p: Paper, c: Channel) {
   g.textAlign = "right";
   g.fillStyle = "#e4d9d6";
   g.font = Math.round(Math.min(w, h) * 0.018) + "px Arial";
-  g.fillText(
-    p.figure
-      ? p.figure.credit.length > 45
-        ? p.figure.credit.slice(0, 44) + "…"
-        : p.figure.credit
-      : warm
-        ? imageCredit
-        : "PosterLab",
-    w - pad,
-    h * 0.94,
-    w * 0.54,
-  );
+  g.fillText(warm ? imageCredit : "PosterLab", w - pad, h * 0.94, w * 0.54);
   return canvas;
 }
 export async function paperPng(p: Paper, c: Channel) {
@@ -281,5 +265,19 @@ export async function paperPack(p: Paper, selected?: Channel) {
     }
   }
   zip.file("原文与引文.txt", evidenceText(p));
+  if (p.figure || p.artwork) {
+    zip.file(
+      "配图来源.txt",
+      [
+        p.title,
+        p.byline,
+        p.source,
+        p.figure ? "论文原图：" + p.figure.credit : "",
+        p.artwork ? "概念主视觉：AI 生成 · " + p.artwork.model : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
   return zip.generateAsync({ type: "blob" });
 }

@@ -61,7 +61,9 @@ import {
   prepareArtworkRequest,
   type ArtworkRequest,
 } from "./campaign-artwork";
+import LiveStudioLink from "./LiveStudioLink";
 import { CampaignNav } from "./CampaignNav";
+import { reviewCampaign, type CampaignReview } from "./campaign-review";
 import "./publicity-workroom.css";
 
 const channels: {
@@ -162,6 +164,7 @@ function campaignProject(
       invitation: concept.invitation,
       model: concept.model,
       reason: concept.reason,
+      art_direction: concept.art_direction,
     };
   p.current.brief = { ...brief };
   return p;
@@ -189,6 +192,7 @@ export default function CampaignHome() {
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [checkingModel, setCheckingModel] = useState(!STATIC_DEMO),
     [model, setModel] = useState(""),
+    [visionModel, setVisionModel] = useState(""),
     [artworkModel, setArtworkModel] = useState(""),
     [useModel, setUseModel] = useState(true);
   useEffect(() => {
@@ -201,6 +205,7 @@ export default function CampaignHome() {
           if (!current || !info.ai) return;
           setModel(info.campaign_model || info.model || "");
           setArtworkModel(info.artwork_model || "");
+          setVisionModel(info.vision_model || "");
         })
         .catch(() => {})
         .finally(() => {
@@ -316,6 +321,15 @@ export default function CampaignHome() {
     }),
     [project, fontRev],
   );
+  const [reviews, setReviews] = useState<Record<string, CampaignReview>>({});
+  const reviewKey = `${project.id}/${project.updated}/${selected}`;
+  const currentReview = reviews[reviewKey];
+  function inspectProof() {
+    run("review", async () => {
+      const result = await reviewCampaign(project, selected);
+      setReviews((previous) => ({ ...previous, [reviewKey]: result }));
+    });
+  }
   const updateCopy = draft.previous
     ? changeNotice(draft.previous, draft.brief)
     : "";
@@ -389,10 +403,16 @@ export default function CampaignHome() {
         !!linked &&
         draft.projectId === linked.id &&
         brief.title === draft.brief.title;
-      const aiPlan =
-        !edition && useModel && model
-          ? await writeCampaign(brief, crypto.randomUUID())
-          : undefined;
+      let aiPlan: Draft["concept"];
+      let copyError = "";
+      if (!edition && useModel && model) {
+        try {
+          aiPlan = await writeCampaign(brief, crypto.randomUUID());
+        } catch (e) {
+          if (!artworkModel) throw e;
+          copyError = (e as Error).message || "文案模型暂时不可用。";
+        }
+      }
       const continueDraft = !edition && brief.title === draft.brief.title;
       const next: Draft = {
         workingId: continueDraft ? draft.workingId : crypto.randomUUID(),
@@ -400,7 +420,11 @@ export default function CampaignHome() {
         raw: text,
         applied: text,
         brief,
-        concept: aiPlan,
+        concept:
+          aiPlan ||
+          (same && copyError && draft.concept
+            ? { ...draft.concept, art_direction: "" }
+            : undefined),
         edition:
           edition ??
           aiPlan?.edition ??
@@ -408,29 +432,50 @@ export default function CampaignHome() {
       };
       let message = "三张宣传图和邀请文案已生成";
       if (!edition) {
+        let generated: Project;
         if (same) {
           next.projectId = linked.id;
           next.previous = hasChanges(draft.brief, brief)
             ? schedule(draft.brief)
             : draft.previous;
-          await storeChanges(next);
+          generated = await storeChanges(next, !!artworkModel && useModel);
         } else {
+          generated = campaignProject(
+            next.edition,
+            brief,
+            next.concept,
+            next.plan,
+            next.workingId,
+          );
           try {
-            const saved = await saveCampaignProject(
-              campaignProject(
-                next.edition,
-                brief,
-                next.concept,
-                next.plan,
-                next.workingId,
-              ),
-            );
-            next.projectId = saved.id;
-            setLinked(saved);
+            generated = await saveCampaignProject(generated);
           } catch {
             message = "成品已生成，作品库暂不可用，请下载备份。";
           }
+          next.projectId = generated.id;
+          setLinked(generated);
           setDraft(next);
+        }
+        if (useModel && artworkModel) {
+          setBusy("generate-art");
+          try {
+            await paintArtwork(generated, !copyError);
+          } catch (e) {
+            const ready = copyError
+              ? "活动通知已保留，邀请文案沿用现有版本。"
+              : "排版和邀请文案已就绪。";
+            throw Error(
+              ready +
+                ((e as Error).message || "图片生成失败。") +
+                " 可点击「生成主视觉」单独重试。",
+            );
+          }
+        }
+        if (copyError) {
+          throw Error(
+            "活动主视觉和三张海报已生成。请在「发布文案」核对现有版本或单独生成邀请文案。" +
+              copyError,
+          );
         }
         preview("portrait");
       } else setDraft(next);
@@ -442,55 +487,68 @@ export default function CampaignHome() {
   function generateArtwork() {
     if (!artworkModel || dirty || projectPending) return;
     run("artwork", async () => {
-      const body = JSON.stringify({
-        title: draft.brief.title,
-        description: draft.brief.description,
-        edition: draft.edition,
-      });
-      const request = await prepareArtworkRequest(
-        draft.projectId,
-        body,
-        artworkRequest.current,
-      );
-      artworkRequest.current = request;
-      const response = await studioFetch("/outreach/artwork", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": request.key,
-        },
-        body,
-      });
-      const image = await response.json().catch(() => null);
-      if (!response.ok || typeof image?.data_url !== "string") {
-        if (response.headers.get("X-PosterLab-Reusable") !== "1") {
-          clearArtworkRequest(request);
-          artworkRequest.current = null;
-        }
-        throw new Error(
-          typeof image?.detail === "string"
-            ? image.detail
-            : "未取得主视觉，当前配图已保留。",
-        );
-      }
-      const next = await applyCampaignArtwork(project, image.data_url);
-      const saved = await saveCampaignProject(
-        next,
-        linked?.id === project.id ? linked.updated : undefined,
-      );
-      setLinked(saved);
-      setDraft((d) => ({ ...d, projectId: saved.id }));
-      clearArtworkRequest(request);
-      artworkRequest.current = null;
+      await paintArtwork(project);
       say("主视觉已应用到三种画幅");
     });
+  }
+  function generateCopy() {
+    if (!model || dirty || projectPending) return;
+    run("copy", async () => {
+      const concept = await writeCampaign(draft.brief, crypto.randomUUID());
+      await storeChanges({ ...draft, concept });
+      say("邀请文案已更新");
+    });
+  }
+  async function paintArtwork(base: Project, useDirection = true) {
+    if (Object.keys(base.assets).length >= 20)
+      throw Error("项目中已有 20 个素材，请在编辑器中整理后重试。");
+    const snapshot = base.current;
+    const body = JSON.stringify({
+      title: snapshot.brief.title,
+      description: snapshot.brief.description,
+      edition: snapshot.edition,
+      art_direction:
+        (useDirection && snapshot.campaignCopy?.art_direction) || "",
+    });
+    const request = await prepareArtworkRequest(
+      base.id,
+      body,
+      artworkRequest.current,
+    );
+    artworkRequest.current = request;
+    const response = await studioFetch("/outreach/artwork", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Idempotency-Key": request.key,
+      },
+      body,
+    });
+    const image = await response.json().catch(() => null);
+    if (!response.ok || typeof image?.data_url !== "string") {
+      if (response.headers.get("X-PosterLab-Reusable") !== "1") {
+        clearArtworkRequest(request);
+        artworkRequest.current = null;
+      }
+      throw new Error(
+        typeof image?.detail === "string"
+          ? image.detail
+          : "未取得主视觉，当前配图已保留。",
+      );
+    }
+    const next = await applyCampaignArtwork(base, image.data_url);
+    const saved = await saveCampaignProject(next, base.updated);
+    setLinked(saved);
+    setDraft((d) => ({ ...d, projectId: saved.id }));
+    clearArtworkRequest(request);
+    artworkRequest.current = null;
   }
   function openFacts(mode: "schedule" | "facts" | "qr") {
     edit({ ...draft.brief });
     setError("");
     setModal(mode);
   }
-  async function storeChanges(next: Draft) {
+  async function storeChanges(next: Draft, keepArtwork = false) {
     if (linked && next.projectId === linked.id) {
       const snap = {
         ...linked.current,
@@ -502,6 +560,7 @@ export default function CampaignHome() {
           model: next.concept.model,
           invitation: next.concept.invitation,
           reason: next.concept.reason,
+          art_direction: next.concept.art_direction,
         };
         if (next.concept.tag !== draft.concept?.tag)
           snap.displayTitle = next.concept.tag;
@@ -509,7 +568,7 @@ export default function CampaignHome() {
       if (next.edition !== snap.edition) {
         snap.edition = next.edition;
         snap.theme = editions[next.edition].theme;
-        delete snap.heroId;
+        if (!keepArtwork) delete snap.heroId;
       }
       const saved = await saveCampaignProject(
         { ...linked, current: snap },
@@ -517,8 +576,17 @@ export default function CampaignHome() {
       );
       next = { ...next, projectId: saved.id };
       setLinked(saved);
+      setDraft(next);
+      return saved;
     }
     setDraft(next);
+    return campaignProject(
+      next.edition,
+      next.brief,
+      next.concept,
+      next.plan,
+      next.workingId,
+    );
   }
   async function saveReleasePlan(plan: CampaignPlan) {
     if (busyRef.current) return false;
@@ -582,7 +650,7 @@ export default function CampaignHome() {
     select(f);
     setModal("preview");
   }
-  async function run(action: string, fn: () => Promise<void>) {
+  async function run(action: string, fn: () => Promise<unknown>) {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(action);
@@ -701,7 +769,11 @@ export default function CampaignHome() {
                   />
                   <span>
                     使用模型编排
-                    <small>根据通知选择版式并撰写邀请文案</small>
+                    <small>
+                      {artworkModel
+                        ? "为这场活动创作主视觉、撰写邀请文案并排出三种画幅"
+                        : "根据通知选择版式并撰写邀请文案"}
+                    </small>
                   </span>
                 </label>
               )}
@@ -727,16 +799,20 @@ export default function CampaignHome() {
                     (!dirty && !!allErrors.length)
                   }
                 >
-                  {busy === "generate" && (
+                  {(busy === "generate" || busy === "generate-art") && (
                     <LoaderCircle className="wx-spin" size={16} />
                   )}
                   {checkingModel
                     ? "正在连接服务…"
-                    : busy === "generate"
-                      ? "正在生成…"
-                      : model && useModel
-                        ? "生成宣传套装"
-                        : "生成并预览"}{" "}
+                    : busy === "generate-art"
+                      ? "正在绘制活动主视觉…"
+                      : busy === "generate"
+                        ? model && useModel
+                          ? "正在策划海报和文案…"
+                          : "正在排版…"
+                        : model && useModel
+                          ? "生成宣传套装"
+                          : "生成并预览"}{" "}
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -968,6 +1044,20 @@ export default function CampaignHome() {
                 <b>
                   <MessageCircle size={17} /> 发布文案
                 </b>
+                {model && (
+                  <button
+                    type="button"
+                    className="cp-textbutton"
+                    onClick={generateCopy}
+                    disabled={inactive}
+                  >
+                    {busy === "copy"
+                      ? "正在撰写…"
+                      : project.current.campaignCopy
+                        ? "重写邀请文案"
+                        : "生成邀请文案"}
+                  </button>
+                )}
                 <button
                   className="cp-textbutton"
                   disabled={inactive}
@@ -1012,6 +1102,11 @@ export default function CampaignHome() {
   return (
     <div id="publicity-studio" className="campaign ds-workroom ds-campaign">
       <CampaignNav active="home" />
+      {STATIC_DEMO && (
+        <div className="cp-shell" style={{ paddingBlock: 12 }}>
+          <LiveStudioLink route="#campaign" />
+        </div>
+      )}
       {planView ? (
         <CampaignReleasePlan
           project={project}
@@ -1143,7 +1238,11 @@ export default function CampaignHome() {
               <button
                 key={c.id}
                 aria-pressed={selected === c.id}
-                onClick={() => select(c.id)}
+                disabled={busy === "review"}
+                onClick={() => {
+                  select(c.id);
+                  setError("");
+                }}
               >
                 {c.name}
               </button>
@@ -1152,6 +1251,38 @@ export default function CampaignHome() {
           <div className="cp-zoom">
             <Proof svg={layouts[selected].svg} />
           </div>
+          {visionModel && (
+            <section className="cp-art-review" aria-label="AI 审片">
+              {currentReview ? (
+                <>
+                  <strong>审片意见 · {formats[selected].name}</strong>
+                  <p>{currentReview.summary}</p>
+                  <ul>
+                    {currentReview.priorities.map((item) => (
+                      <li key={item.name}>
+                        <b>{item.name}</b>
+                        <span>{item.suggestion}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="cp-textbutton"
+                  disabled={inactive}
+                  onClick={inspectProof}
+                >
+                  {busy === "review" ? (
+                    <LoaderCircle className="wx-spin" size={15} />
+                  ) : (
+                    <Expand size={15} />
+                  )}
+                  {busy === "review" ? "正在审阅当前画幅…" : "AI 审片"}
+                </button>
+              )}
+            </section>
+          )}
           <div className="cp-previewactions">
             {!planView && (
               <a

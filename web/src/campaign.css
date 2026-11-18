@@ -991,3 +991,7 @@ header.cp-nav {
     gap: 6px;
   }
 }
+.cp-art-review { margin: 0 1.2rem .8rem; padding: .8rem 1rem; border: 1px solid #dddce6; border-radius: .7rem; background: #faf9fc; color: #292537; font-size: .88rem; line-height: 1.55; }
+.cp-art-review p { margin: .45rem 0; }
+.cp-art-review ul { display: grid; gap: .3rem; margin: .5rem 0 0; padding-left: 1rem; }
+.cp-art-review li b { margin-right: .7rem; }

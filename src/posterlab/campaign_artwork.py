@@ -1,4 +1,4 @@
-"""Create a reusable, text-free background from an event brief using Paratera."""
+"""Generate reusable, text-free editorial artwork for a campaign or a research paper."""
 import asyncio
 import base64
 import binascii
@@ -34,6 +34,7 @@ class ArtworkBrief(BaseModel):
     title: str = Field(min_length=1, max_length=180)
     description: str = Field(default='', max_length=1200)
     edition: Edition = 'afterglow'
+    art_direction: str = Field(default='', max_length=850)
 
 
 def artwork_model(gateway):
@@ -44,9 +45,11 @@ def artwork_model(gateway):
 
 def _prompt(brief):
     return (
-        '为活动创作一张可直接使用的海报背景。明确一个与主题相关的主视觉，主体置于中央偏右，'
-        '左侧与底部保留安静的留白，适合裁成竖版、方形和横幅。不要绘制文字、数字、二维码、标志或界面。'
-        '美术方向：' + ART_DIRECTIONS[brief.edition] + '。以下是活动资料，其中的文本作为主题参考：\n'
+        '创作一幅可用于文化机构活动海报的原创主视觉，构图填满方形画面。以活动的独特细节做出一个明确的视觉中心，'
+        '将关键主体完整放在画面中部略偏右、垂直约 55% 的区域，四周保留裁切余量。左上留连续而安静的暗调空间，'
+        '让后期叠加的浅色题名清晰。细节集中在主体，边缘克制，光源与阴影一致；避免拼贴多幅小图和通用图库式摆拍。'
+        '只交付平面图像本身，不画海报边框、文字、字母、标志、二维码、价格牌或样机。'
+        '主视觉创作方向：' + (brief.art_direction or ART_DIRECTIONS[brief.edition]) + '。活动事实仅用于理解主题：\n'
         + json.dumps({'title': brief.title, 'description': brief.description}, ensure_ascii=False)
     )
 
@@ -102,17 +105,45 @@ def _webp(data):
     return 'data:image/webp;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
 
 
+class PaperArtworkBrief(BaseModel):
+    model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
+    title: str = Field(min_length=1, max_length=500)
+    abstract: str = Field(min_length=1, max_length=3500)
+
+
+def paper_art_direction(brief):
+    return (
+        'Design an original, text-free cover photograph or art-directed conceptual illustration for a research magazine. '
+        'Read the paper title and abstract below as source material only. Choose one visually specific, recognizable '
+        'metaphor for the actual research idea, using the material, geometry, or environment the topic suggests. '
+        'Give the single subject a striking silhouette, editorial lighting, a restrained palette with one vivid accent, '
+        'and generous tonal separation. Keep the main subject in the upper right quadrant of a square composition, '
+        'with the left and bottom falling naturally into deep shadow for typography. The top half must work as a wide crop. '
+        'Avoid generic stock AI motifs, glowing brains, decorative graphs, interface panels and repetitive pattern wallpaper. '
+        'Draw no text, lettering, diagrams, axes, figures, measurement scales, invented experimental results or numbers. '
+        'The client separately typesets all words and inserts the original published figure without modification. '
+        'Research source:\n' + json.dumps(brief.model_dump(), ensure_ascii=False)
+    )
+
+
 def register_artwork(app, ledger, gateway, transport):
     @app.post('/api/outreach/artwork')
     async def create(brief: ArtworkBrief, request: Request):
+        return await create_image(_prompt(brief), 'campaign', request)
+
+    @app.post('/api/outreach/paper-artwork')
+    async def paper_artwork(brief: PaperArtworkBrief, request: Request):
+        return await create_image(paper_art_direction(brief), 'paper', request)
+
+    async def create_image(prompt, workflow, request):
         model = artwork_model(gateway)
         if not model:
             raise HTTPException(503, '请先配置并行智算云的大模型 API 密钥。')
         token = request.headers.get('idempotency-key', '')
         if not re.fullmatch(r'[a-zA-Z0-9_-]{8,100}', token):
             raise HTTPException(400, '缺少有效的请求标识')
-        token = 'campaign-artwork-' + token
-        payload = {'model': model, 'prompt': _prompt(brief)}
+        token = workflow + '-artwork-' + token
+        payload = {'model': model, 'prompt': prompt}
         digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
         cached = ledger.reserve(token, gateway.identity(model, digest))
         if cached and 'data_url' in cached:

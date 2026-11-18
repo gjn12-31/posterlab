@@ -1,0 +1,20 @@
+button.live-studio-link, a.live-studio-link {
+  display: inline-flex; align-items: center; gap: .45rem; flex-shrink: 0;
+  width: fit-content; padding: .55rem .8rem; border: 1px solid #8985c8; border-radius: .6rem;
+  background: #302b50; color: #f8f6ff; font: inherit; font-size: .85rem; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+}
+.live-studio-link:focus-visible, .live-studio-dialog :focus-visible { outline: 3px solid #8e81d6; outline-offset: 3px; }
+dialog.live-studio-dialog {
+  position: fixed; width: min(420px, 92vw); box-sizing: border-box; margin: auto; padding: 1.5rem;
+  border: 1px solid #d8d6ed; border-radius: 1.2rem; color: #19182b; background: #fbfaff;
+  box-shadow: 0 1.5rem 5rem #10102635; text-align: left; font-family: system-ui, sans-serif;
+}
+.live-studio-dialog::backdrop { background: #14122599; }
+.live-studio-dialog header { display: flex; align-items: center; justify-content: space-between; }
+.live-studio-dialog h2 { margin: 0; color: #222139; font: 650 1.35rem/1.3 system-ui, sans-serif; }
+.live-studio-dialog header button { display: grid; place-items: center; background: none; border: 0; color: inherit; padding: .5rem; cursor: pointer; }
+.live-studio-dialog p { color: #555269; line-height: 1.65; margin: .7rem 0 1rem; font-size: .95rem; }
+.live-studio-dialog > a { display: flex; justify-content: space-between; align-items: center; padding: .7rem .85rem; color: #26233d; border: 1px solid #ddd9ed; border-radius: .65rem; margin-bottom: .5rem; text-decoration: none; background: #fff; }
+.live-studio-dialog small { font-size: .78rem; color: #686577; margin-left: .3rem; }
+.live-studio-dialog footer a { font-size: .85rem; color: #544b85; }

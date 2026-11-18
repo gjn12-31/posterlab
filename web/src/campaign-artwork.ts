@@ -55,6 +55,52 @@ export function clearArtworkRequest(request: ArtworkRequest) {
   }
 }
 
+async function samplePrintPalette(blob: Blob, assetId: string) {
+  const image = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(image, 0, 0, 32, 32);
+  image.close();
+  const data = ctx.getImageData(0, 0, 32, 32).data;
+  const buckets = new Map<
+    number,
+    { count: number; rgb: number[]; score: number }
+  >();
+  for (let i = 0; i < data.length; i += 4) {
+    const rgb = [data[i], data[i + 1], data[i + 2]];
+    const chroma = Math.max(...rgb) - Math.min(...rgb);
+    if (chroma < 18 || Math.max(...rgb) < 36) continue;
+    const key = (rgb[0] >> 6) * 16 + (rgb[1] >> 6) * 4 + (rgb[2] >> 6);
+    const bucket = buckets.get(key) ?? { count: 0, rgb: [0, 0, 0], score: 0 };
+    bucket.count++;
+    bucket.score += chroma;
+    rgb.forEach((channel, index) => {
+      bucket.rgb[index] += channel;
+    });
+    buckets.set(key, bucket);
+  }
+  const dominant = [...buckets.values()].sort((a, b) => b.score - a.score)[0];
+  const rgb = dominant
+    ? dominant.rgb.map((channel) => channel / dominant.count)
+    : [77, 85, 89];
+  const tint = (weight: number, base: number) =>
+    "#" +
+    rgb
+      .map((channel) =>
+        Math.round(channel * weight + base * (1 - weight))
+          .toString(16)
+          .padStart(2, "0"),
+      )
+      .join("");
+  return {
+    assetId,
+    paper: tint(0.12, 250),
+    ink: tint(0.32, 15),
+    signal: tint(0.85, 80),
+  };
+}
+
 export async function applyCampaignArtwork(
   project: Project,
   dataUrl: string,
@@ -75,5 +121,7 @@ export async function applyCampaignArtwork(
     [asset.id]: { ...asset, license: "AI 生成的活动主视觉" },
   };
   next.current.heroId = asset.id;
+  next.current.campaignVersion = 3;
+  next.current.artworkPalette = await samplePrintPalette(blob, asset.id);
   return next;
 }

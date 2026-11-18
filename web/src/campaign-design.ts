@@ -29,7 +29,9 @@ function inks(s: Snapshot) {
   const id = s.edition!;
   const palette =
     s.theme === editions[id].theme
-      ? stock[id]
+      ? s.artworkPalette && s.artworkPalette.assetId === s.heroId
+        ? s.artworkPalette
+        : stock[id]
       : {
           paper: themes[s.theme].bg,
           ink: themes[s.theme].ink,
@@ -74,10 +76,35 @@ export function campaignBackground(
   photo: string,
   namespace: string,
 ) {
-  if (s.campaignVersion !== 2) return firstEditionBackground(s, f, photo);
+  if (!s.campaignVersion) return firstEditionBackground(s, f, photo);
   const { width: w, height: h } = formats[f],
     { paper, ink, signal } = inks(s);
   const backdrop = `<rect width="${w}" height="${h}" fill="${paper}"/>`;
+  if (s.campaignVersion === 3) {
+    // Art-directed images remain large in every format. The horizontal cover uses
+    // its own image well, keeping the centre of a square master visible.
+    const land = f === "landscape";
+    const x = land ? w * 0.495 : 0;
+    const photoH = land ? h : h * 0.78;
+    const plate = `<image x="${x}" width="${w - x}" height="${photoH}" href="${escapeXml(photo)}" preserveAspectRatio="xMidYMid slice"/>`;
+    if (land)
+      return (
+        backdrop +
+        plate +
+        `<path d="M${w * 0.047} ${h * 0.166} H${w * 0.45}" stroke="${ink}" stroke-width="2"/><rect x="${w * 0.047}" y="${h * 0.622}" width="${w * 0.039}" height="6" fill="${signal}"/>`
+      );
+    const shade = "editorial-shade-" + namespace;
+    return (
+      backdrop +
+      plate +
+      `<defs><linearGradient id="${shade}" x1="0%" x2="0%" y1="0%" y2="100%">
+        <stop stop-color="#0D0E16" stop-opacity=".64"/><stop offset=".42" stop-color="#0D0E16" stop-opacity=".61"/>
+        <stop offset=".57" stop-color="#0D0E16" stop-opacity=".28"/><stop offset=".74" stop-color="#0D0E16" stop-opacity="0"/>
+      </linearGradient></defs><rect width="${w}" height="${photoH}" fill="url(#${shade})"/>
+      <path d="M${w * 0.065} ${h * 0.102} H${w * 0.935}" stroke="#fff" stroke-opacity=".66" stroke-width="2"/>
+      <rect x="${w * 0.065}" y="${h * 0.803}" width="${w * 0.075}" height="6" fill="${signal}"/>`
+    );
+  }
   if (f === "portrait") {
     const photoH = h * 0.772,
       fold = h * 0.028,
@@ -136,15 +163,16 @@ export function campaignText(
   text: TextLayer,
   issues: Issue[],
 ) {
-  if (s.campaignVersion !== 2) return firstEditionText(s, f, text, issues);
+  if (!s.campaignVersion) return firstEditionText(s, f, text, issues);
   const { width: w, height: h } = formats[f],
     u = Math.min(w, h);
   const p = inks(s),
     portrait = f === "portrait",
     square = f === "square";
-  const x = portrait ? 0.065 : square ? 0.052 : 0.047;
-  const headerInk = portrait ? "#FFF5E2" : p.ink;
-  const titleInk = s.brand.enabled && !portrait ? s.brand.accent : headerInk;
+  const imageHeader = portrait || (square && s.campaignVersion === 3);
+  const x = imageHeader ? 0.065 : square ? 0.052 : 0.047;
+  const headerInk = imageHeader ? "#FFF7E8" : p.ink;
+  const titleInk = s.brand.enabled && !imageHeader ? s.brand.accent : headerInk;
   const tagX = x + (s.logoId ? 65 / w : 0);
   const tagY = f === "landscape" ? 0.079 : 0.041;
   fittedHeading(
@@ -159,9 +187,9 @@ export function campaignText(
     u * 0.017,
     headerInk,
   );
-  const titleY = portrait ? 0.129 : square ? 0.127 : 0.235;
-  const titleBox = portrait ? 0.305 : square ? 0.208 : 0.383;
-  const titleW = w * (portrait ? 0.76 : square ? 0.9 : 0.435);
+  const titleY = imageHeader ? 0.129 : square ? 0.127 : 0.235;
+  const titleBox = imageHeader ? 0.305 : square ? 0.208 : 0.383;
+  const titleW = w * (imageHeader ? 0.76 : square ? 0.9 : 0.435);
   if (
     fittedHeading(
       text,
@@ -230,7 +258,7 @@ export function campaignText(
     while (scale > 0.61 && span(scale, true) > bottom) scale *= 0.9;
     span(scale, false);
   }
-  if (portrait) {
+  if (imageHeader) {
     const available = w * (s.brief.url ? 0.66 : 0.875);
     const hasSchedule = !!(s.brief.date || s.brief.time);
     const offset = hasSchedule ? available * 0.51 : 0;
@@ -265,7 +293,7 @@ export function campaignText(
       "credit",
       s.creditLine,
       x,
-      portrait ? 0.725 : square ? 0.334 : 0.623,
+      imageHeader ? 0.725 : square ? 0.334 : 0.623,
       u * 0.022,
       headerInk,
       "body",
@@ -278,6 +306,6 @@ export function campaignText(
       x,
       0.44 + i * 0.055,
       u * 0.043,
-      portrait ? "#FFF5E2" : p.ink,
+      imageHeader ? "#FFF5E2" : p.ink,
     );
 }
