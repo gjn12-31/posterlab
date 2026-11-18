@@ -11,7 +11,7 @@ function renderer() {
   if (new URLSearchParams(location.search).get("mode") === "templates")
     return "editor";
   if (
-    /^#papers(?:\/(?:import|story|channels(?:\/(?:x|red|moments|wechat))?))?$/.test(
+    /^#papers(?:\/(?:import|story|example\/clashbench|channels(?:\/(?:x|red|moments|wechat))?))?$/.test(
       location.hash,
     )
   )

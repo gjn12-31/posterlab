@@ -1,3 +1,4 @@
+import { workspaceKey, workspaceUrl } from "./workspace";
 import { studioFetch, STATIC_DEMO, DEMO_MESSAGE } from "./studio-api";
 import { GenerationFailure } from "./GenerationFailure";
 import React, { useEffect, useRef, useState, useId } from "react";
@@ -97,7 +98,7 @@ function elapsedLabel(job: Job) {
 }
 function load<T>(key: string, fallback: T): T {
   try {
-    return JSON.parse(localStorage.getItem(key) || "null") ?? fallback;
+    return JSON.parse(localStorage.getItem(workspaceKey(key)) || "null") ?? fallback;
   } catch {
     return fallback;
   }
@@ -293,10 +294,10 @@ export default function Generator() {
   const split = hasCanvas && canvas;
   function save(key: string, value: unknown) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      localStorage.setItem(workspaceKey(key), JSON.stringify(value));
     } catch {
       setStorageError(
-        "浏览器存储已满，对话暂时无法保存。海报仍保存在本机服务中。",
+        "浏览器存储已满，对话暂时无法保存。海报仍保存在工作台服务器中。",
       );
     }
   }
@@ -824,7 +825,7 @@ export default function Generator() {
                   onClick={() => setAssetIds(assetIds.filter((x) => x !== id))}
                   aria-label={"移除素材：" + a.name}
                 >
-                  <img src={a.preview} alt="" />
+                  <img src={workspaceUrl(a.preview)} alt="" />
                   {a.name}
                   <X size={12} />
                 </button>
@@ -908,7 +909,7 @@ export default function Generator() {
           : !ready
             ? "正在连接 AI…"
             : !service?.ai
-              ? "AI 服务未连接，请检查本机服务配置。"
+              ? "AI 服务未连接，请检查工作台的模型设置。"
               : busy
                 ? "AI 正在处理，你可以查看对话与画布。"
                 : "Enter 发送 · Shift + Enter 换行"}
@@ -1169,7 +1170,7 @@ export default function Generator() {
                                     setMobileTab("canvas");
                                   }}
                                 >
-                                  <img src={j.image_url} alt="海报缩略图" />
+                                  <img src={workspaceUrl(j.image_url)} alt="海报缩略图" />
                                   <span>
                                     <b>{j.style_name}海报</b>
                                     <small>已完成 · 点击在画布中查看</small>
@@ -1234,7 +1235,7 @@ export default function Generator() {
                   {artwork && (
                     <a
                       className="download-button"
-                      href={artwork.image_url}
+                      href={workspaceUrl(artwork.image_url)}
                       download
                     >
                       <Download size={16} />
@@ -1251,7 +1252,7 @@ export default function Generator() {
                     onClick={() => setModal("preview")}
                   >
                     <img
-                      src={artwork.image_url}
+                      src={workspaceUrl(artwork.image_url)}
                       alt={artwork.summary || "AI 生成的海报"}
                     />
                     <span>
@@ -1276,30 +1277,19 @@ export default function Generator() {
                   </div>
                 )}
                 {active && (
-                  <div className="generation-stages">
-                    {["准备", "设计", "校验", "渲染"].map((label, i) => (
-                      <span
-                        key={label}
-                        className={
-                          i <=
-                          [
-                            "queued",
-                            "designing",
-                            "checking",
-                            "rendering",
-                          ].indexOf(
-                            active.state === "repairing"
-                              ? "checking"
-                              : active.state,
-                          )
-                            ? "done"
-                            : ""
-                        }
-                      >
-                        <i />
-                        {label}
-                      </span>
-                    ))}
+                  <div className="generation-stages" role="list" aria-label="原创设计进度">
+                    {["准备", "设计", "校验", "渲染"].map((label, i) => {
+                      const currentStage = ["queued", "designing", "checking", "rendering"].indexOf(
+                        active.state === "repairing" ? "checking" : active.state,
+                      );
+                      return (
+                        <span key={label} role="listitem" className={i < currentStage ? "done" : undefined}
+                          aria-label={label + (i < currentStage ? "已完成" : i === currentStage ? "进行中" : "待开始")}
+                          aria-current={i === currentStage ? "step" : undefined}>
+                          <i />{label}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
                 {active && (
@@ -1527,6 +1517,15 @@ export default function Generator() {
       {modal === "details" && artwork && (
         <Dialog title="作品详情" close={() => setModal(null)}>
           <p className="dialog-copy">{artwork.summary}</p>
+          <details className="original-delivery-steps">
+            <summary>制作过程与交付记录</summary>
+            <ol>
+              <li><b>设计输入</b><p>{artwork.instruction || artwork.brief}</p></li>
+              <li><b>视觉方案 · {artwork.model}</b><p>{artwork.design_plan || artwork.summary || artwork.style_name}</p></li>
+              {artwork.repair_attempt ? <li><b>交付校验</b><p>已进行 {artwork.repair_attempt} 轮模型纠错。</p></li> : null}
+              {artwork.report && <li><b>成品渲染</b><p>{artwork.report.width} × {artwork.report.height} px · {artwork.report.renderer}</p></li>}
+            </ol>
+          </details>
           <dl>
             <dt>风格</dt>
             <dd>{artwork.style_name}</dd>
@@ -1604,7 +1603,7 @@ export default function Generator() {
             href={
               STATIC_DEMO
                 ? `${import.meta.env.BASE_URL}demo/${artwork.id}.zip`
-                : "/api/generations/" + artwork.id + "/package"
+                : workspaceUrl("/api/generations/" + artwork.id + "/package")
             }
             download
           >
@@ -1617,7 +1616,7 @@ export default function Generator() {
         <Dialog title="海报预览" close={() => setModal(null)}>
           <img
             className="full-poster"
-            src={artwork.image_url}
+            src={workspaceUrl(artwork.image_url)}
             alt="完整海报预览"
           />
         </Dialog>

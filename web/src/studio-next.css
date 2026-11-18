@@ -460,7 +460,7 @@
   z-index: 3;
 }
 .generation-stages span {
-  color: #5e7769;
+  color: #9aafa1;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -473,6 +473,23 @@
 }
 .generation-stages .done {
   color: #b4e4c5;
+}
+.generation-stages [aria-current="step"] {
+  color: #fff;
+  font-weight: 700;
+}
+.generation-stages [aria-current="step"] i {
+  box-shadow: 0 0 0 3px #b4e4c530;
+}
+.original-delivery-steps ol {
+  padding-left: 1.3rem;
+}
+.original-delivery-steps li + li {
+  margin-top: .65rem;
+}
+.original-delivery-steps li p {
+  margin: .18rem 0 0;
+  white-space: pre-wrap;
 }
 .blank-poster {
   background: #202d27;

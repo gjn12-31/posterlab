@@ -1,3 +1,4 @@
+import { workspaceKey, workspaceUrl } from "./workspace";
 import { useEffect, useState } from "react";
 import {
   ArrowUpRight,
@@ -72,7 +73,7 @@ export function CreativeTools(p: {
   onWorking: (value: boolean) => void;
   done: () => void;
 }) {
-  const key = "posterlab.tools." + p.scope + ".";
+  const key = workspaceKey("posterlab.tools." + p.scope + ".");
   const [idea, setIdea] = useToolDraft(key + "idea", p.draft),
     [expanded, setExpanded] = useToolDraft(key + "expanded", "");
   const [working, setWorking] = useState(false),
@@ -307,13 +308,13 @@ export function CreativeTools(p: {
                         }
                       }}
                     >
-                      <img src={a.preview} alt={a.name} loading="lazy" />
+                      <img src={workspaceUrl(a.preview)} alt={a.name} loading="lazy" />
                       <span>
                         {p.selected.includes(a.id) ? <Check size={16} /> : "+"}
                       </span>
                     </button>
                     <b>{a.name}</b>
-                    <a href={a.license_url} target="_blank" rel="noreferrer">
+                    <a href={workspaceUrl(a.license_url)} target="_blank" rel="noreferrer">
                       {a.source} · 授权 ↗
                     </a>
                   </div>
@@ -593,7 +594,7 @@ export function VersionCompare({ jobs }: { jobs: Job[] }) {
               ))}
             </select>
             <img
-              src={jobs.find((j) => j.id === id)?.image_url}
+              src={workspaceUrl(jobs.find((j) => j.id === id)?.image_url)}
               alt={i ? "右侧海报版本" : "左侧海报版本"}
             />
           </div>

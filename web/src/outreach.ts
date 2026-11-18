@@ -86,6 +86,7 @@ export async function writePaper(p: Paper, key: string): Promise<Paper> {
       {
         title: p.title,
         voice,
+        ...(p.process?.analysis && {reading: p.process.analysis.reading}),
         byline: p.byline || "",
         ...(p.sections
           ? { sections: p.sections }

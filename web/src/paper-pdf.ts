@@ -5,7 +5,7 @@ import {
   metadataTitle,
 } from "./paper-frontmatter";
 import worker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { firstPaperFigure } from "./pdf-figure";
+import { extractPaperVisuals, pageVisualIndex } from "./pdf-figure";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import {
   abstractBeforeFigure,
@@ -32,7 +32,10 @@ export async function openPdf(file: File) {
     useWorkerFetch: true,
   });
 }
-export async function readPdf(file: File) {
+export async function readPdf(
+  file: File,
+  onProgress?: (message: string) => void,
+) {
   const task = await openPdf(file);
   try {
     const doc = await task.promise;
@@ -44,25 +47,57 @@ export async function readPdf(file: File) {
     const author =
       metadataAuthor(info?.Author) ||
       metadataAuthor(meta?.metadata?.get("dc:creator"));
-    const pages: string[] = [];
+    const pages: { page: number; text: string }[] = [];
+    const index: ReturnType<typeof pageVisualIndex> = [];
     let printed = { title: "", byline: "" };
-    // Limit text extraction to the two pages the import form advertises.
-    for (let i = 1; i <= Math.min(doc.numPages, 2); i++) {
-      const page = await doc.getPage(i);
-      const { items } = await page.getTextContent();
-      const runs = items.filter((item): item is TextItem => "str" in item);
-      if (i === 1) printed = printedFrontmatter(runs, page.view);
-      pages.push(pdfPageText(runs, page.view, i));
-      page.cleanup();
+    // The short publicity flow still uses the first two pages. The research
+    // poster reader also receives page-addressed evidence from the main paper.
+    for (let i = 1; i <= Math.min(doc.numPages, 128); i++) {
+      onProgress?.(
+        "正在读取正文 · 第 " + i + " / " + Math.min(doc.numPages, 128) + " 页",
+      );
+      const page = await doc.getPage(i).catch((error) => {
+        if (i <= 2) throw error;
+      });
+      if (!page) continue;
+      try {
+        const { items } = await page.getTextContent();
+        const runs = items.filter((item): item is TextItem => "str" in item);
+        if (i === 1) printed = printedFrontmatter(runs, page.view);
+        pages.push({
+          page: i,
+          text: pdfPageText(runs, page.view, i).slice(0, 20000),
+        });
+        if (i <= 32) index.push(...pageVisualIndex(page, runs));
+      } catch (error) {
+        // A malformed appendix does not invalidate an already readable abstract.
+        if (i <= 2 && !pages.some((p) => p.page === i)) throw error;
+      } finally {
+        page.cleanup();
+      }
     }
-    const text = unwrapPdfWords(pages.join("\n")).trim();
+    const text = unwrapPdfWords(
+      pages
+        .slice(0, 2)
+        .map((p) => p.text)
+        .join("\n"),
+    ).trim();
     if (text.length < 20)
       throw Error("没有读到文本层。扫描版 PDF 可先做 OCR，或在这里粘贴摘要。");
     const parsed = extractSections(text, title || printed.title);
+    onProgress?.("正在从原文裁取候选方法图与结果表");
+    const visuals = await extractPaperVisuals(doc, index).catch(() => []);
+    const first = visuals.find((v) => v.label === "Figure 1");
+    const arxivId = pages[0].text.match(
+      /(?:^|\n)\s*arXiv\s*:\s*(\d{4}\.\d{4,5}(?:v\d+)?)(?=\s|$)/i,
+    )?.[1];
     return {
       ...parsed,
+      source: arxivId ? "https://arxiv.org/abs/" + arxivId : parsed.source,
       // A malformed graphic must not prevent a successful text import.
-      figure: await firstPaperFigure(doc).catch(() => undefined),
+      figure: first ? { data: first.data, credit: first.credit } : undefined,
+      visuals,
+      pages,
       abstract: pdfProse(
         parsed.namedAbstract
           ? abstractBeforeFigure(parsed.abstract)
@@ -77,8 +112,8 @@ export async function readPdf(file: File) {
           .replace(/\n{2,}/g, "\n")
           .trim(),
       ),
-      pagesRead: pages.length,
-      hasLaterPages: doc.numPages > pages.length,
+      pagesRead: Math.min(2, pages.length),
+      hasLaterPages: doc.numPages > 2,
       byline: (author || printed.byline).slice(0, 240),
       title: parsed.title || file.name.replace(/\.pdf$/i, ""),
     };

@@ -296,13 +296,24 @@ async function paintPaper(p: Paper, c: Channel, editable = false) {
   );
   return scene;
 }
+async function customPaperPage(p: Paper, c: Channel) {
+  const layout=p.posterLayouts?.[c];
+  if(!layout)return;
+  const {paperLayoutPage}=await import("./paper-layout");
+  await loadFonts(layout.objects.map(o=>o.type==="text"?o.text:"").join(" "));
+  return paperLayoutPage(p,c,layout,document.createElement("canvas").getContext("2d")!);
+}
 export async function drawPaper(p: Paper, c: Channel) {
+  const custom=await customPaperPage(p,c);
+  if(custom)return (await import("./paper-layout")).renderPaperLayout(custom);
   return (await paintPaper(p, c)).g.canvas;
 }
 export async function paperDrawioPage(
   p: Paper,
   c: Channel,
 ): Promise<DrawioPage> {
+  const custom=await customPaperPage(p,c);
+  if(custom)return custom;
   const scene = await paintPaper(p, c, true);
   return {
     name: platforms[c].name + " · " + p.headline,
@@ -332,6 +343,8 @@ export async function paperPack(p: Paper, selected?: Channel) {
     const folder = zip.folder(platforms[c].name)!;
     const copy = channelCopy(p, c);
     folder.file("配图.png", await paperPng(p, c));
+    if (p.posterLayouts?.[c])
+      folder.file("可编辑海报.drawio", await (await paperDrawio(p, c)).text());
     folder.file("发布文案.txt", copy);
     if (c === "x") {
       postParts(copy).forEach((text, i) =>
@@ -353,7 +366,15 @@ export async function paperPack(p: Paper, selected?: Channel) {
     }
   }
   zip.file("原文与引文.txt", evidenceText(p));
-  if (p.figure || p.artwork) {
+  const usedImages = new Set((selected ? [selected] : channels).flatMap(
+    c => (p.posterLayouts?.[c]?.objects || []).flatMap(o => o.type === "image" ? [o.source] : []),
+  ));
+  const usedVisuals = (p.visuals || []).filter(v => usedImages.has(v.id));
+  for (const visual of usedVisuals) {
+    const safe = visual.id.replace(/[^a-z0-9_-]/gi, "_");
+    zip.file("论文原图/" + safe + ".jpg", visual.data.slice(visual.data.indexOf(",") + 1), { base64: true });
+  }
+  if (p.figure || p.artwork || usedVisuals.length) {
     zip.file(
       "配图来源.txt",
       [
@@ -361,6 +382,7 @@ export async function paperPack(p: Paper, selected?: Channel) {
         p.byline,
         p.source,
         p.figure ? "论文原图：" + p.figure.credit : "",
+        ...usedVisuals.map(v => v.credit + "\n" + v.caption),
         p.artwork ? "概念主视觉：AI 生成 · " + p.artwork.model : "",
       ]
         .filter(Boolean)

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 
 from .outreach_strategy import build_messages, publication_issues, publication_text, remove_unverified_links, revision_messages
 from .server import Brief
+from .paper_poster import PaperReading
 
 Channel = Literal['x', 'red', 'moments', 'wechat']
 Edition = Literal['coffee', 'vinyl', 'nature', 'bloom', 'course', 'launch', 'afterglow']
@@ -53,6 +54,7 @@ class PaperRequest(BaseModel):
     voice: Literal['author', 'editor'] = 'author'
     evidence: list[Quote] = Field(default_factory=list, max_length=5)
     sections: PaperSections | None = None
+    reading: PaperReading | None = None
 
     @field_validator('evidence')
     @classmethod

@@ -164,7 +164,12 @@ export default function PaperFigure({
       setError("图片细节较多，请缩小选区。");
       return;
     }
-    apply({ data, credit: credit.trim() || "论文配图" });
+    apply({
+      data,
+      credit: credit.trim() || "论文配图",
+      width: out.width,
+      height: out.height,
+    });
   }
   return (
     <>

@@ -1,3 +1,4 @@
+import { workspaceKey, workspaceUrl } from "./workspace";
 import { studioFetch, STATIC_DEMO, DEMO_MESSAGE } from "./studio-api";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -166,7 +167,7 @@ export function EvaluationPanel({
         initialized.current = r.id;
         try {
           const saved = JSON.parse(
-            sessionStorage.getItem("posterlab.review.draft." + r.id) || "null",
+            sessionStorage.getItem(workspaceKey("posterlab.review.draft." + r.id)) || "null",
           );
           if (
             saved &&
@@ -200,7 +201,7 @@ export function EvaluationPanel({
     if (review?.state !== "complete") return;
     try {
       sessionStorage.setItem(
-        "posterlab.review.draft." + review.id,
+        workspaceKey("posterlab.review.draft." + review.id),
         JSON.stringify({ selected, note, revisionMode }),
       );
     } catch {}
@@ -295,7 +296,7 @@ export function EvaluationPanel({
       design_model: designModel,
     };
     const fingerprint = JSON.stringify(body),
-      storageKey = "posterlab.review.apply." + review.id;
+      storageKey = workspaceKey("posterlab.review.apply." + review.id);
     let key = crypto.randomUUID();
     try {
       const old = JSON.parse(sessionStorage.getItem(storageKey) || "null");
@@ -347,7 +348,7 @@ export function EvaluationPanel({
       {!report ? (
         <div className="review-start">
           <div className="review-poster">
-            <img src={job.image_url} alt="待评测海报" />
+            <img src={workspaceUrl(job.image_url)} alt="待评测海报" />
             {(loading || review?.state === "evaluating") && (
               <div className="scan-line" />
             )}
@@ -424,7 +425,7 @@ export function EvaluationPanel({
             </div>
             <Radar metrics={report.dimensions} />
             <div className="review-mini">
-              <img src={job.image_url} alt="本次评测对应版本" />
+              <img src={workspaceUrl(job.image_url)} alt="本次评测对应版本" />
               <span>
                 <Eye size={12} />
                 当前评测版本

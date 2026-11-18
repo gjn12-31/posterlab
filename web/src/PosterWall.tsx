@@ -12,11 +12,12 @@ import { editionHref } from "./editions";
 const base = import.meta.env.BASE_URL + "showcase/";
 const posters = [
   {
-    image: "gallery-paper",
-    title: "M87 中心的亮环有多大？",
+    image: "gallery-clashbench",
+    title: "ClashBench · 共享资源冲突评测",
     kind: "论文宣传",
-    href: "#collection/paper",
-    credit: "图像由 EHT Collaboration 提供 · CC BY 4.0",
+    href: "#collection/clashbench",
+    credit: "Yuejin Xie 等 · 原论文图表裁取 · CC BY 4.0",
+    source: "https://arxiv.org/abs/2609.19892",
   },
   {
     image: "gallery-bookfair",
@@ -25,12 +26,10 @@ const posters = [
     href: "#collection/bookfair",
   },
   {
-    image: "gallery-ligo",
-    title: "两台探测器，一段引力波",
-    kind: "论文宣传",
-    href: "#collection/ligo",
-    credit: "Figure 1 · B. P. Abbott et al. (LIGO / Virgo) · CC BY 3.0",
-    source: "https://doi.org/10.1103/PhysRevLett.116.061102",
+    image: "vinyl",
+    title: "黑胶唱片夜",
+    kind: "音乐活动",
+    href: editionHref("vinyl"),
   },
   {
     image: "gallery-cyanotype",
@@ -119,7 +118,7 @@ function WallPreview({
             {poster.credit && (
               <a
                 className="wall-credit"
-                href={poster.source || "https://www.eso.org/public/images/eso1907a/"}
+                href={poster.source}
                 target="_blank"
                 rel="noreferrer"
               >

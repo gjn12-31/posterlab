@@ -1,7 +1,8 @@
+import { workspaceKey } from "./workspace";
 import { findWork, type Artwork } from "./atlas-data";
 
 import { validCrop, cropImage, type Crop } from "./atlas-crop";
-const key = "posterlab.atlas.folio.v1";
+const key = workspaceKey("posterlab.atlas.folio.v1");
 export type Folio = Record<string, { note: string; crop?: Crop }>;
 export function readFolio(): Folio {
   try {

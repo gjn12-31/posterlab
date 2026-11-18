@@ -1,7 +1,8 @@
+import { workspaceUrl } from "./workspace";
 /** Pages serves explicit, recorded examples. It never emulates a live model call. */
 export const STATIC_DEMO = import.meta.env.VITE_STATIC_DEMO === "true";
 export const DEMO_MESSAGE =
-  "当前为 GitHub Pages 展示模式。生成、修改与新评测请运行 GitHub 仓库中的本机完整版；此处仅展示提前真实生成的案例。";
+  "当前为 GitHub Pages 展示模式。浏览或下载案例后，可打开 AI 工作台，用自己的材料生成、修改和评测。";
 export type DemoRoutes = Record<string, unknown>;
 let snapshot: Promise<DemoRoutes> | undefined;
 export function demoResponse(
@@ -26,7 +27,7 @@ export async function studioFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  if (!STATIC_DEMO) return fetch("/api" + path, init);
+  if (!STATIC_DEMO) return fetch(workspaceUrl("/api" + path), init);
   if (init.method && init.method !== "GET")
     return demoResponse({}, path, init.method);
   snapshot ??= fetch(`${import.meta.env.BASE_URL}demo/manifest.json`)

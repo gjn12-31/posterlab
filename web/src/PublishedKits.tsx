@@ -9,6 +9,12 @@ import {
 } from "./published-kits";
 import type { Format } from "./model";
 import "./published-gallery.css";
+import {clashbenchCredit,clashbenchSource,clashbenchPath} from "./clashbench-case";
+function CaseCredit(){
+  return <p className="pg-credit">图 2 与表 1 从原论文第 4、7 页裁取并重新排版。{clashbenchCredit}。{" "}
+    <a href={clashbenchSource} target="_blank" rel="noreferrer">论文原文</a> ·{" "}
+    <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">CC BY 4.0</a>。文案为 PosterLab 拟稿。</p>;
+}
 
 const galleryArt = import.meta.env.BASE_URL + "showcase/gallery-";
 function KitPreview({
@@ -61,6 +67,7 @@ function KitPreview({
       ) : (
         <p role="status">正在读取成品…</p>
       )}
+      {kit.id==="clashbench" && <CaseCredit/>}
       {kit.id === "ligo" && (
         <footer className="pg-credit">PosterLab 按作者口吻拟写回顾文案。概念图由 Seedream 生成，图 1 来自 LIGO 与 Virgo 合作组 2016 年发现论文的第 2 页。{" "}
           <a href="https://doi.org/10.1103/PhysRevLett.116.061102" target="_blank" rel="noreferrer">论文原文</a> ·{" "}
@@ -222,6 +229,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
           )}
         </div>
         <div className="pg-actions">
+          {kit.id==="clashbench" && <a className="pg-edit" href={clashbenchPath}><Pencil size={15}/>打开编辑副本</a>}
           {"editable" in kit && (
             <button
               className="pg-edit"
@@ -234,7 +242,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
           <button disabled={!item} onClick={() => setOpen(true)}>
             查看完整文案
           </button>
-          {index === 0 && (kit.id === "ligo" || kit.id === "cyanotype") && (
+          {index === 0 && (["ligo","cyanotype","clashbench"].includes(kit.id)) && (
             <a href={base + kit.id + "-source.drawio"} download={kit.label + "-" + kit.formats[0] + ".drawio"}>
               <ArrowDownToLine size={15} /> 可编辑源文件
             </a>
@@ -254,6 +262,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
             套装中缺少可编辑项目。<button onClick={retry}>重新读取</button>
           </p>
         )}
+        {kit.id==="clashbench" && <CaseCredit/>}
         {kit.id === "paper" && (
           <small className="pg-credit">
             图像由 EHT Collaboration 提供 ·{" "}

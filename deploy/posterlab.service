@@ -1,0 +1,29 @@
+[Unit]
+Description=PosterLab private AI studio
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=posterlab
+Group=posterlab
+WorkingDirectory=/opt/posterlab/current
+EnvironmentFile=/etc/posterlab/studio.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/posterlab/current/src
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/posterlab/browsers
+Environment=STUDIO_DATA_DIR=/var/lib/posterlab
+ExecStart=/opt/posterlab/venv/bin/python -m posterlab.server
+Restart=on-failure
+RestartSec=3
+UMask=0077
+StateDirectory=posterlab
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStopSec=35
+
+[Install]
+WantedBy=multi-user.target

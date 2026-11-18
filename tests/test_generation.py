@@ -211,6 +211,44 @@ def test_reasoning_limit_without_artwork_stops_before_another_paid_attempt(tmp_p
   assert not job['can_rerender'] and len(calls)==1
 
 
+def test_native_html_with_trailing_fence_and_poster_planner_labels():
+ from posterlab.design_repair import normalize_design
+ from posterlab.generation import facts_from_brief,parse_design
+ brief='- 活动名：设计开放日\n- 活动说明：版画工作坊'
+ art='<svg><defs><filter id="grain"><feComponentTransfer><feFuncA type="linear" slope=".2"/></feComponentTransfer></filter></defs></svg>'
+ source=HTML.replace('<h1 data-field="title">设计开放日</h1>','<h1><span>设计</span><span>开放日</span></h1><p>版画工作坊</p>'+art)
+ facts=facts_from_brief(brief)
+ assert facts=={'title':'设计开放日','description':'版画工作坊'}
+ html,repairs=normalize_design(parse_design(source+'\n```')['html'],facts)
+ assert repairs and validate_generated(html,brief)==html
+ with pytest.raises(ValueError):
+  parse_design(source+'\n```\n附加说明')
+ with pytest.raises(ValueError,match='不允许属性'):
+  validate_generated(html.replace('<fefunca ', '<fefunca href="https://example.com/" '),brief)
+
+
+def test_saved_validated_artwork_is_recoverable_after_contract_upgrade(tmp_path,monkeypatch):
+ import posterlab.generation as generation
+ calls=[]
+ def provider(req):
+  calls.append(req)
+  return result()
+ def previous_validator(*_args):
+  raise ValueError('不允许静态滤镜')
+ with TestClient(build(tmp_path,monkeypatch,provider)) as c:
+  with monkeypatch.context() as old:
+   old.setattr(generation,'validate_generated',previous_validator)
+   job=c.post('/api/generations',json=REQUEST,headers=HEADERS).json()
+   path='/api/generations/'+job['id']
+   assert c.get(path).json()['state']=='failed'
+   assert not c.get(path).json()['can_rerender']
+  assert (tmp_path/'generations'/job['id']/'attempt-1-design.json').exists()
+  count=len(calls)
+  assert c.get(path).json()['can_rerender']
+  assert c.post(path+'/rerender',json={}).status_code==202
+  assert c.get(path).json()['state']=='complete' and len(calls)==count
+
+
 def test_native_html_output_retains_vector_code_without_json_escaping():
  from posterlab.generation import parse_design
  html=HTML.replace('</head>','<meta name="posterlab-plan" content="大胆重构主视觉"><meta name="posterlab-summary" content="原创插画"><meta name="posterlab-change" content="改用宋体标题"></head>')

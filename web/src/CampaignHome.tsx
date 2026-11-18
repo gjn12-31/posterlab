@@ -32,6 +32,12 @@ import {
 } from "./campaign-model";
 import CampaignReleasePlan from "./CampaignPlan";
 import CampaignExport from "./CampaignExport";
+import { CampaignSteps } from "./CampaignSteps";
+import {
+  persistTrace,
+  restoreTrace,
+  type CampaignStep,
+} from "./campaign-trace";
 import { releasePlan } from "./campaign-plan";
 import { campaignTag } from "./campaign-design";
 import { makeCover } from "./cover";
@@ -186,6 +192,70 @@ export default function CampaignHome() {
     [busy, setBusy] = useState(""),
     [copied, setCopied] = useState(false),
     [copyTab, setCopyTab] = useState<"invite" | "update">("invite");
+  const [session, setSession] = useState(() =>
+    restoreTrace(
+      new URLSearchParams(location.search).get("campaignProject") ||
+        draft.projectId ||
+        draft.workingId,
+    ),
+  );
+  const { title: traceTitle, steps: trace } = session;
+  useEffect(() => {
+    persistTrace(session);
+  }, [session]);
+  function selectProjectTrace(id: string, title: string) {
+    setSession((previous) =>
+      previous.id === id
+        ? { ...previous, title }
+        : { ...restoreTrace(id), title },
+    );
+  }
+  function recordStep(
+    id: CampaignStep["id"],
+    state: CampaignStep["state"],
+    source: string,
+    detail: string,
+  ) {
+    setSession((previous) => {
+      const next = { id, state, source, detail };
+      const steps = previous.steps.some((item) => item.id === id)
+        ? previous.steps.map((item) => (item.id === id ? next : item))
+        : [...previous.steps, next];
+      return { ...previous, steps };
+    });
+  }
+  async function withStep<T>(
+    id: CampaignStep["id"],
+    source: string,
+    work: () => Promise<T>,
+    describe: (result: T) => string,
+  ) {
+    recordStep(id, "working", source, "");
+    try {
+      const value = await work();
+      recordStep(id, "done", source, describe(value));
+      return value;
+    } catch (error) {
+      recordStep(
+        id,
+        "failed",
+        source,
+        (error as Error).message || "当前步骤未完成。",
+      );
+      throw error;
+    }
+  }
+  function writeInvitation(brief: Brief) {
+    return withStep(
+      "copy",
+      model,
+      () => writeCampaign(brief, crypto.randomUUID()),
+      (plan) =>
+        [plan.invitation, plan.art_direction || plan.reason]
+          .filter(Boolean)
+          .join("\n\n"),
+    );
+  }
   const textarea = useRef<HTMLTextAreaElement>(null),
     artworkRequest = useRef<ArtworkRequest | null>(null),
     busyRef = useRef(false),
@@ -326,7 +396,13 @@ export default function CampaignHome() {
   const currentReview = reviews[reviewKey];
   function inspectProof() {
     run("review", async () => {
-      const result = await reviewCampaign(project, selected);
+      selectProjectTrace(project.id, project.current.brief.title);
+      const result = await withStep(
+        "review",
+        visionModel,
+        () => reviewCampaign(project, selected),
+        (reply) => formats[selected].name + " · " + reply.summary,
+      );
       setReviews((previous) => ({ ...previous, [reviewKey]: result }));
     });
   }
@@ -392,10 +468,31 @@ export default function CampaignHome() {
   function generate(text: string, edition?: Edition) {
     if (!edition && checkingModel) return;
     run("generate", async () => {
+      setSession({ id: "", title: "", steps: [] });
       let brief: Brief;
+      let workingId: string;
       try {
         brief = parseNotice(text);
+        workingId =
+          !edition && brief.title === draft.brief.title
+            ? draft.workingId
+            : crypto.randomUUID();
+        setSession({ id: workingId, title: brief.title, steps: [] });
+        recordStep(
+          "notice",
+          "done",
+          "本机提取",
+          [brief.title, brief.date, brief.time, brief.venue]
+            .filter(Boolean)
+            .join(" · "),
+        );
       } catch (error) {
+        recordStep(
+          "notice",
+          "failed",
+          "本机提取",
+          (error as Error).message || "未能提取活动信息。",
+        );
         textarea.current?.focus();
         throw error;
       }
@@ -407,7 +504,7 @@ export default function CampaignHome() {
       let copyError = "";
       if (!edition && useModel && model) {
         try {
-          aiPlan = await writeCampaign(brief, crypto.randomUUID());
+          aiPlan = await writeInvitation(brief);
         } catch (e) {
           if (!artworkModel) throw e;
           copyError = (e as Error).message || "文案模型暂时不可用。";
@@ -415,7 +512,7 @@ export default function CampaignHome() {
       }
       const continueDraft = !edition && brief.title === draft.brief.title;
       const next: Draft = {
-        workingId: continueDraft ? draft.workingId : crypto.randomUUID(),
+        workingId,
         plan: continueDraft ? project.current.campaignPlan : undefined,
         raw: text,
         applied: text,
@@ -430,6 +527,10 @@ export default function CampaignHome() {
           aiPlan?.edition ??
           (same ? draft.edition : chooseEdition(text)),
       };
+      const layoutDetail =
+        editions[next.edition].name +
+        " · " +
+        channels.map((item) => item.name).join("、");
       let message = "三张宣传图和邀请文案已生成";
       if (!edition) {
         let generated: Project;
@@ -456,6 +557,7 @@ export default function CampaignHome() {
           setLinked(generated);
           setDraft(next);
         }
+        recordStep("layout", "done", "本机排版", layoutDetail);
         if (useModel && artworkModel) {
           setBusy("generate-art");
           try {
@@ -478,7 +580,10 @@ export default function CampaignHome() {
           );
         }
         preview("portrait");
-      } else setDraft(next);
+      } else {
+        setDraft(next);
+        recordStep("layout", "done", "本机排版", layoutDetail);
+      }
       setCopied(false);
       setCopyTab("invite");
       say(message);
@@ -487,6 +592,7 @@ export default function CampaignHome() {
   function generateArtwork() {
     if (!artworkModel || dirty || projectPending) return;
     run("artwork", async () => {
+      selectProjectTrace(project.id, project.current.brief.title);
       await paintArtwork(project);
       say("主视觉已应用到三种画幅");
     });
@@ -494,7 +600,8 @@ export default function CampaignHome() {
   function generateCopy() {
     if (!model || dirty || projectPending) return;
     run("copy", async () => {
-      const concept = await writeCampaign(draft.brief, crypto.randomUUID());
+      selectProjectTrace(project.id, draft.brief.title);
+      const concept = await writeInvitation(draft.brief);
       await storeChanges({ ...draft, concept });
       say("邀请文案已更新");
     });
@@ -516,28 +623,43 @@ export default function CampaignHome() {
       artworkRequest.current,
     );
     artworkRequest.current = request;
-    const response = await studioFetch("/outreach/artwork", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Idempotency-Key": request.key,
+    const image = await withStep(
+      "artwork",
+      artworkModel,
+      async () => {
+        const response = await studioFetch("/outreach/artwork", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": request.key,
+          },
+          body,
+        });
+        const image = await response.json().catch(() => null);
+        if (!response.ok || typeof image?.data_url !== "string") {
+          if (response.headers.get("X-PosterLab-Reusable") !== "1") {
+            clearArtworkRequest(request);
+            artworkRequest.current = null;
+          }
+          throw new Error(
+            typeof image?.detail === "string"
+              ? image.detail
+              : "未取得主视觉，当前配图已保留。",
+          );
+        }
+        return image;
       },
-      body,
-    });
-    const image = await response.json().catch(() => null);
-    if (!response.ok || typeof image?.data_url !== "string") {
-      if (response.headers.get("X-PosterLab-Reusable") !== "1") {
-        clearArtworkRequest(request);
-        artworkRequest.current = null;
-      }
-      throw new Error(
-        typeof image?.detail === "string"
-          ? image.detail
-          : "未取得主视觉，当前配图已保留。",
-      );
-    }
-    const next = await applyCampaignArtwork(base, image.data_url);
-    const saved = await saveCampaignProject(next, base.updated);
+      () => "已收到该活动的主视觉图片。",
+    );
+    const saved = await withStep(
+      "apply",
+      "本机画布",
+      async () => {
+        const next = await applyCampaignArtwork(base, image.data_url);
+        return saveCampaignProject(next, base.updated);
+      },
+      () => "竖版海报、社交方图和横版封面已共用这张主视觉。",
+    );
     setLinked(saved);
     setDraft((d) => ({ ...d, projectId: saved.id }));
     clearArtworkRequest(request);
@@ -840,6 +962,7 @@ export default function CampaignHome() {
                 </button>
               ))}
             </div>
+            {!modal && <CampaignSteps title={traceTitle} steps={trace} />}
             {error && !modal && (
               <p className="cp-error" role="alert">
                 {error}
@@ -1261,6 +1384,7 @@ export default function CampaignHome() {
           <div className="cp-zoom">
             <Proof svg={layouts[selected].svg} />
           </div>
+          <CampaignSteps title={traceTitle} steps={trace} />
           {visionModel && (
             <section className="cp-art-review" aria-label="AI 审片">
               {currentReview ? (

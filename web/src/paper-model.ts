@@ -1,7 +1,12 @@
+import { workspaceKey } from "./workspace";
 import twitterText from "twitter-text";
 import { cleanManuscriptText } from "./paper-clean";
 import exampleCopy from "./paper-example-copy.json";
 import { z } from "zod";
+import { posterLayoutSchema, paperVisualSchema } from "./paper-layout-model";
+export type { PaperVisual } from "./paper-layout-model";
+import { paperProcessSchema, sourcePagesSchema } from "./paper-process-model";
+import { englishPaperLayout } from "./paper-layout-english";
 import { storySchema } from "./paper-story-model";
 
 export const platforms = {
@@ -46,6 +51,10 @@ export const publicationCheckSchema = z.object({
   model_calls: z.union([z.literal(1), z.literal(2)]),
 });
 export const paperSchema = z.object({
+  process: paperProcessSchema.optional(),
+  sourcePages: sourcePagesSchema.optional(),
+  visuals: z.array(paperVisualSchema).max(8).optional(),
+  posterLayouts: z.partialRecord(channelSchema, posterLayoutSchema).optional(),
   publicationCheck: publicationCheckSchema.optional(),
   voice: voiceSchema.optional(),
   channelVoices: z
@@ -70,6 +79,8 @@ export const paperSchema = z.object({
         .max(2400000)
         .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/),
       credit: z.string().min(1).max(160),
+      width: z.number().positive().optional(),
+      height: z.number().positive().optional(),
     })
     .optional(),
   artwork: z
@@ -145,7 +156,7 @@ export function examplePaper(): Paper {
     edits: {},
   };
 }
-export const paperKey = "posterlab.paper.v1";
+export const paperKey = workspaceKey("posterlab.paper.v1");
 const flatText = (text: string) => text.replace(/\s+/g, " ").trim();
 
 // Match each shipped channel separately so that hand-edited example drafts survive.
@@ -195,7 +206,10 @@ function migrateExample(p: Paper): Paper {
 // at both storage entry points. Published drafts and authored paraphrases stay
 // intact; a missing source must never attribute a claim to a different sentence.
 export function readSavedPaper(value: unknown): Paper {
-  const p = migrateExample(paperSchema.parse(value));
+  const parsed=migrateExample(paperSchema.parse(value));
+  const x=parsed.posterLayouts?.x;
+  const p=x?.origin && !x.edited && !x.language
+    ? {...parsed,posterLayouts:{...parsed.posterLayouts,x:englishPaperLayout(parsed,x)}} : parsed;
   const sections = p.sections && {
     abstract: cleanManuscriptText(p.sections.abstract),
     introduction: cleanManuscriptText(p.sections.introduction),

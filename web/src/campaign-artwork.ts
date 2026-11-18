@@ -1,3 +1,4 @@
+import { workspaceKey } from "./workspace";
 import { checkpoint, type Project } from "./model";
 import { readAsset } from "./render";
 
@@ -13,7 +14,7 @@ export async function prepareArtworkRequest(
   current: ArtworkRequest | null,
 ): Promise<ArtworkRequest> {
   // Before a draft is first saved it occupies the tab's single draft slot.
-  const storageKey = "posterlab:campaign-artwork:" + (projectId || "draft");
+  const storageKey = workspaceKey("posterlab:campaign-artwork:" + (projectId || "draft"));
   const bytes = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(body),

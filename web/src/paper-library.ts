@@ -1,3 +1,4 @@
+import { workspaceKey } from "./workspace";
 import { openDB, type DBSchema } from "idb";
 import {
   paperKey,
@@ -12,7 +13,7 @@ interface Library extends DBSchema {
 }
 let lastDurable: Paper | undefined;
 function open() {
-  return openDB<Library>("posterlab-paper-library", 1, {
+  return openDB<Library>(workspaceKey("posterlab-paper-library"), 1, {
     upgrade(db) {
       db.createObjectStore("papers", { keyPath: "id" });
       db.createObjectStore("index", { keyPath: "id" });
@@ -83,6 +84,7 @@ export async function restoreLibraryDraft(
     id: stored.id,
     artwork: stored.artwork,
     figure: stored.figure,
+    visuals: stored.visuals,
   });
 }
 
@@ -112,14 +114,16 @@ export async function savePaperDraft(
 ): Promise<void> {
   const save = ++latestSave;
   const writeId = crypto.randomUUID();
-  const { artwork, figure, ...fields } = paper;
+  const { artwork, figure, visuals, ...fields } = paper;
   const large =
-    (artwork?.data.length || 0) + (figure?.data.length || 0) >= 1_000_000;
+    (artwork?.data.length || 0) + (figure?.data.length || 0)
+      + (visuals || []).reduce((total,v)=>total+v.data.length,0) >= 1_000_000;
   const unchangedImages =
     lastDurable?.id === paper.id &&
     lastDurable.artwork?.data === artwork?.data &&
     lastDurable.figure?.data === figure?.data &&
     lastDurable.figure?.credit === figure?.credit &&
+    lastDurable.visuals === visuals &&
     lastDurable.artwork?.model === artwork?.model;
   const pending = initial ? undefined : writeId;
   let cached = false;

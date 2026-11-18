@@ -28,11 +28,17 @@ import { writePaper } from "./outreach";
 import { generatePaperArtwork } from "./paper-artwork";
 import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
+import PaperLayoutEditor from "./PaperLayoutEditor";
+import {changePaperFigure} from "./paper-layout";
+import PaperProcess from "./PaperProcess";
+import { producePaper, preservePaperEdits } from "./paper-production";
 import { RewritePaper, VoicePicker } from "./PaperVoice";
 import Dialog from "./PaperDialog";
 import PublicationDesk, { Art } from "./PublicationDesk";
 import { articleFragment, noteParts } from "./paper-publication";
 import exampleCopy from "./paper-example-copy.json";
+import { clashbenchPath, openClashbenchCase } from "./clashbench-case";
+import { paperKey } from "./paper-model";
 import { cleanManuscriptText } from "./paper-clean";
 import { CampaignNav } from "./CampaignNav";
 import {
@@ -97,6 +103,7 @@ function ImportPaper({
   retryConnection: () => void;
 }) {
   const ai = modelState === "ready";
+  const [readProgress, setReadProgress] = useState("");
   const [text, setText] = useState(""),
     [introduction, setIntroduction] = useState(""),
     [title, setTitle] = useState(""),
@@ -117,6 +124,10 @@ function ImportPaper({
         ? "引言"
         : "";
   const generateLock = useRef(false);
+  const [building, setBuilding] = useState<Paper>();
+  const [sourceCount, setSourceCount] = useState(0);
+  const sourceVisuals = useRef<Paper["visuals"]>(undefined);
+  const sourcePages = useRef<Paper["sourcePages"]>(undefined);
   const openFile = useRef<File | undefined>(undefined),
     sourceFigure = useRef<Paper["figure"]>(undefined),
     file = useRef<HTMLInputElement>(null),
@@ -132,6 +143,7 @@ function ImportPaper({
     const ticket = ++inFlight.current;
     setError("");
     setReading(true);
+    setReadProgress("正在打开文件");
     try {
       if (f.size > 40 * 1024 * 1024)
         throw Error("请选择 40 MB 以内的文件，或粘贴摘要。");
@@ -139,22 +151,36 @@ function ImportPaper({
       if (!pdf && !/\.(?:txt|md)$/i.test(f.name))
         throw Error("支持 PDF、TXT 和 Markdown 文件。");
       const d = pdf
-        ? await (await import("./paper-pdf")).readPdf(f)
+        ? await (
+            await import("./paper-pdf")
+          ).readPdf(f, (status) => {
+            if (ticket === inFlight.current) setReadProgress(status);
+          })
         : { ...extractSections(await f.text()), figure: undefined };
       if (ticket !== inFlight.current) return;
       openFile.current = pdf ? f : undefined;
       sourceFigure.current = d.figure;
+      sourceVisuals.current = "visuals" in d ? d.visuals : undefined;
+      sourcePages.current = "pages" in d ? d.pages : undefined;
+      setSourceCount(sourceVisuals.current?.length || 0);
       setText(d.abstract);
       setIntroduction(d.introduction);
       setTitle(d.title || f.name.replace(/\.[^.]+$/, ""));
       setUrl(d.source);
       setByline("byline" in d && typeof d.byline === "string" ? d.byline : "");
       const details = [
-        "pagesRead" in d ? "已读取前 " + d.pagesRead + " 页" : "已读取文本",
+        "pages" in d
+          ? "已读取 " +
+            d.pages.length +
+            " 页，摘要与引言取自前 " +
+            d.pagesRead +
+            " 页"
+          : "已读取文本",
       ];
-      if (sourceFigure.current)
-        details.push("已提取 " + sourceFigure.current.credit);
-      else if (pdf) details.push("未定位到 Figure 1，可在生成后手动选图");
+      if (sourceVisuals.current?.length)
+        details.push("发现 " + sourceVisuals.current.length + " 项候选图表");
+      if (pdf && !sourceVisuals.current?.length)
+        details.push("未定位到图表，可在编辑器中补充");
       if (!d.namedAbstract)
         details.push(
           d.abstract ? "未识别摘要标题，请确认提取文字" : "未识别到摘要",
@@ -204,29 +230,24 @@ function ImportPaper({
       p.sections = sections;
       if (withModel) p.voice = voice;
       if (sourceFigure.current) p.figure = sourceFigure.current;
-      if (withModel) {
-        const [draft, art] = await Promise.all([
-          writePaper(p, crypto.randomUUID()).catch((error) => {
-            // A rejected or malformed text response still owns its own retry.
-            // Keep an independently completed image and the original sources.
-            const notice =
-              error instanceof TypeError
-                ? "无法连接文案服务。"
-                : error instanceof Error && error.name !== "ZodError"
-                  ? error.message
-                  : "模型返回的发布稿格式有误。";
-            return {
-              ...p,
-              localChannels: [...channels],
-              modelNotice: notice.slice(0, 700),
-            };
-          }),
-          imageModel
-            ? generatePaperArtwork(p, crypto.randomUUID())
-            : Promise.resolve({}),
-        ]);
-        apply({ ...draft, ...art }, openFile.current);
-      } else apply(p, openFile.current);
+      p.visuals = sourceVisuals.current;
+      p.sourcePages = sourcePages.current;
+      // Save each completed stage in order. A tab reload can resume the same project.
+      const final = await producePaper(
+        p,
+        {
+          live: withModel,
+          imageModel,
+          source: openFile.current ? "pdf" : "text",
+        },
+        (snapshot) => {
+          setBuilding(snapshot);
+          void savePaperDraft(snapshot, false).catch((err: Error) =>
+            setError(err.message),
+          );
+        },
+      );
+      apply(final, openFile.current);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -234,6 +255,10 @@ function ImportPaper({
       setGenerating(false);
     }
   }
+  if(generating && building) return (<Dialog title="正在制作论文宣传材料" className="paper-build-dialog" dismissible={false} close={close}>
+    <p className="pp-project-title">{building.title}</p><PaperProcess paper={building} running/>
+    {error && <p role="alert" className="pr-error">{error}</p>}
+  </Dialog>);
   return (
     <Dialog
       title="导入论文"
@@ -243,7 +268,8 @@ function ImportPaper({
     >
       <fieldset className="ds-fieldset paper-intake" disabled={generating}>
         <p className="pr-help">
-          提取前两页的摘要和引言，自动查找 Figure 1，生成四个平台的文案和配图。
+          从 PDF
+          找到方法图和结果表，再根据原文制作可编辑海报与四个平台的宣传稿。
         </p>
         <input
           type="file"
@@ -278,7 +304,7 @@ function ImportPaper({
           {reading ? (
             <>
               <LoaderCircle className="wx-spin" size={24} />
-              <b role="status">正在读取论文…</b>
+              <b role="status">{readProgress}</b>
             </>
           ) : label ? (
             <>
@@ -382,10 +408,10 @@ function ImportPaper({
             />
             <span>
               {imageModel
-                ? "用 AI 制作主视觉和四个平台的文案"
-                : "使用模型撰写四个平台的文案"}
+                ? "用 AI 研读论文、设计海报并撰写宣传稿"
+                : "用 AI 研读论文、排版并撰写宣传稿"}
               <small>
-                PDF 和论文插图留在浏览器中。模型使用标题、署名和提取的文字。
+                PDF 和原图留在浏览器中。模型读取提取的正文、页码与图注。
               </small>
             </span>
           </label>
@@ -406,20 +432,8 @@ function ImportPaper({
             </button>
           </div>
         )}
-        {generating && (
-          <div className="wx-generating" role="status">
-            <Check size={16} />
-            <span>来源已就绪</span>
-            <i aria-hidden="true" />
-            <LoaderCircle className="wx-spin" size={16} />
-            <b>
-              {ai && useModel
-                ? imageModel
-                  ? "正在并行制作主视觉与发布稿"
-                  : "正在撰写发布稿"
-                : "正在整理本地摘录"}
-            </b>
-          </div>
+        {!generating && sourceCount > 0 && (
+          <p className="pr-help">生成后可在画布中替换图表、调整位置和文字。</p>
         )}
         {tooLong && (
           <p role="alert" className="pr-error">
@@ -494,7 +508,14 @@ function CopyEditor({
     setWorking(true);
     setState("");
     try {
-      const next = await adaptChannel(paper, channel, key.current, angle, voice, value);
+      const next = await adaptChannel(
+        paper,
+        channel,
+        key.current,
+        angle,
+        voice,
+        value,
+      );
       setValue(next);
       key.current = crypto.randomUUID();
       setGeneratedVoice(voice);
@@ -877,15 +898,45 @@ function starterPaper(): Paper {
   };
 }
 export default function PaperStudio() {
-  const [resume, setResume] = useState(() => resumePaper(starterPaper));
+  type Start =
+    ReturnType<typeof resumePaper> | { example: true; edit: boolean };
+  const [resume, setResume] = useState<Start>(() => {
+    if (location.hash === clashbenchPath) return { example: true, edit: true };
+    try {
+      if (!localStorage.getItem(paperKey) && location.hash !== "#papers/import")
+        return { example: true, edit: false };
+    } catch {
+      /* Storage can be unavailable in private browser windows. */
+    }
+    return resumePaper(starterPaper);
+  });
+  const [initialEditor, setInitialEditor] = useState(false);
+  useEffect(() => {
+    function route() {
+      if (location.hash === clashbenchPath) {
+        setFailed(false);
+        setResume({ example: true, edit: true });
+      }
+    }
+    window.addEventListener("hashchange", route);
+    return () => window.removeEventListener("hashchange", route);
+  }, []);
   const [attempt, retry] = useState(0);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
-    if (!("libraryId" in resume)) return;
+    if ("paper" in resume) return;
     let active = true;
-    restoreLibraryDraft(resume)
+    const isCase = "example" in resume;
+    (isCase ? openClashbenchCase(resume.edit) : restoreLibraryDraft(resume))
       .then((paper) => {
-        if (active) setResume({ paper, pendingWrite: !!resume.pendingFields });
+        if (!active) return;
+        setInitialEditor(isCase && resume.edit);
+        if (isCase && resume.edit)
+          history.replaceState(history.state, "", "#papers/channels/red");
+        setResume({
+          paper,
+          pendingWrite: isCase ? resume.edit : !!resume.pendingFields,
+        });
       })
       .catch(() => {
         if (active) setFailed(true);
@@ -898,7 +949,13 @@ export default function PaperStudio() {
     return (
       <main className="pr-library" aria-busy={!failed}>
         <p role="status">
-          {failed ? "暂时无法恢复上次打开的论文。" : "正在恢复论文草稿…"}
+          {failed
+            ? "example" in resume
+              ? "暂时无法打开 ClashBench 案例。"
+              : "暂时无法恢复上次打开的论文。"
+            : "example" in resume
+              ? "正在打开 ClashBench 论文案例…"
+              : "正在恢复论文草稿…"}
         </p>
         {failed && (
           <>
@@ -919,16 +976,20 @@ export default function PaperStudio() {
     );
   return (
     <PaperWorkspace
+      key={resume.paper.id}
       initialPaper={resume.paper}
+      initialEditor={initialEditor}
       pendingWrite={!!resume.pendingWrite}
     />
   );
 }
 function PaperWorkspace({
   initialPaper,
+  initialEditor,
   pendingWrite,
 }: {
   initialPaper: Paper;
+  initialEditor: boolean;
   pendingWrite: boolean;
 }) {
   const [paper, setPaper] = useState(initialPaper),
@@ -942,8 +1003,9 @@ function PaperWorkspace({
       | "preview"
       | "figure"
       | "library"
+      | "layout"
       | null
-    >(null);
+    >(initialEditor ? "layout" : null);
   const [edit, setEdit] = useState(""),
     [manualSelect, setManualSelect] = useState(false),
     [busy, setBusy] = useState(""),
@@ -1029,6 +1091,37 @@ function PaperWorkspace({
     paper.headline.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").slice(0, 50) || "论文";
   const activePaper = useRef(paper);
   activePaper.current = paper;
+  const [retryProgress, setRetryProgress] = useState<Paper>();
+  async function resumeProcess() {
+    if (!ai || lock.current || !paper.process) return;
+    lock.current = true;
+    setBusy("pipeline");
+    setRetryProgress(paper);
+    try {
+      const done = await producePaper(
+        paper,
+        { live: true, imageModel, source: paper.process.source },
+        (snapshot) => {
+          if (activePaper.current.id === paper.id) {
+            const checkpoint=preservePaperEdits(paper,snapshot,activePaper.current);
+            setRetryProgress(checkpoint);
+            void savePaperDraft(checkpoint, false).catch((err: Error) =>
+              setMessage(err.message),
+            );
+          }
+        },
+      );
+      if (activePaper.current.id === paper.id) setPaper(current=>preservePaperEdits(paper,done,current));
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "本次未能完成，请重试。",
+      );
+    } finally {
+      setRetryProgress(undefined);
+      lock.current = false;
+      setBusy("");
+    }
+  }
   async function retryModel() {
     if (lock.current || !paper.sections) return;
     lock.current = true;
@@ -1177,6 +1270,9 @@ function PaperWorkspace({
                 <Clipboard size={16} />
                 粘贴摘要
               </button>
+              <a className="pr-case-link" href={clashbenchPath}>
+                编辑 ClashBench 示例 <ArrowUpRight size={15} />
+              </a>
             </div>
           </div>
           <aside className="wx-paper-source" aria-label="当前论文">
@@ -1250,6 +1346,13 @@ function PaperWorkspace({
               )}
             </div>
             <div className="pr-result-actions">
+              <button
+                className="pr-rewrite-open"
+                disabled={!!busy}
+                onClick={() => setModal("layout")}
+              >
+                编辑海报图层
+              </button>
               {ai && (
                 <button
                   className="pr-rewrite-open"
@@ -1270,29 +1373,38 @@ function PaperWorkspace({
               </button>
             </div>
           </div>
-          {paper.sections && !!paper.localChannels?.length && (
-            <div className="pr-recovery">
-              <div>
-                <b>
-                  {paper.modelNotice
-                    ? "模型未返回可用文案，已保存本地摘录稿"
-                    : "部分平台使用本地摘录"}
-                </b>
-                <p>
-                  {paper.modelNotice ||
-                    paper.localChannels
-                      .map((c) => platforms[c].name)
-                      .join("、")}
-                  　可以直接编辑或导出。
-                </p>
-              </div>
-              {ai && (
-                <button disabled={!!busy} onClick={retryModel}>
-                  {busy === "model" ? "正在撰写…" : "用原摘要和引言重新撰写"}
-                </button>
-              )}
-            </div>
+          {(retryProgress || paper.process) && (
+            <PaperProcess
+              paper={retryProgress || paper}
+              running={!!retryProgress}
+              retry={ai && !busy ? resumeProcess : undefined}
+            />
           )}
+          {paper.sections &&
+            !paper.process?.live &&
+            !!paper.localChannels?.length && (
+              <div className="pr-recovery">
+                <div>
+                  <b>
+                    {paper.modelNotice
+                      ? "模型未返回可用文案，已保存本地摘录稿"
+                      : "部分平台使用本地摘录"}
+                  </b>
+                  <p>
+                    {paper.modelNotice ||
+                      paper.localChannels
+                        .map((c) => platforms[c].name)
+                        .join("、")}
+                    　可以直接编辑或导出。
+                  </p>
+                </div>
+                {ai && (
+                  <button disabled={!!busy} onClick={retryModel}>
+                    {busy === "model" ? "正在撰写…" : "用原摘要和引言重新撰写"}
+                  </button>
+                )}
+              </div>
+            )}
           <PublicationDesk
             paper={paper}
             channel={channel}
@@ -1358,6 +1470,19 @@ function PaperWorkspace({
             );
           }}
         />
+      )}
+      {modal === "layout" && (
+        <Dialog
+          title="编辑海报图层"
+          className="paper-layout-dialog"
+          close={() => setModal(null)}
+        >
+          <PaperLayoutEditor
+            paper={paper}
+            channel={channel}
+            onChange={setPaper}
+          />
+        </Dialog>
       )}
       {modal === "evidence" && (
         <Evidence
@@ -1430,9 +1555,7 @@ function PaperWorkspace({
             <button
               className="pr-reset"
               onClick={() => {
-                const next = { ...paper };
-                delete next.figure;
-                setPaper(next);
+                setPaper(changePaperFigure(paper));
                 setModal(null);
               }}
             >
@@ -1442,7 +1565,7 @@ function PaperWorkspace({
           <PaperFigure
             file={originalFile.current}
             apply={(figure) => {
-              setPaper({ ...paper, figure });
+              setPaper(changePaperFigure(paper,figure));
               setModal(null);
               setMessage("四个平台的配图已更新");
             }}

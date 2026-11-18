@@ -435,17 +435,32 @@ def test_import_crops_captioned_figure_beyond_text_pages(studio, tmp_path, graph
     page.goto(url + "#papers/import")
     dialog = page.get_by_role("dialog")
     dialog.get_by_label("选择论文文件").set_input_files(path)
-    expect(dialog).to_contain_text("已读取前 2 页")
-    if has_figure:
-        expect(dialog).to_contain_text("已提取 Figure 1 · 原论文第 3 页")
+    expect(dialog).to_contain_text("已读取 3 页，摘要与引言取自前 2 页")
     dialog.locator("button.pr-action").click()
     expect(dialog).not_to_be_visible()
-    source = page.evaluate("JSON.parse(localStorage.getItem('posterlab.paper.v1'))")
+    source = saved_research_paper(page, "Parallel observations")
+    assert [p["page"] for p in source["sourcePages"]] == [1, 2, 3]
+    assert "different location" in source["sourcePages"][2]["text"]
+    assert "different location" not in source["sections"]["introduction"]
+    candidates = {v["label"]:v for v in source["visuals"]}
+    assert "Figure 2" in candidates
+    assert ("Figure 1" in candidates) == has_figure
+    assert all(v["page"] == 3 and v["kind"] == "figure" for v in candidates.values())
+    assert set(source["posterLayouts"]) == {"red", "x", "moments", "wechat"}
+    right_panel = candidates["Figure 2"]["data"].split(",")[1]
+    with Image.open(BytesIO(base64.b64decode(right_panel))) as image:
+        assert 1.85 < image.width / image.height < 2.15
+        rgb = image.convert("RGB")
+        for x in (0.10, 0.50, 0.90):
+            pixel = rgb.getpixel((round(image.width * x), image.height // 2))
+            assert max(abs(a - b) for a, b in zip(pixel, (18, 0, 240))) < 12
     if not has_figure:
         assert "figure" not in source
     else:
         figure = source["figure"]
         assert figure["credit"] == "Figure 1 · 原论文第 3 页"
+        assert figure["data"] == candidates["Figure 1"]["data"]
+        assert "Paired measurements" in candidates["Figure 1"]["caption"]
         with Image.open(BytesIO(base64.b64decode(figure["data"].split(",")[1]))) as img:
             ratio = img.width / img.height
             assert 2.1 < ratio < 2.6
@@ -456,12 +471,53 @@ def test_import_crops_captioned_figure_beyond_text_pages(studio, tmp_path, graph
     page.close()
 
 
+def saved_research_paper(page, title):
+    # The journal contains either a whole draft or an IndexedDB pointer.
+    return page.wait_for_function("""async title => {
+        let d=JSON.parse(localStorage.getItem('posterlab.paper.v1') || 'null');
+        if(d?.libraryId) {
+            const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('posterlab-paper-library');r.onsuccess=()=>resolve(r.result);r.onerror=reject;});
+            const id=d.libraryId;
+            d=await new Promise(resolve=>{const r=db.transaction('papers').objectStore('papers').get(id);r.onsuccess=()=>resolve(r.result);});
+            db.close();
+        }
+        return d?.title===title && d.process?.stages.compile?.state==='done' ? d : false;
+    }""", arg=title).json_value()
+
+
+def research_reading_fixture(body):
+    quote = body["sections"]["abstract"]
+    return {"provider":"fixture", "model":"reader", "methodFigureId": None, "resultTableId": None,
+            "reading":{"problem":{"text":"观察城市树荫。","refs":[{"page":1,"quote":quote}]},
+                       "method":{"text":"","refs":[]},"result":{"text":"","refs":[]}}}
+
+
+def research_layout_fixture():
+    return {"provider":"fixture","model":"layout",
+            "layout":{"title":"城市树荫","subtitle":"","composition":"balanced","accent":"teal",
+                      "blocks":[{"role":"problem","heading":"研究问题","text":"观察城市树荫。"}],"caption":""}}
+
+
+def open_saved_m87_draft(page, url):
+    # Old browser drafts predate multi-figure projects. Exercise migration with
+    # that actual format independently of whichever case is featured today.
+    quote = "The ring diameter is 42 ± 3 microarcseconds."
+    copy = json.loads((SITE.parent / "web/src/paper-example-copy.json").read_text())
+    legacy = {"id":"example-m87","title":"First M87 Event Horizon Telescope Results",
+              "headline":"M87 中心的亮环有多大？","source":"https://doi.org/10.3847/2041-8213/ab0ec7",
+              "body":quote,"sample":True,"evidence":[{"quote":quote,"line":"亮环直径约 42 微角秒。"}],
+              "edits":copy}
+    page.goto(url)
+    page.evaluate("(p)=>localStorage.setItem('posterlab.paper.v1',JSON.stringify(p))",legacy)
+    page.goto(url+"#papers")
+
+
 def test_paper_channels_preserve_existing_work_and_export_platform_files(studio):
     browser, url = studio
     ctx = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
     page = ctx.new_page()
     page.route("**/api/status", lambda route: route.fulfill(json={"ai": False}))
-    page.goto(url + "#papers")
+    open_saved_m87_draft(page, url)
     expect(page.locator(".pub-copy")).to_contain_text("M87 中心的亮环")
     # A previously saved paper with custom copy and archived card data.
     page.evaluate(r"""() => {
@@ -519,7 +575,7 @@ def test_paper_channels_preserve_existing_work_and_export_platform_files(studio)
 def test_paper_resumes_latest_library_copy_when_local_storage_is_full(studio):
     browser, url = studio
     page = browser.new_page()
-    page.goto(url + "#papers")
+    open_saved_m87_draft(page, url)
     expect(page.locator(".pub-copy")).to_contain_text("M87")
     page.wait_for_function("!!localStorage.getItem('posterlab.paper.v1')")
     page.evaluate("""() => {
@@ -549,8 +605,11 @@ def test_large_paper_keeps_last_edit_and_figure_across_immediate_reload(studio):
 
     browser, url = studio
     page = browser.new_page()
-    page.goto(url + "#papers")
+    open_saved_m87_draft(page, url)
     page.wait_for_function("!!localStorage.getItem('posterlab.paper.v1')")
+    # The fixture installed a legacy localStorage snapshot. Wait for the app's
+    # first library migration before our test opens its IndexedDB connection.
+    page.wait_for_function("async () => (await indexedDB.databases()).some(db => db.name === 'posterlab-paper-library' && db.version === 1)")
     jpeg = BytesIO()
     Image.effect_noise((1300, 1300), 92).convert("RGB").save(jpeg, format="JPEG", quality=90)
     data = "data:image/jpeg;base64," + base64.b64encode(jpeg.getvalue()).decode()
@@ -598,7 +657,7 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     wall = intro.get_by_role("group", name="宣传作品海报墙")
     wall.get_by_role("button", name="暂停海报浮动").click()
     expect(wall.locator(".wall-mount img").first).to_have_css("animation-play-state", "paused")
-    wall.get_by_role("button", name="欣赏海报：M87 中心的亮环有多大？").click()
+    wall.get_by_role("button", name="欣赏海报：ClashBench · 共享资源冲突评测").click()
     lightbox = page.get_by_role("dialog")
     page.keyboard.press("ArrowRight")
     expect(lightbox.get_by_role("heading", name="秋夜设计书展")).to_be_visible()
@@ -644,7 +703,7 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     preview = page.get_by_role("region", name="成品交互演示")
     group = preview.get_by_role("group", name="选择案例平台")
     group.get_by_role("button", name="X", exact=True).click()
-    expect(preview.get_by_role("img", name="LIGO 双黑洞并合 · X成品")).to_be_visible()
+    expect(preview.get_by_role("img", name="ClashBench 智能体评测 · X成品")).to_be_visible()
     # A pending anchor scroll must keep the selected paper kit under the pointer.
     page.evaluate("scrollTo(0, document.querySelector('.pl-chapter-1').offsetHeight + document.querySelector('#workbench').offsetTop)")
     page.wait_for_function("document.querySelector('.pl-chapter-1').getBoundingClientRect().top < innerHeight * .54")
@@ -693,18 +752,29 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     page.set_content("""<title>City shades</title><h1>City shades</h1><h2>Abstract</h2>
         <p>Four parks were studied in summer.</p><h2>1. Introduction</h2>
         <p>Earlier studies focused on winter.</p><section style="break-before:page">A second page of background.</section>
-        <section style="break-before:page">Never send the third page.</section>""")
+        <section style="break-before:page">Evidence from the third page.</section>""")
     path = tmp_path / "shade.pdf"
     page.pdf(path=path)
     page.context.grant_permissions(["clipboard-read", "clipboard-write"])
     statuses = []
     page.route("**/api/status", lambda route: statuses.append(route))
-    requests = []
+    requests, reading_requests, layout_requests = [], [], []
+    def reading(route):
+        body=route.request.post_data_json
+        reading_requests.append(body)
+        route.fulfill(json=research_reading_fixture(body))
+    def layout(route):
+        layout_requests.append(route.request.post_data_json)
+        route.fulfill(json=research_layout_fixture())
+    page.route("**/api/outreach/paper-reading", reading)
+    page.route("**/api/outreach/paper-layout", layout)
 
     def capture(route):
         requests.append(route.request.post_data_json)
         route.fulfill(json={"model":"test-model", "provider":"StepFun", "headline":"城市树荫",
-                            "red":"城市树荫\n\n模型返回的笔记", "moments":"模型返回的短分享", "evidence_ids":{}})
+                            "red":"城市树荫\n\n模型返回的笔记" if len(requests)==1 else "不能覆盖已完成的小红书稿",
+                            "moments":"模型返回的短分享", "evidence_ids":{},
+                            **({"x":["Compare the shaded paths."],"wechat":"公众号观察\n\n补齐的发布稿。"} if len(requests)>1 else {})})
 
     page.route("**/api/outreach/paper", capture)
     page.goto(url + "#papers/import")
@@ -731,7 +801,12 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     statuses[0].fulfill(json={"ai": True})
     dialog.get_by_role("button", name="生成四套宣传材料").click()
     expect(dialog).to_have_count(0)
-    assert len(requests) == 1
+    assert len(reading_requests) == len(layout_requests) == len(requests) == 1
+    assert [p["page"] for p in reading_requests[0]["pages"]] == [1,2,3]
+    assert "Evidence from the third page" in reading_requests[0]["pages"][2]["text"]
+    assert reading_requests[0]["candidates"] == []
+    assert layout_requests[0]["methodFigureId"] is None and layout_requests[0]["resultTableId"] is None
+    assert "pages" not in requests[0]
     assert requests[0]["sections"] == {"abstract":"Four parks were studied in summer.", "introduction":"Earlier work examined winter shade."}
     expect(page.locator(".pr-copy")).to_contain_text("模型返回的笔记")
     page.get_by_role("button", name="复制标题").click()
@@ -740,6 +815,11 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     assert page.evaluate("navigator.clipboard.readText()") == "模型返回的笔记\n\n论文：City shades"
     page.locator(".pr-tabs").get_by_role("button", name="公众号").click()
     expect(page.get_by_text("本地摘录稿", exact=True)).to_be_visible()
+    page.get_by_role("button",name="继续未完成的步骤").click()
+    expect(page.locator(".pr-copy")).to_contain_text("补齐的发布稿")
+    assert len(reading_requests) == len(layout_requests) == 1 and len(requests) == 2
+    page.locator(".pr-tabs").get_by_role("button",name="小红书",exact=True).click()
+    expect(page.locator(".pr-copy")).to_contain_text("模型返回的笔记")
     page.close()
 
 
@@ -747,6 +827,8 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     browser, url = studio
     page = browser.new_page()
     page.route("**/api/status", lambda r: r.fulfill(json={"ai": True}))
+    page.route("**/api/outreach/paper-reading", lambda route: route.fulfill(json=research_reading_fixture(route.request.post_data_json)))
+    page.route("**/api/outreach/paper-layout", lambda route: route.fulfill(json=research_layout_fixture()))
     calls = []
     def assist(route):
         calls.append(route.request.post_data_json)
@@ -763,13 +845,17 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     d.get_by_label("论文标题").fill("Park shade")
     d.get_by_label("摘要或论文原文").fill("The team observed four parks across the city.")
     d.get_by_role("button",name="生成四套宣传材料").click()
-    expect(page.get_by_text("模型未返回可用文案，已保存本地摘录稿")).to_be_visible()
+    record = page.get_by_role("region", name="海报制作记录")
+    expect(record.get_by_role("button", name="继续未完成的步骤")).to_be_visible()
+    record.get_by_role("button", name="查看步骤与依据").click()
+    expect(record).to_contain_text("模型回复不完整")
+    expect(page.get_by_text("本地摘录稿", exact=True)).to_be_visible()
     page.reload()
     page.get_by_role("button",name="编辑",exact=True).click()
     d.get_by_label("发布文案").fill("我已核过这段文字")
     d.get_by_role("button",name="保存文案").click()
-    page.get_by_role("button",name="用原摘要和引言重新撰写").click()
-    expect(page.locator(".pr-recovery")).to_have_count(0)
+    record.get_by_role("button",name="继续未完成的步骤").click()
+    expect(record.get_by_role("button",name="继续未完成的步骤")).to_have_count(0)
     expect(page.locator(".pr-copy")).to_contain_text("我已核过这段文字")
     page.locator(".pr-tabs").get_by_role("button",name="公众号").click()
     expect(page.locator(".pr-copy")).to_contain_text("公众号导读")
@@ -784,6 +870,7 @@ def test_paper_service_failure_saves_sources_then_retries_without_another_upload
     page.locator(".pr-tabs").get_by_role("button", name="小红书").click()
     expect(page.locator(".pr-copy")).to_have_text("我已核过这段文字")
     assert len(calls)==2 and calls[0]==calls[1]
+    page.close()
 
 
 def test_generated_campaign_artwork_applies_to_every_proof_and_survives_failure(studio):
@@ -1075,12 +1162,16 @@ def test_paper_preserves_successful_stage_when_only_one_retry_is_needed(studio, 
     copy = {"provider": "Paratera", "model": "fixture-writer", "headline": "城市树荫，能降多少温？",
             "red":"树下有多凉？\n\n四座公园的测量。", "x":["Measuring shade in four parks."],
             "wechat":"测量树荫", "moments":"公园的测量记录", "evidence_ids":{}}
-    keys = {"paper": [], "paper-artwork": []}
+    keys = {name:[] for name in ("paper-reading","paper-layout","paper","paper-artwork")}
 
     def models(route):
         stage = route.request.url.rsplit("/", 1)[-1]
         keys[stage].append(route.request.headers["idempotency-key"])
-        if stage == failed_stage and len(keys[stage]) == 1:
+        if stage=="paper-reading":
+            route.fulfill(json=research_reading_fixture(route.request.post_data_json))
+        elif stage=="paper-layout":
+            route.fulfill(json=research_layout_fixture())
+        elif stage == failed_stage and len(keys[stage]) == 1:
             if stage == "paper":
                 route.fulfill(status=429, json={"detail": "文案通道暂忙"})
             else:
@@ -1096,21 +1187,22 @@ def test_paper_preserves_successful_stage_when_only_one_retry_is_needed(studio, 
     dialog.get_by_label("摘要或论文原文").fill("Four city parks were surveyed during summer.")
     dialog.get_by_role("button", name="生成四套宣传材料").click()
     expect(dialog).to_have_count(0)
-    assert {k:len(v) for k,v in keys.items()} == {"paper":1, "paper-artwork":1}
+    assert all(len(calls)==1 for calls in keys.values())
     page.reload()
-    if failed_stage == "paper":
+    expect(page.get_by_role("button",name="继续未完成的步骤")).to_be_visible()
+    if failed_stage=="paper":
         expect(page.locator(".pub-art-credit")).to_contain_text("fixture-image")
-        page.get_by_role("button", name="用原摘要和引言重新撰写").click()
-        expect(page.locator(".pr-recovery")).to_have_count(0)
     else:
         expect(page.locator(".pr-copy")).to_contain_text("四座公园")
-        page.get_by_role("button", name="重试主视觉").click()
+    page.get_by_role("button",name="继续未完成的步骤").click()
+    expect(page.get_by_role("region",name="海报制作记录")).to_contain_text("6 项已执行")
+    expect(page.get_by_role("button",name="继续未完成的步骤")).to_have_count(0)
     expect(page.locator(".pub-art-credit")).to_contain_text("fixture-image")
     if failed_stage == "paper-artwork":
         assert keys["paper-artwork"][0] == keys["paper-artwork"][1]
     expect(page.locator(".pr-copy")).to_contain_text("四座公园")
     assert len(keys[failed_stage]) == 2
-    assert sum(len(v) for v in keys.values()) == 3
+    assert sum(len(v) for v in keys.values()) == 5
     page.close()
 
 
@@ -1127,7 +1219,8 @@ def test_paper_drawio_exports_editable_text_and_original_figure_at_channel_size(
         page.get_by_role("button", name="下载可编辑 Draw.io").click()
     sample_xml = ElementTree.parse(sample.value.path())
     assert sample_xml.find(".//UserObject[@name='海报标题']/mxCell").get("style").startswith("text;")
-    assert sample_xml.find(".//UserObject[@name='图像署名']") is not None
+    assert sample_xml.find(".//UserObject[@name='Figure 2 · 原论文第 4 页']") is not None
+    assert sample_xml.find(".//UserObject[@name='Table 1 · 原论文第 7 页']") is not None
 
     def image(format):
         buf = BytesIO()
@@ -1158,3 +1251,138 @@ def test_paper_drawio_exports_editable_text_and_original_figure_at_channel_size(
     geometry = original.find("mxGeometry")
     assert float(geometry.get("width"))/float(geometry.get("height")) == pytest.approx(40/15, rel=1e-4)
     page.close()
+
+
+def test_public_research_editor_keeps_dragged_text_and_replaced_source_on_reload(studio):
+    from xml.etree import ElementTree
+
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 1440, "height": 950})
+    page.goto(url + "#papers/example/clashbench")
+    editor = page.get_by_role("dialog", name="编辑海报图层")
+    layers = editor.get_by_label("当前图层")
+    layers.select_option("title")
+    editor.get_by_label("文字内容").fill("ClashBench · 手动编辑的标题")
+    title = editor.get_by_role("button", name="移动海报标题", exact=True)
+    pos = title.bounding_box()
+    x, y = pos["x"] + pos["width"] / 3, pos["y"] + pos["height"] / 2
+    old_x = int(editor.get_by_label("水平位置").input_value())
+    page.mouse.move(x, y)
+    page.mouse.down()
+    page.mouse.move(x + 18, y + 5, steps=4)
+    page.mouse.up()
+    assert int(editor.get_by_label("水平位置").input_value()) > old_x
+    title.press("Shift+ArrowRight")
+    saved_x = int(editor.get_by_label("水平位置").input_value())
+
+    layers.select_option("method-image")
+    editor.get_by_label("论文图片与表格").select_option("table-1-p7")
+    editor.get_by_role("button", name="替换当前图片").click()
+    layers.select_option("method-source")
+    assert "Table 1" in editor.get_by_label("文字内容").input_value()
+    page.keyboard.press("Escape")
+    page.reload()
+    page.get_by_role("button", name="编辑海报图层", exact=True).click()
+    layers.select_option("title")
+    assert editor.get_by_label("文字内容").input_value() == "ClashBench · 手动编辑的标题"
+    assert int(editor.get_by_label("水平位置").input_value()) == saved_x
+    page.keyboard.press("Escape")
+    with page.expect_download() as item:
+        page.get_by_role("button", name="下载可编辑 Draw.io").click()
+    model = ElementTree.parse(item.value.path()).find(".//mxGraphModel")
+    title_xml = model.find(".//UserObject[@name='海报标题']")
+    assert abs(float(title_xml.find(".//mxGeometry").get("x")) - saved_x) < 1
+    clips = model.findall(".//UserObject[@name='Table 1 · 原论文第 7 页']")
+    assert len(clips) == 2 and clips[0].find("mxCell").get("style") == clips[1].find("mxCell").get("style")
+    page.close()
+
+
+def test_invited_workspaces_keep_private_drafts_images_and_reviews_separate(studio):
+    from urllib.parse import urlsplit
+
+    browser, url = studio
+    context = browser.new_context(viewport={"width": 1440, "height": 960})
+    page = context.new_page()
+    page.set_default_timeout(7000)
+    demo = json.loads((SITE / 'demo/manifest.json').read_text())
+    job = demo['/generations'][0]
+    uid = job['id']
+    calls, unscoped, errors = [], [], []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+
+    def mounted(route):
+        path = urlsplit(route.request.url).path
+        match = re.fullmatch(r'/t/(lab-[ab])/(app|api)/(.*)', path)
+        if not match:
+            unscoped.append(path)
+            return route.fulfill(status=404)
+        group, area, rest = match.groups()
+        if area == 'app':
+            return route.fulfill(response=route.fetch(url=url + rest))
+        endpoint = '/' + rest
+        calls.append((group, endpoint))
+        if endpoint == f'/generations/{uid}/image':
+            return route.fulfill(path=SITE / job['image_url'])
+        if endpoint == '/generations':
+            return route.fulfill(json=[{**job, 'brief': '标题：' + group + ' 海报',
+                                        'image_url': f'/api/generations/{uid}/image'}])
+        return route.fulfill(json=demo.get(endpoint))
+
+    page.route('**/t/**', mounted)
+    page.route('**/api/**', mounted)
+    page.goto(url)
+    page.evaluate('''() => {
+      localStorage.setItem('posterlab.chat.draft', JSON.stringify('owner secret'));
+      localStorage.setItem('posterlab.works.v1', JSON.stringify([{id:'owner',theme:'paper',fields:{title:'Owner legacy'}}]));
+    }''')
+    for group in ('lab-a', 'lab-b'):
+        mount = url + f't/{group}/app/'
+        page.goto(mount + '#studio')
+        composer = page.get_by_label('发送给 PosterLab 的消息')
+        expect(composer).to_have_value('')
+        composer.fill(group + ' chat')
+        page.get_by_role('button', name='需求助手', exact=True).click()
+        idea = page.get_by_label('你想做什么？')
+        assert idea.input_value() != 'lab-a private plan'
+        idea.fill(group + ' private plan')
+        page.keyboard.press('Escape')
+        if not page.locator('.chat-sidebar').is_visible():
+            page.get_by_role('button', name='打开对话列表').click()
+        assert (group, '/generations') in calls, (calls, unscoped, errors)
+        expect(page.locator('.thread-list')).to_contain_text(group + ' 海报')
+        page.locator('.thread-list button').filter(has_text=group + ' 海报').click()
+        prefix = f'/t/{group}/api/generations/{uid}'
+        expect(page.locator('.canvas-panel img').first).to_have_attribute('src', prefix + '/image')
+        page.get_by_role('button', name='作品详情', exact=True).click()
+        expect(page.get_by_role('link', name='下载 HTML 源文件包')).to_have_attribute('href', prefix + '/package')
+        page.keyboard.press('Escape')
+        page.get_by_role('button', name=re.compile('AI 评测海报|查看评测')).click()
+        expect(page.get_by_role('dialog').get_by_role('img', name='本次评测对应版本')).to_have_attribute('src', prefix + '/image')
+        assert (group, '/evaluations/for/' + uid) in calls
+        page.keyboard.press('Escape')
+        page.goto(mount + '#papers/import')
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_role('button', name='手动填写标题和摘要').click()
+        dialog.get_by_label('论文标题').fill(group + ' paper')
+        dialog.get_by_label('摘要或论文原文').fill('Four parks were observed in summer.')
+        dialog.get_by_role('button', name='生成四套本地摘录稿').click()
+        expect(dialog).to_be_hidden()
+        page.get_by_role('button', name='我的论文').click()
+        expect(dialog.get_by_role('button', name=group+' paper')).to_be_visible()
+        if group == 'lab-b':
+            expect(dialog.get_by_role('button', name='lab-a paper')).to_have_count(0)
+        page.goto(mount + '?mode=templates#new?edition=afterglow&format=landscape')
+        page.get_by_role('button',name='我的作品').click()
+        expect(page.get_by_role('button',name='打开作品 Owner legacy')).to_have_count(0)
+        page.wait_for_function('''async group => (await indexedDB.databases()).some(db=>db.name === '/t/'+group+':posterlab-studio')''',arg=group)
+    # Reload the first workspace in the very same tab. A manual navigation does
+    # not clear sessionStorage, so this also exercises isolated tool drafts.
+    page.goto(url + 't/lab-a/app/#studio')
+    if not page.locator('.chat-sidebar').is_visible():
+        page.get_by_role('button', name='打开对话列表').click()
+    page.locator('.chat-sidebar').get_by_role('button',name='新对话',exact=True).click()
+    page.get_by_role('button',name='需求助手',exact=True).click()
+    expect(page.get_by_label('你想做什么？')).to_have_value('lab-a private plan')
+    assert page.evaluate('JSON.parse(localStorage.getItem("posterlab.chat.draft"))') == 'owner secret'
+    assert not unscoped and not errors
+    context.close()

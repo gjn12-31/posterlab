@@ -15,7 +15,7 @@ import LiveStudioLink from "./LiveStudioLink";
 import { kits, kitBase, useKitFiles } from "./published-kits";
 import "./home-workspace.css";
 
-const paperKit = kits.find((kit) => kit.id === "ligo")!;
+const paperKit = kits.find((kit) => kit.id === "clashbench")!;
 const eventKit = kits.find((kit) => kit.id === "cyanotype")!;
 const chapters = [
   {
@@ -24,8 +24,8 @@ const chapters = [
       "上传论文 PDF，为小红书、X、朋友圈和公众号分别生成宣传文案与配图。",
     primary: "导入论文 PDF",
     path: "#papers/import",
-    secondary: "查看平台成稿",
-    deep: "#papers/channels",
+    secondary: "编辑 ClashBench 案例",
+    deep: "#papers/example/clashbench",
     icon: FileStack,
   },
   {
@@ -178,11 +178,11 @@ function Sample({
           <span>蓝晒工作坊 · 海边印刷室</span>
         ) : (
           <a
-            href="https://doi.org/10.1103/PhysRevLett.116.061102"
+            href="https://arxiv.org/abs/2609.19892"
             target="_blank"
             rel="noreferrer"
           >
-            作者口吻示范 · PosterLab 拟稿 · 图 1 来自 LIGO / Virgo · CC BY 3.0
+            ClashBench · Yuejin Xie 等 · 图 2、表 1 裁自原论文 · CC BY 4.0
           </a>
         )}
         <a

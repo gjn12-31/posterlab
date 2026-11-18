@@ -1,0 +1,85 @@
+.cp-trace {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid #d9e2ef;
+  border-radius: 12px;
+  color: #18243c;
+  background: #f8faff;
+}
+.cp-trace header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.cp-trace header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.cp-trace header > span {
+  color: #536079;
+  font-size: 13px;
+}
+.cp-trace ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.cp-trace li {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr);
+  gap: 11px;
+  align-items: start;
+}
+.cp-trace li + li {
+  margin-top: 2px;
+}
+.cp-trace-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 12px;
+  background: #167151;
+}
+.cp-trace [data-state="working"] .cp-trace-mark {
+  background: #2759ee;
+}
+.cp-trace [data-state="failed"] .cp-trace-mark {
+  background: #ae431c;
+}
+.cp-trace details {
+  min-width: 0;
+}
+.cp-trace summary {
+  position: relative;
+  padding: 6px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cp-trace summary strong {
+  font-weight: 590;
+}
+.cp-trace summary span {
+  float: right;
+  color: #536079;
+  font-size: 12px;
+}
+.cp-trace [data-state="failed"] summary span {
+  color: #923711;
+}
+.cp-trace details p {
+  margin: 1px 0 11px;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #39485f;
+}
+.cp-trace-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

@@ -141,6 +141,10 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
 
     app.state.gateway = gateway
 
+    @app.get('/healthz')
+    def health():
+        return {'status': 'ok'}
+
     @app.get('/api/models')
     def models():
         return {'provider': gateway.name, 'models': gateway.models, 'defaults': gateway.defaults}
@@ -163,7 +167,9 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             if request.headers.get('content-type','').split(';')[0] != 'application/json':
                 return JSONResponse({'detail':'仅接受 JSON'}, status_code=415)
             # Two 45k-character sections can exceed 64 KB even before JSON escaping.
-            body_limit = {'/api/outreach/paper': 1_200_000, '/api/outreach/campaign-review': 1_700_000}.get(request.url.path, 64_000)
+            body_limit = {'/api/outreach/paper': 1_200_000, '/api/outreach/paper-reading': 2_000_000,
+                          '/api/outreach/paper-layout': 128_000,
+                          '/api/outreach/campaign-review': 1_700_000}.get(request.url.path, 64_000)
             chunks, size = [], 0
             async for chunk in request.stream():
                 size += len(chunk)
@@ -253,6 +259,8 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
 
     from .outreach import register_outreach
     register_outreach(app, ledger, gateway, transport)
+    from .paper_poster import register_paper_poster
+    register_paper_poster(app, ledger, gateway, transport)
     register_artwork(app, ledger, gateway, transport)
     from .campaign_review import register_campaign_review
     register_campaign_review(app, ledger, gateway, transport)

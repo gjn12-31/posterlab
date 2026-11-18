@@ -1,3 +1,4 @@
+import { workspaceKey } from "./workspace";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -16,7 +17,7 @@ import "./atlas.css";
 export default function AtlasCreate() {
   const [title, setTitle] = useState(() => {
     try {
-      return localStorage.getItem("posterlab.discovery.title") ?? "";
+      return localStorage.getItem(workspaceKey("posterlab.discovery.title")) ?? "";
     } catch {
       return "";
     }
@@ -100,7 +101,7 @@ export default function AtlasCreate() {
                   setTitle(e.target.value);
                   try {
                     localStorage.setItem(
-                      "posterlab.discovery.title",
+                      workspaceKey("posterlab.discovery.title"),
                       e.target.value,
                     );
                   } catch {}

@@ -1,3 +1,4 @@
+import { workspaceKey } from "./workspace";
 import {
   briefSchema,
   campaignPlanSchema,
@@ -266,7 +267,7 @@ export type Draft = {
   edition: Edition;
   brief: Brief;
 };
-export const draftKey = "posterlab.campaign.v1";
+export const draftKey = workspaceKey("posterlab.campaign.v1");
 export function readCampaign(): Draft {
   try {
     const s = JSON.parse(localStorage.getItem(draftKey) ?? "null");

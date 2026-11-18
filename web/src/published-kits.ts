@@ -12,6 +12,7 @@ const campaignFormats = {
   copy: () => "发布文案.txt",
 };
 export const kits = [
+  { id:"clashbench", label:"ClashBench 智能体评测", title:"共享环境里的资源冲突", ...paperFormats },
   { id: "ligo", label: "LIGO 双黑洞并合", title: "两台探测器，一段引力波", ...paperFormats },
   { id: "cyanotype", label: "蓝晒工作坊", title: "晒出一片海 · 蓝晒工作坊", ...campaignFormats },
   {
@@ -43,6 +44,18 @@ export type PreviewFile = { url: string; text: string };
 export type Kit = (typeof kits)[number];
 export const kitBase = import.meta.env.BASE_URL + "kits/";
 async function readKit(kit: Kit) {
+  if(kit.id==="clashbench"){
+    const response=await fetch(kitBase+"clashbench-copy.json");
+    if(!response.ok)throw Error("案例文案未能加载");
+    const texts=await response.json() as Record<string,string>;
+    const names=["red","x","moments","wechat"];
+    const files=await Promise.all(names.map(async(key)=>{
+      const res=await fetch(kitBase+"clashbench-"+key+".webp");
+      if(!res.ok)throw Error("案例配图未能加载");
+      return {blob:await res.blob(),text:texts[key]};
+    }));
+    return {files,project:null};
+  }
   const [res, { default: JSZip }] = await Promise.all([
     fetch(kitBase + kit.id + ".zip"),
     import("jszip"),

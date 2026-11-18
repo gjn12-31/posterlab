@@ -1,6 +1,7 @@
+import { workspaceKey } from "./workspace";
 import { openDB } from "idb";
 import { type Project, projectSchema, migrateLegacy } from "./model";
-const db = openDB("posterlab-studio", 1, {
+const db = openDB(workspaceKey("posterlab-studio"), 1, {
   upgrade(db) {
     db.createObjectStore("projects", { keyPath: "id" });
     db.createObjectStore("settings");
@@ -44,7 +45,7 @@ export async function migrate() {
   if (await d.get("settings", "legacyImported")) return 0;
   let raw;
   try {
-    raw = JSON.parse(localStorage.getItem("posterlab.works.v1") || "[]");
+    raw = JSON.parse(localStorage.getItem(workspaceKey("posterlab.works.v1")) || "[]");
   } catch {
     return 0;
   }

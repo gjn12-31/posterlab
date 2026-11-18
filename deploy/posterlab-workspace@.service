@@ -1,0 +1,29 @@
+[Unit]
+Description=PosterLab invited workspace %i
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+User=plws-%i
+WorkingDirectory=/opt/posterlab/current
+EnvironmentFile=/etc/posterlab/studio.env
+EnvironmentFile=/etc/posterlab/workspaces/%i/runtime.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONPATH=/opt/posterlab/current/src
+Environment=PLAYWRIGHT_BROWSERS_PATH=/opt/posterlab/browsers
+ExecStart=/opt/posterlab/venv/bin/python -m posterlab.server
+StateDirectory=posterlab-ws-%i
+StateDirectoryMode=0700
+UMask=0077
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target

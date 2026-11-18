@@ -4,7 +4,7 @@ import {
   FileText, GalleryHorizontalEnd, MoveHorizontal,
 } from "lucide-react";
 import PosterWall from "./PosterWall";
-import paperCopy from "./paper-example-copy.json";
+import {clashbenchPath} from "./clashbench-case";
 import "./landing-showcase.css";
 
 const assets = import.meta.env.BASE_URL + "showcase/";
@@ -12,15 +12,15 @@ const cases = {
   paper: {
     label: "论文案例",
     source: "论文 PDF",
-    title: "First M87 Event Horizon Telescope Results. I. The Shadow of the Supermassive Black Hole",
-    author: "Event Horizon Telescope Collaboration · 2019",
-    excerpt: "We have resolved the central compact radio source as an asymmetric bright emission ring with a diameter of 42 ± 3 μas, which is circular and encompasses a central depression in brightness with a flux ratio ≳10:1.",
-    poster: "gallery-paper.webp",
-    posterTitle: "M87 中心的亮环有多大？",
+    title: "ClashBench: Conflicts Leading Agents to Seize and Harm",
+    author: "Yuejin Xie et al. · arXiv:2609.19892",
+    excerpt: "As agent systems become more widely used, multiple agent sessions increasingly run alongside pre-existing user tasks in the same environment, sharing resources with limited capacity or mutually exclusive states.",
+    poster: "gallery-clashbench.webp",
+    posterTitle: "任务完成了，原任务却挂了",
     channel: "小红书发布稿",
-    copy: paperCopy.red.split("\n\n")[1],
-    suite: "小红书、X、朋友圈、公众号",
-    url: "#collection/paper",
+    copy: "我们想看的不是任务能否完成，而是怎样完成。ClashBench让新任务B与既有任务A争用资源；高权限智能体可能终止、覆盖或降级A，而评测会分别检查B是否完成、A是否健康。",
+    suite: "方法图、实验表与四平台文案",
+    url: "#collection/clashbench",
   },
   event: {
     label: "活动案例",
@@ -134,6 +134,7 @@ function Comparison() {
           </div>
           <div className="ls-suite">
             <span>{current.suite}</span>
+            {paper && <a className="ls-more" href={clashbenchPath}>编辑此案例 <ArrowRight size={14}/></a>}
             <a className="ls-more" href={current.url} aria-label={"查看完整案例：" + current.posterTitle}>查看整套成品 <ArrowUpRight size={15} /></a>
           </div>
         </div>

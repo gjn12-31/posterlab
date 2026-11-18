@@ -5,11 +5,13 @@ export default function Dialog({
   close,
   children,
   className = "",
+  dismissible = true,
 }: {
   title: string;
   close: () => void;
   children: ReactNode;
   className?: string;
+  dismissible?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -23,15 +25,17 @@ export default function Dialog({
       ref={ref}
       onCancel={(e) => {
         e.preventDefault();
-        close();
+        if (dismissible) close();
       }}
       aria-label={title}
     >
       <div className="pr-dialoghead">
         <h2>{title}</h2>
-        <button aria-label="关闭" onClick={close}>
-          <X />
-        </button>
+        {dismissible && (
+          <button aria-label="关闭" onClick={close}>
+            <X />
+          </button>
+        )}
       </div>
       {children}
     </dialog>
