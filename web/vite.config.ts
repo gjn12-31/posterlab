@@ -4,5 +4,10 @@ export default defineConfig({
   plugins: [react()],
   base: "./",
   build: { outDir: "../site", emptyOutDir: true },
-  server: { proxy: { "/api": "http://127.0.0.1:8787" } },
+  server: {
+    proxy: {
+      "/api": "http://127.0.0.1:8787",
+      "/legacy": "http://127.0.0.1:8787",
+    },
+  },
 });
