@@ -272,6 +272,52 @@ def test_targeted_rewrite_can_see_the_shared_opening_but_keeps_shared_scientific
     assert not publication_issues(drafts, PAPER)
 
 
+def test_lightly_reworded_paragraphs_still_trigger_a_channel_rewrite():
+    from posterlab.outreach_strategy import publication_issues
+
+    first = '同一张城市步道图里，早晚经过同一路口会看见两种树影。'
+    second = '我们把这个路口的两次读数放在一起看，先找影子落在哪边。'
+    drafts = {'red': '路口的两面\n\n' + first + second,
+              'wechat': '影子在哪边\n\n' + first.replace('看见', '看到') + second.replace('先找', '再找')}
+    assert set(publication_issues(drafts, PAPER)) == {'wechat'}
+    drafts['wechat'] = '谁在用这张图\n\n' + first + '画步行路线的同事可以按路段选适合的时段。'
+    assert not publication_issues(drafts, PAPER)
+
+
+def test_source_backed_thread_finishes_with_a_reader_invitation():
+    from posterlab.outreach_strategy import publication_issues
+
+    payload = {**PAPER, 'reading': {'method': {'text': 'Two maps of the same routes.'}}}
+    thread = ['Where did the shade go?', 'We checked the same park routes at midday.']
+    assert set(publication_issues({'x': thread}, payload)) == {'x'}
+    for end in ('Trail planners, compare the two routes on our map.', 'Which route would you check first?'):
+        assert not publication_issues({'x': [thread[0], end]}, payload)
+
+
+def test_chinese_channels_close_with_a_relevant_invitation():
+    from posterlab.outreach_strategy import publication_issues
+
+    payload = {**PAPER, 'reading': {'method': {'text': 'Map reading.'}}}
+    story = '我们想知道夏天下午走哪边更凉快，就把同一路口的两张树影图放在了一起。'
+    for channel in ('red', 'moments', 'wechat'):
+        assert channel in publication_issues({channel: story + '步道规划者值得把遮阴纳入考虑。'}, payload)
+        for close in ('做路线设计的朋友，可以对照看看图上的路口。', '规划散步路线时，你会先选图上哪一边？'):
+            assert not publication_issues({channel: story + close + '\n#步行地图'}, payload)
+
+
+def test_review_of_an_earlier_channel_cannot_duplicate_a_later_channels_opening(tmp_path):
+    opening = '我们把城市步道树影图分享给正在准备夏季路线的朋友，看看哪一边适合下午经过。'
+    old = {**PAPER_RESULT, 'red': '路口写生\n\n本文提出了一种记录步道树冠的方法。', 'wechat': '下午走哪边\n\n' + opening}
+    calls = []
+    def upstream(request):
+        calls.append(request)
+        return completion(old if len(calls) == 1 else {'red': '夏天从哪边走\n\n' + opening})
+    with TestClient(create_app(tmp_path, api_key='test', transport=httpx.MockTransport(upstream), serve_site=False)) as client:
+        result = client.post('/api/outreach/paper', headers=HEADERS, json={'title':'Park shade','sections':{'abstract':'We recorded park shade in summer.'}}).json()
+    assert len(calls) == 2
+    assert result['red'] == old['red'] and result['publication_check']['status'] == 'kept'
+
+
 def test_unverified_resource_links_are_removed_even_when_the_revision_fails(tmp_path):
     actual = 'https://github.com/fieldnotebook/shade'
     fabricated = 'https://example.org/demo'

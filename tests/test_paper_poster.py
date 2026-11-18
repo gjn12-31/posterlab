@@ -101,7 +101,9 @@ def test_publication_copy_uses_reading_on_both_input_paths(tmp_path, source):
         res = c.post('/api/outreach/paper', json={'title':SOURCE['title'], **source, 'reading':reading}, headers=HEADERS)
         assert res.is_success
     assert json.loads(calls[0][1]['content'])['reading']==reading
-    assert '问题→方法→实验/观察→邀请' in calls[0][0]['content']
+    prompt = calls[0][0]['content']
+    assert all(phrase in prompt for phrase in ('具体问题','实际用了什么办法','在什么条件下看到什么结果','末尾请一类有关的读者'))
+    assert '不要四次按同一顺序' in prompt and '把副句遮住' in prompt
 
 def test_reading_backed_moments_preserves_named_method_and_an_observed_result():
     from posterlab.outreach_strategy import publication_issues

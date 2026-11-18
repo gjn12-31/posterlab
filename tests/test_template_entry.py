@@ -473,16 +473,26 @@ def test_import_crops_captioned_figure_beyond_text_pages(studio, tmp_path, graph
 
 def saved_research_paper(page, title):
     # The journal contains either a whole draft or an IndexedDB pointer.
-    return page.wait_for_function("""async title => {
-        let d=JSON.parse(localStorage.getItem('posterlab.paper.v1') || 'null');
-        if(d?.libraryId) {
-            const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('posterlab-paper-library');r.onsuccess=()=>resolve(r.result);r.onerror=reject;});
-            const id=d.libraryId;
-            d=await new Promise(resolve=>{const r=db.transaction('papers').objectStore('papers').get(id);r.onsuccess=()=>resolve(r.result);});
-            db.close();
-        }
-        return d?.title===title && d.process?.stages.compile?.state==='done' ? d : false;
+    snapshot = page.wait_for_function("""title => {
+        const draft = JSON.parse(localStorage.getItem('posterlab.paper.v1') || 'null');
+        return draft?.libraryId || (draft?.title === title && draft.process?.stages.compile?.state === 'done')
+          ? draft : false;
     }""", arg=title).json_value()
+    if 'libraryId' in snapshot:
+        snapshot = page.evaluate("""async id => {
+            const db = await new Promise((resolve, reject) => {
+                const req = indexedDB.open('posterlab-paper-library');
+                req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+            });
+            try {
+                return await new Promise((resolve, reject) => {
+                    const req = db.transaction('papers').objectStore('papers').get(id);
+                    req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error);
+                });
+            } finally { db.close(); }
+        }""", snapshot['libraryId'])
+    assert snapshot['title'] == title and snapshot['process']['stages']['compile']['state'] == 'done'
+    return snapshot
 
 
 def research_reading_fixture(body):
@@ -606,28 +616,28 @@ def test_large_paper_keeps_last_edit_and_figure_across_immediate_reload(studio):
     browser, url = studio
     page = browser.new_page()
     open_saved_m87_draft(page, url)
-    page.wait_for_function("!!localStorage.getItem('posterlab.paper.v1')")
-    # The fixture installed a legacy localStorage snapshot. Wait for the app's
-    # first library migration before our test opens its IndexedDB connection.
-    page.wait_for_function("async () => (await indexedDB.databases()).some(db => db.name === 'posterlab-paper-library' && db.version === 1)")
+    # Ensure the original small draft was saved through the application's library.
+    page.get_by_role("button", name="我的论文").click()
+    library = page.get_by_role("dialog")
+    library.get_by_role("button", name="M87 中心的亮环有多大？").click()
+    expect(library).to_be_hidden()
     jpeg = BytesIO()
     Image.effect_noise((1300, 1300), 92).convert("RGB").save(jpeg, format="JPEG", quality=90)
     data = "data:image/jpeg;base64," + base64.b64encode(jpeg.getvalue()).decode()
     assert 1_000_000 < len(data) < 2_400_000
-    page.evaluate("""async data => {
-      const source = JSON.parse(localStorage.getItem('posterlab.paper.v1'));
+    # Seed the existing local draft format, then let the application migrate it.
+    # A raw indexedDB.open() in the fixture can create a v1 database with no
+    # stores before the app runs its upgrade callback, particularly in cold CI.
+    page.goto(url)
+    page.evaluate("""data => {
+      const key = 'posterlab.paper.v1';
+      const source = JSON.parse(localStorage.getItem(key));
       source.id = 'oversize-figure'; source.headline = '大稿恢复测试';
       source.figure = {data, credit:'原图'};
-      const db = await new Promise((resolve, reject) => {
-        const r = indexedDB.open('posterlab-paper-library', 1);
-        r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
-      });
-      const tx = db.transaction(['papers','index'], 'readwrite');
-      tx.objectStore('papers').put(source);
-      tx.objectStore('index').put({id:source.id,title:source.headline,saved:new Date().toISOString()});
-      await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = reject; });
-      db.close(); localStorage.setItem('posterlab.paper.v1', JSON.stringify({libraryId:source.id}));
+      localStorage.setItem(key, JSON.stringify(source));
     }""", data)
+    page.goto(url + "#papers")
+    page.wait_for_function("JSON.parse(localStorage.getItem('posterlab.paper.v1')).libraryId === 'oversize-figure'")
     page.reload()
     expect(page.locator(".pr-userfig")).to_be_visible()
     page.get_by_role("button", name="编辑", exact=True).click()
@@ -1371,10 +1381,12 @@ def test_invited_workspaces_keep_private_drafts_images_and_reviews_separate(stud
         expect(dialog.get_by_role('button', name=group+' paper')).to_be_visible()
         if group == 'lab-b':
             expect(dialog.get_by_role('button', name='lab-a paper')).to_have_count(0)
+        page.evaluate("""group => localStorage.setItem('/t/' + group + ':posterlab.works.v1',
+          JSON.stringify([{id:'legacy-test',theme:'paper',fields:{title:group + ' legacy'}}]))""", group)
         page.goto(mount + '?mode=templates#new?edition=afterglow&format=landscape')
         page.get_by_role('button',name='我的作品').click()
         expect(page.get_by_role('button',name='打开作品 Owner legacy')).to_have_count(0)
-        page.wait_for_function('''async group => (await indexedDB.databases()).some(db=>db.name === '/t/'+group+':posterlab-studio')''',arg=group)
+        expect(page.get_by_role('button',name='打开作品 ' + group + ' legacy')).to_be_visible()
     # Reload the first workspace in the very same tab. A manual navigation does
     # not clear sessionStorage, so this also exercises isolated tool drafts.
     page.goto(url + 't/lab-a/app/#studio')

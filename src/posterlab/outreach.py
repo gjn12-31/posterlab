@@ -176,6 +176,7 @@ def register_outreach(app, ledger, gateway, transport):
             patch = json.loads(choice['message']['content'].strip().removeprefix('```json').removesuffix('```').strip())
             if not isinstance(patch, dict):
                 raise ValueError
+            current_issues = issues.keys()
             for channel in issues:
                 if channel not in patch:
                     continue
@@ -189,9 +190,11 @@ def register_outreach(app, ledger, gateway, transport):
                     proposed = checked_result('paper', candidate, payload)
                 except (ValueError, TypeError, KeyError):
                     continue
-                if channel not in proposed or channel in publication_issues(proposed, payload):
+                remaining_issues = publication_issues(proposed, payload)
+                if channel not in proposed or channel in remaining_issues or remaining_issues.keys() - current_issues:
                     continue
                 result[channel] = proposed[channel]
+                current_issues = remaining_issues.keys()
                 result['evidence_ids'] = proposed['evidence_ids']
                 check['revised'].append(channel)
             check['status'] = ('revised' if len(check['revised']) == len(issues)
