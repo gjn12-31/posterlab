@@ -25,11 +25,13 @@ import {
   X,
 } from "lucide-react";
 import { paperEntries, openPaper, keepPaper } from "./paper-library";
+import { writePaper } from "./outreach";
 import PaperFigure from "./PaperFigure";
 import { CampaignNav } from "./CampaignNav";
 import {
   channels,
   channelCopy,
+  wordingToReview,
   createPaper,
   examplePaper,
   paperKey,
@@ -135,10 +137,12 @@ function ImportPaper({
   close,
   apply,
   fileFirst,
+  ai,
 }: {
   close: () => void;
   apply: (p: Paper, file?: File) => void;
   fileFirst: boolean;
+  ai: boolean;
 }) {
   const [text, setText] = useState(""),
     [title, setTitle] = useState(""),
@@ -148,6 +152,9 @@ function ImportPaper({
     [label, setLabel] = useState(""),
     [error, setError] = useState(""),
     [drag, setDrag] = useState(false);
+  const [useModel, setUseModel] = useState(true),
+    [generating, setGenerating] = useState(false);
+  const generateLock = useRef(false);
   const openFile = useRef<File | undefined>(undefined),
     file = useRef<HTMLInputElement>(null),
     inFlight = useRef(0);
@@ -191,111 +198,136 @@ function ImportPaper({
       if (file.current) file.current.value = "";
     }
   }
-  function generate() {
+  async function generate() {
+    if (generateLock.current) return;
+    generateLock.current = true;
+    setGenerating(true);
+    setError("");
     try {
       const extracted = prepareText(text);
-      const isFile = !!label;
-      const name = title.trim() || extracted.title;
-      apply(
-        createPaper(
-          isFile || (title.trim() && !extracted.title) ? text : extracted.body,
-          name,
-          url.trim() || extracted.source,
-          byline,
-        ),
-        openFile.current,
+      const p = createPaper(
+        label || (title.trim() && !extracted.title) ? text : extracted.body,
+        title.trim() || extracted.title,
+        url.trim() || extracted.source,
+        byline,
       );
+      const kit = ai && useModel ? await writePaper(p, crypto.randomUUID()) : p;
+      apply(kit, openFile.current);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      generateLock.current = false;
+      setGenerating(false);
     }
   }
   return (
-    <Dialog title="导入论文" close={close}>
-      <p className="pr-help">
-        导入带文本层的 PDF，或直接粘贴标题和摘要。文件在此浏览器中读取。
-      </p>
-      <input
-        type="file"
-        ref={file}
-        accept=".pdf,.txt,.md"
-        hidden
-        aria-label="选择论文文件"
-        onChange={(e) => read(e.target.files?.[0])}
-      />
-      <button
-        className={"pr-drop" + (drag ? " drag" : "")}
-        disabled={reading}
-        autoFocus={fileFirst}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDrag(true);
-        }}
-        onDragLeave={() => setDrag(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDrag(false);
-          read(e.dataTransfer.files[0]);
-        }}
-        onClick={() => file.current?.click()}
-      >
-        <Upload size={22} />
-        <b>{reading ? "正在提取文本…" : "选择或拖入论文文件"}</b>
-        <small>PDF、TXT、MD · 最大 40 MB</small>
-      </button>
-      {label && <p className="pr-help">{label}</p>}
-      <label>
-        论文标题
+    <Dialog
+      title="导入论文"
+      close={() => {
+        if (!generating) close();
+      }}
+    >
+      <fieldset className="ds-fieldset" disabled={generating}>
+        <p className="pr-help">
+          导入带文本层的 PDF，或直接粘贴标题和摘要。文件在此浏览器中读取。
+        </p>
         <input
-          value={title}
-          maxLength={500}
-          placeholder="也可写在下方文本的第一行"
-          onChange={(e) => setTitle(e.target.value)}
+          type="file"
+          ref={file}
+          accept=".pdf,.txt,.md"
+          hidden
+          aria-label="选择论文文件"
+          onChange={(e) => read(e.target.files?.[0])}
         />
-      </label>
-      <label>
-        摘要或论文原文
-        <textarea
-          rows={6}
-          autoFocus={!fileFirst}
-          value={text}
-          maxLength={140000}
-          placeholder={"论文标题\n在这里粘贴中文或英文摘要……"}
-          onChange={(e) => setText(e.target.value)}
-        />
-      </label>
-      <label>
-        原文链接 <small>选填</small>
-        <input
-          type="url"
-          value={url}
-          maxLength={1200}
-          placeholder="https://doi.org/…"
-          onChange={(e) => setUrl(e.target.value)}
-        />
-      </label>
-      <details className="pr-verification">
-        <summary>作者和出版信息（选填）</summary>
+        <button
+          className={"pr-drop" + (drag ? " drag" : "")}
+          disabled={reading}
+          autoFocus={fileFirst}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDrag(true);
+          }}
+          onDragLeave={() => setDrag(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDrag(false);
+            read(e.dataTransfer.files[0]);
+          }}
+          onClick={() => file.current?.click()}
+        >
+          <Upload size={22} />
+          <b>{reading ? "正在提取文本…" : "选择或拖入论文文件"}</b>
+          <small>PDF、TXT、MD · 最大 40 MB</small>
+        </button>
+        {label && <p className="pr-help">{label}</p>}
         <label>
-          作者、期刊、年份
+          论文标题
           <input
-            value={byline}
-            maxLength={240}
-            onChange={(e) => setByline(e.target.value)}
+            value={title}
+            maxLength={500}
+            placeholder="也可写在下方文本的第一行"
+            onChange={(e) => setTitle(e.target.value)}
           />
         </label>
-      </details>
-      {error && (
-        <p role="alert" className="pr-error">
-          {error}
-        </p>
-      )}
-      <button
-        className="pr-action"
-        disabled={reading || !text.trim()}
-        onClick={generate}
-      >
-        生成四套传播物料 <ArrowUpRight size={16} />
-      </button>
+        <label>
+          摘要或论文原文
+          <textarea
+            rows={6}
+            autoFocus={!fileFirst}
+            value={text}
+            maxLength={140000}
+            placeholder={"论文标题\n在这里粘贴中文或英文摘要……"}
+            onChange={(e) => setText(e.target.value)}
+          />
+        </label>
+        <label>
+          原文链接 <small>选填</small>
+          <input
+            type="url"
+            value={url}
+            maxLength={1200}
+            placeholder="https://doi.org/…"
+            onChange={(e) => setUrl(e.target.value)}
+          />
+        </label>
+        <details className="pr-verification">
+          <summary>作者和出版信息（选填）</summary>
+          <label>
+            作者、期刊、年份
+            <input
+              value={byline}
+              maxLength={240}
+              onChange={(e) => setByline(e.target.value)}
+            />
+          </label>
+        </details>
+        {ai && (
+          <label className="ds-model-option">
+            <input
+              type="checkbox"
+              checked={useModel}
+              onChange={(e) => setUseModel(e.target.checked)}
+            />
+            <span>
+              使用 StepFun 撰写四个平台的文案
+              <small>仅发送标题、署名和从原文提取的句子</small>
+            </span>
+          </label>
+        )}
+        {error && (
+          <p role="alert" className="pr-error">
+            {error}
+          </p>
+        )}
+        <button
+          className="pr-action"
+          disabled={reading || generating || !text.trim()}
+          onClick={generate}
+        >
+          {generating ? "正在生成宣传材料…" : "生成四套宣传材料"}{" "}
+          <ArrowUpRight size={16} />
+        </button>
+      </fieldset>
     </Dialog>
   );
 }
@@ -409,12 +441,14 @@ function CopyEditor({
   );
 }
 function Evidence({
+  channel,
   paper,
   close,
   apply,
   ai,
 }: {
   paper: Paper;
+  channel: Channel;
   close: () => void;
   apply: (p: Paper) => void;
   ai: boolean;
@@ -467,7 +501,12 @@ function Evidence({
   return (
     <Dialog title="核对原句与传播表述" close={close}>
       <p className="pr-help">
-        每条表述旁都保留论文原句。中文平台使用传播表述，X 短帖串沿用原文语言。
+        {paper.evidenceIds?.[channel]?.length
+          ? platforms[channel].name +
+            " 初稿引用了第 " +
+            paper.evidenceIds[channel]!.join("、") +
+            " 句。请对照原句核对数字、比较方向和结论范围。"
+          : "可对照下方原句核对发布文案。修改传播表述会更新四个平台的本地摘录稿。"}
       </p>
       <label>
         中文平台封面标题
@@ -527,12 +566,25 @@ function Evidence({
           working || !headline.trim() || evidence.some((e) => !e.line.trim())
         }
         onClick={() =>
-          apply({ ...paper, headline: headline.trim(), evidence, edits: {} })
+          apply(
+            JSON.stringify(evidence) === JSON.stringify(paper.evidence)
+              ? { ...paper, headline: headline.trim() }
+              : {
+                  ...paper,
+                  headline: headline.trim(),
+                  evidence,
+                  model: undefined,
+                  evidenceIds: undefined,
+                  edits: {},
+                },
+          )
         }
       >
-        {Object.keys(paper.edits).length
-          ? "应用并重新生成已编辑的文案"
-          : "应用到四个平台"}{" "}
+        {JSON.stringify(evidence) === JSON.stringify(paper.evidence)
+          ? "完成核对"
+          : Object.keys(paper.edits).length
+            ? "用更新后的摘录替换四个平台的文案"
+            : "应用到四个平台"}{" "}
         <Check size={16} />
       </button>
     </Dialog>
@@ -610,8 +662,13 @@ export default function PaperStudio() {
   const result = useRef<HTMLElement>(null),
     lock = useRef(false);
   const copy = useMemo(() => channelCopy(paper, channel), [paper, channel]);
+  const reviewTerms = paper.model ? wordingToReview(paper, channel) : [];
   const channelInfo = platforms[channel];
   useEffect(() => {
+    if (location.hash === "#papers/import") {
+      setModal("file");
+      history.replaceState(null, "", "#papers");
+    }
     document.title = "论文传播 · PosterLab";
     window.scrollTo(0, 0);
     let live = true;
@@ -633,7 +690,7 @@ export default function PaperStudio() {
     try {
       localStorage.setItem(paperKey, JSON.stringify(paper));
     } catch {
-      setMessage("浏览器未能保存草稿，请及时下载整套物料。");
+      setMessage("浏览器未能保存草稿，请及时下载整套宣传材料。");
     }
   }, [paper]);
   useEffect(() => {
@@ -681,7 +738,7 @@ export default function PaperStudio() {
   }
   const posts = channel === "x" ? copy.split(/\n\s*\n/).filter(Boolean) : [];
   return (
-    <div className="campaign pr-page">
+    <div className="campaign pr-page ds-workroom">
       <CampaignNav active="papers" onPapers={() => setModal("library")} />
       <main className="cp-shell pr-shell">
         <section
@@ -695,9 +752,9 @@ export default function PaperStudio() {
               <span /> 科研论文传播
             </div>
             <h1>
-              一篇论文，
+              导入一篇论文，
               <br />
-              四套传播物料<span>。</span>
+              四套宣传材料<span>。</span>
             </h1>
             <p>
               把论文变成 X
@@ -756,7 +813,11 @@ export default function PaperStudio() {
             <div>
               <div className="pr-eyebrow">
                 <span />
-                {paper.sample ? "示例论文 · 已生成" : "当前论文 · 已生成"}
+                {paper.model
+                  ? "StepFun · " + paper.model
+                  : paper.sample
+                    ? "示例论文 · 已生成"
+                    : "本地摘录 · 已生成"}
               </div>
               <h2>{paper.headline}</h2>
             </div>
@@ -838,6 +899,19 @@ export default function PaperStudio() {
                   编辑
                 </button>
               </div>
+              {reviewTerms.length > 0 && (
+                <button
+                  className="pr-reviewnote"
+                  onClick={() => setModal("evidence")}
+                >
+                  <ScanText size={15} />
+                  <span>
+                    <b>建议对照原句</b>　
+                    {reviewTerms.map((t) => "「" + t + "」").join("、")}
+                  </span>
+                  <ArrowUpRight size={14} />
+                </button>
+              )}
               <div className="pr-copy">
                 {channel === "x" ? (
                   posts.map((s, i) => (
@@ -858,7 +932,9 @@ export default function PaperStudio() {
               <div className="pr-panelactions">
                 <button onClick={() => setModal("evidence")}>
                   <ScanText size={16} />
-                  核对原句 · {paper.evidence.length}
+                  核对原句{" "}
+                  {paper.evidenceIds?.[channel]?.join("、") ||
+                    "· " + paper.evidence.length}
                 </button>
                 <button onClick={() => clipboard(copy)}>
                   <Clipboard size={15} />
@@ -884,13 +960,14 @@ export default function PaperStudio() {
       </main>
       {(modal === "file" || modal === "paste") && (
         <ImportPaper
+          ai={ai}
           fileFirst={modal === "file"}
           close={() => setModal(null)}
           apply={(p, f) => {
             originalFile.current = f;
             setPaper(p);
             setModal(null);
-            setMessage("四套传播物料已生成");
+            setMessage("四个平台的宣传材料已生成");
             requestAnimationFrame(() =>
               result.current?.scrollIntoView({ block: "start" }),
             );
@@ -899,6 +976,7 @@ export default function PaperStudio() {
       )}
       {modal === "evidence" && (
         <Evidence
+          channel={channel}
           paper={paper}
           ai={ai}
           close={() => setModal(null)}
@@ -918,7 +996,13 @@ export default function PaperStudio() {
           selectText={manualSelect}
           close={() => setModal(null)}
           apply={(text) => {
-            setPaper({ ...paper, edits: { ...paper.edits, [channel]: text } });
+            const evidenceIds = { ...paper.evidenceIds };
+            delete evidenceIds[channel];
+            setPaper({
+              ...paper,
+              evidenceIds,
+              edits: { ...paper.edits, [channel]: text },
+            });
             setModal(null);
           }}
         />

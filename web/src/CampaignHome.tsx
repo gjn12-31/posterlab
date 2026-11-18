@@ -48,6 +48,7 @@ import {
   renderPoster,
 } from "./render";
 import { getProject, saveCampaignProject } from "./storage";
+import { connectedModel, writeCampaign } from "./outreach";
 import { CampaignNav } from "./CampaignNav";
 
 const channels: {
@@ -125,10 +126,21 @@ function Proof({ svg }: { svg: string }) {
 function hasChanges(a: Brief, b: Brief) {
   return a.date !== b.date || a.time !== b.time || a.venue !== b.venue;
 }
-function campaignProject(edition: Edition, brief: Brief) {
+function campaignProject(
+  edition: Edition,
+  brief: Brief,
+  concept?: Draft["concept"],
+) {
   const p = makeCover(edition, brief.title);
   p.current.layout = "campaign";
-  p.current.displayTitle = campaignTag(brief.title);
+  p.current.campaignVersion = 2;
+  p.current.displayTitle = concept?.tag || campaignTag(brief.title);
+  if (concept)
+    p.current.campaignCopy = {
+      invitation: concept.invitation,
+      model: concept.model,
+      reason: concept.reason,
+    };
   p.current.brief = { ...brief };
   return p;
 }
@@ -148,6 +160,17 @@ export default function CampaignHome() {
   const textarea = useRef<HTMLTextAreaElement>(null),
     busyRef = useRef(false),
     timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [model, setModel] = useState(""),
+    [useModel, setUseModel] = useState(true);
+  useEffect(() => {
+    let current = true;
+    connectedModel().then((s) => {
+      if (current) setModel(s);
+    });
+    return () => {
+      current = false;
+    };
+  }, []);
   const dirty = draft.raw.trim() !== draft.applied.trim();
   const [linked, setLinked] = useState<Project>();
   const projectPending = !!draft.projectId && draft.projectId !== linked?.id;
@@ -176,6 +199,7 @@ export default function CampaignHome() {
             ...d,
             brief,
             edition,
+            concept: p.current.campaignCopy ? d.concept : undefined,
             applied,
             raw: d.raw === d.applied ? applied : d.raw,
             previous: hasChanges(d.brief, brief)
@@ -204,8 +228,8 @@ export default function CampaignHome() {
   }, [draft.projectId]);
   const project = useMemo(() => {
     if (linked && draft.projectId === linked.id) return linked;
-    return campaignProject(draft.edition, draft.brief);
-  }, [draft.edition, draft.brief, draft.projectId, linked]);
+    return campaignProject(draft.edition, draft.brief, draft.concept);
+  }, [draft.edition, draft.brief, draft.concept, draft.projectId, linked]);
   const layouts = useMemo(
     () => ({
       portrait: renderPoster(project, "portrait"),
@@ -218,7 +242,9 @@ export default function CampaignHome() {
     ? changeNotice(draft.previous, draft.brief)
     : "";
   const copy =
-    copyTab === "update" && updateCopy ? updateCopy : invitation(draft.brief);
+    copyTab === "update" && updateCopy
+      ? updateCopy
+      : invitation(draft.brief, project.current.campaignCopy?.invitation);
   const allErrors = Object.values(layouts).flatMap((l) =>
     l.issues.filter((i) => i.level === "error"),
   );
@@ -275,11 +301,19 @@ export default function CampaignHome() {
         !!linked &&
         draft.projectId === linked.id &&
         brief.title === draft.brief.title;
+      const aiPlan =
+        !edition && useModel && model
+          ? await writeCampaign(brief, crypto.randomUUID())
+          : undefined;
       const next: Draft = {
         raw: text,
         applied: text,
         brief,
-        edition: edition ?? (same ? draft.edition : chooseEdition(text)),
+        concept: aiPlan,
+        edition:
+          edition ??
+          aiPlan?.edition ??
+          (same ? draft.edition : chooseEdition(text)),
       };
       let message = "三张宣传图和邀请文案已生成";
       if (!edition) {
@@ -292,7 +326,7 @@ export default function CampaignHome() {
         } else {
           try {
             const saved = await saveCampaignProject(
-              campaignProject(next.edition, brief),
+              campaignProject(next.edition, brief, next.concept),
             );
             next.projectId = saved.id;
             setLinked(saved);
@@ -316,6 +350,15 @@ export default function CampaignHome() {
   async function storeChanges(next: Draft) {
     if (linked && next.projectId === linked.id) {
       const snap = { ...linked.current, brief: next.brief };
+      if (next.concept) {
+        snap.campaignCopy = {
+          model: next.concept.model,
+          invitation: next.concept.invitation,
+          reason: next.concept.reason,
+        };
+        if (next.concept.tag !== draft.concept?.tag)
+          snap.displayTitle = next.concept.tag;
+      } else delete snap.campaignCopy;
       if (next.edition !== snap.edition) {
         snap.edition = next.edition;
         snap.theme = editions[next.edition].theme;
@@ -345,6 +388,11 @@ export default function CampaignHome() {
     run("update", async () => {
       await storeChanges({
         ...draft,
+        concept: (["title", "description", "speaker", "cta"] as const).some(
+          (f) => editing[f] !== draft.brief[f],
+        )
+          ? undefined
+          : draft.concept,
         brief: { ...editing },
         raw,
         applied: raw,
@@ -426,32 +474,28 @@ export default function CampaignHome() {
   }
   const inactive = dirty || !!busy || projectPending;
   return (
-    <div className="campaign">
+    <div className="campaign ds-workroom ds-campaign">
       <CampaignNav active="home" />
       <main className="cp-shell">
         <section className="cp-hero">
           <div className="cp-intro">
             <div className="cp-kicker">
               <span />
-              活动宣传工具
+              活动海报工作台
             </div>
             <h1>
-              一段活动通知，
+              输入活动通知，
               <br />
               <em>三张宣传图。</em>
             </h1>
             <p className="cp-lead">
-              办市集、演出或社群活动，把通知贴进来就能拿到海报、方图和横幅。临时改期？改一次，三张图和群通知一起更新。
+              粘贴一条通知，同时生成竖版海报、社交方图、活动横幅与邀请文案。
             </p>
             <form
               className="cp-form"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (dirty) {
-                  generate(draft.raw);
-                } else {
-                  pack();
-                }
+                generate(draft.raw);
               }}
             >
               <label htmlFor="cp-notice">
@@ -476,6 +520,20 @@ export default function CampaignHome() {
                   setError("");
                 }}
               />
+              {model && (
+                <label className="ds-model-option">
+                  <input
+                    type="checkbox"
+                    checked={useModel}
+                    disabled={!!busy}
+                    onChange={(e) => setUseModel(e.target.checked)}
+                  />
+                  <span>
+                    StepFun 创意编排
+                    <small>将活动信息发送给模型，用于选版和撰写邀请文案</small>
+                  </span>
+                </label>
+              )}
               <div className="cp-formfoot">
                 <button
                   type="button"
@@ -497,11 +555,11 @@ export default function CampaignHome() {
                     (!dirty && !!allErrors.length)
                   }
                 >
-                  {busy === "pack"
-                    ? "正在打包"
-                    : dirty
-                      ? "生成并预览"
-                      : "下载宣传套装"}{" "}
+                  {busy === "generate"
+                    ? "正在生成…"
+                    : model && useModel
+                      ? "用 StepFun 生成海报"
+                      : "生成并预览"}{" "}
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -562,7 +620,11 @@ export default function CampaignHome() {
         >
           <div className="cp-sectionhead">
             <div>
-              <div className="cp-kicker">发布物料</div>
+              <div className="cp-kicker">
+                {project.current.campaignCopy
+                  ? "StepFun · " + project.current.campaignCopy.model
+                  : "发布材料"}
+              </div>
               <h2 id="cp-delivery-title">{draft.brief.title}</h2>
             </div>
             <button
@@ -579,9 +641,7 @@ export default function CampaignHome() {
             </button>
           </div>
           {dirty && (
-            <p className="cp-state">
-              通知已修改。点击「生成并预览」后即可下载新版。
-            </p>
+            <p className="cp-state">通知已修改。请重新生成，再下载新版。</p>
           )}
           {!!allErrors.length && (
             <p className="cp-error" role="alert">
@@ -666,6 +726,11 @@ export default function CampaignHome() {
                   <ArrowUpRight size={12} />
                 </button>
               </div>
+              {draft.concept && draft.concept.edition === draft.edition && (
+                <p className="ds-style-reason">
+                  <b>StepFun 选版理由</b> {draft.concept.reason}
+                </p>
+              )}
             </div>
             <div className="cp-message">
               <div className="cp-fileshead">

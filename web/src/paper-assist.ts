@@ -34,7 +34,7 @@ async function requestDraft(p: Paper, requestId: string, task: string) {
     throw Error(
       typeof data?.detail === "string"
         ? data.detail
-        : "文字助手暂不可用。当前物料仍可编辑和下载。",
+        : "文字助手暂不可用。当前宣传材料仍可编辑和下载。",
     );
   return {
     headline: String(data.fields?.title || p.headline),

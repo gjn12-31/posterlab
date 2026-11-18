@@ -1,3 +1,4 @@
+import { campaignLines } from "./campaign-lines";
 import {
   campaignBackground,
   campaignText,
@@ -124,7 +125,7 @@ export function renderCover(project: Project, format: Format) {
     : `<rect width="${w}" height="${h}" fill="url(#${fade})"/>`;
   let content = `<image href="${background}" width="${w}" height="${h}" preserveAspectRatio="${id === "afterglow" && !land ? "xMaxYMid" : "xMidYMid"} slice"/>${overlay}`;
   if (s.layout === "campaign")
-    content = campaignBackground(s, format, background);
+    content = campaignBackground(s, format, background, ns);
   const logo = s.logoId && project.assets[s.logoId];
   if (logo)
     content += `<image href="${logo.data}" x="${margin}" y="${margin * 0.63}" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`;
@@ -171,6 +172,17 @@ export function renderCover(project: Project, format: Format) {
     }
     const lines: string[] = [];
     for (const paragraph of value.split("\n")) {
+      if (s.layout === "campaign" && s.campaignVersion === 2) {
+        lines.push(
+          ...campaignLines(
+            paragraph,
+            maxW,
+            (line) => ctx.measureText(line).width,
+            title,
+          ),
+        );
+        continue;
+      }
       if (
         s.layout === "campaign" &&
         title &&

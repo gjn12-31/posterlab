@@ -1,23 +1,30 @@
-import { FolderOpen, Layers2 } from "lucide-react";
+import { FolderOpen, Layers3 } from "lucide-react";
 import "./campaign.css";
+import "./desktop.css";
 export function CampaignNav({
   active,
   onPapers,
 }: {
   onPapers?: () => void;
-  active: "home" | "create" | "papers";
+  active: "home" | "create" | "papers" | "desk";
 }) {
   return (
     <header className="cp-nav">
       <div className="cp-shell">
-        <a className="cp-logo" href="#home" aria-label="PosterLab 活动宣传首页">
+        <a className="cp-logo" href="#desk" aria-label="PosterLab 工作台首页">
           <span>
-            <Layers2 size={24} />
+            <Layers3 size={24} />
           </span>
           PosterLab
         </a>
         <nav aria-label="主导航">
-          <a href="#home" aria-current={active === "home" ? "page" : undefined}>
+          <a href="#desk" aria-current={active === "desk" ? "page" : undefined}>
+            工作台
+          </a>
+          <a
+            href="#campaign"
+            aria-current={active === "home" ? "page" : undefined}
+          >
             活动宣传
           </a>
           <a

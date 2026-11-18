@@ -91,7 +91,7 @@ def test_title_proof_drag_history_and_material_pack(studio):
     page.get_by_role("button",name="创作助手",exact=True).click()
     page.get_by_role("button",name="让活动标题更醒目").click()
     expect(page.get_by_role("dialog")).to_contain_text("本地规则")
-    page.get_by_role("button",name="应用到整套物料").click()
+    page.get_by_role("button",name="应用到整套宣传材料").click()
     page.get_by_role("button",name="更多导出格式").click()
     page.get_by_role("button",name="整套活动包").click()
     with page.expect_download() as download:
@@ -129,7 +129,7 @@ def test_ai_rewrite_preserves_other_layers(studio):
     page.get_by_role("button",name="暂不修改").click()
     expect(display).to_have_text("Afterglow")
     page.get_by_role("button",name="AI 润色这段文字").click()
-    page.get_by_role("button",name="应用到整套物料").click()
+    page.get_by_role("button",name="应用到整套宣传材料").click()
     expect(display).to_have_text("Aglow")
     expect(page.locator('.cs-art [data-layer="title"]')).to_have_text("深海回响")
     page.get_by_role("button",name="撤销",exact=True).click()
@@ -188,6 +188,7 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
     context = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
     page = context.new_page()
     page.goto(url)
+    page.get_by_role("link", name="制作活动海报").click()
     page.get_by_label("活动通知").fill(
         "山野植物观察日\n2026年12月5日 09:30，地点：望山公园。\n带上速写本，观察冬日植物。"
     )
@@ -263,7 +264,7 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     dialog = page.get_by_role("dialog")
     expect(dialog.get_by_label("论文标题")).to_have_value("Urban shade observations")
     assert "Introduction" not in dialog.get_by_label("摘要或论文原文").input_value()
-    dialog.get_by_role("button", name="生成四套传播物料").click()
+    dialog.get_by_role("button", name="生成四套宣传材料").click()
     expect(page.locator(".pr-generic")).to_be_visible()
     page.get_by_role("button",name="选取论文插图").click()
     dialog.get_by_label("论文页码").select_option("2")
@@ -300,4 +301,26 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     page.get_by_role("button", name="我的论文").click()
     dialog.get_by_role("button", name="Urban shade observations").click()
     expect(page.locator(".pr-copy")).to_have_text("夏日树荫观察笔记")
+    page.close()
+
+
+def test_home_previews_show_files_from_downloaded_kits(studio):
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 1440, "height": 960})
+    page.goto(url)
+    for title, channel, filename in [
+        ("M87 中心的亮环有多大？", "公众号", "公众号/发布文案.txt"),
+        ("街区咖啡日", "横版封面", "发布文案.txt"),
+    ]:
+        page.get_by_role("button", name="预览" + title).click()
+        dialog = page.get_by_role("dialog", name=title)
+        dialog.get_by_role("button", name=channel).click()
+        expect(dialog.get_by_role("img", name=channel + "配图")).to_be_visible()
+        copy = dialog.locator(".ds-kit-body p").inner_text()
+        page.keyboard.press("Escape")
+        expect(dialog).to_have_count(0)
+        with page.expect_download() as download:
+            page.get_by_role("link", name="下载" + title + "示例 ZIP").click()
+        with ZipFile(download.value.path()) as z:
+            assert z.read(filename).decode() == copy
     page.close()

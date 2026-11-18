@@ -133,6 +133,14 @@ export const snapshotSchema = z.object({
   edition: z.enum(editionIds).optional(),
   composition: z.literal("cover").optional(),
   layout: z.literal("campaign").optional(),
+  campaignVersion: z.literal(2).optional(),
+  campaignCopy: z
+    .object({
+      invitation: z.string().max(900),
+      model: z.string().max(100),
+      reason: z.string().max(300),
+    })
+    .optional(),
   creditLine: z.string().max(80).optional(),
   displayTitle: z.string().max(90).optional(),
   notes: z

@@ -330,6 +330,13 @@ function App() {
     const p = currentRef.current;
     const next = clone(p);
     fn(next.current);
+    if (
+      next.current.campaignCopy &&
+      (["title", "description", "speaker", "cta"] as const).some(
+        (field) => p.current.brief[field] !== next.current.brief[field],
+      )
+    )
+      delete next.current.campaignCopy;
     next.updated = now();
     currentRef.current = next;
     setUndo((u) => [clone(p.current), ...u].slice(0, 40));
@@ -539,7 +546,7 @@ function App() {
         const blob = await exportPack(frozen, (n) =>
           setBusy(`正在打包 ${n}/3 张海报`),
         );
-        download(blob, `${name}-活动物料包.zip`);
+        download(blob, `${name}-活动宣传材料包.zip`);
       } else {
         download(
           await exportBlob(frozen, format, kind),
@@ -643,13 +650,16 @@ function App() {
       <div className="grain" aria-hidden="true" />
       {!coverOpen && (
         <header className="topbar">
-          <a className="brand" href={import.meta.env.BASE_URL}>
+          <a className="brand" href={import.meta.env.BASE_URL + "#campaign"}>
             <span className="brandmark" />
             <b>PosterLab</b>
             <sup>STUDIO</sup>
           </a>
           <nav aria-label="主导航">
-            <a href={import.meta.env.BASE_URL} className="template-home-link">
+            <a
+              href={import.meta.env.BASE_URL + "#campaign"}
+              className="template-home-link"
+            >
               返回宣传制作台
             </a>
             <a href={creationRoom}>可编辑样张</a>
@@ -785,7 +795,7 @@ function App() {
                 disabled={!ready}
                 onClick={() => setModal("export")}
               >
-                导出物料 <Download size={16} />
+                导出宣传材料 <Download size={16} />
               </button>
             </div>
           </div>
@@ -1355,7 +1365,7 @@ function App() {
                       信息齐全，文字位于安全区域
                     </div>
                   )}
-                  <h4 className="panel-caption">整套物料状态</h4>
+                  <h4 className="panel-caption">整套宣传材料状态</h4>
                   {allIssues.map((r) => (
                     <button
                       className="format-check"
@@ -2028,7 +2038,7 @@ function SuggestionModal({
           className="primary"
           onClick={() => confirm(suggestion, extraction && allowLocked)}
         >
-          应用到整套物料 <Check size={16} />
+          应用到整套宣传材料 <Check size={16} />
         </button>
       </div>
     </Modal>

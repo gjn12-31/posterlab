@@ -204,10 +204,10 @@ export function chooseEdition(text: string): Edition {
   if (/花|展览|植物/.test(text)) return "bloom";
   return "launch";
 }
-export function invitation(b: Brief) {
+export function invitation(b: Brief, lead?: string) {
   return [
     b.title,
-    b.description,
+    lead || b.description,
     [b.date, b.time].filter(Boolean).join(" "),
     b.venue && "地点：" + b.venue,
     b.speaker && "主办 / 嘉宾：" + b.speaker,
@@ -219,6 +219,13 @@ export function invitation(b: Brief) {
 }
 type Schedule = Pick<Brief, "date" | "time" | "venue">;
 export type Draft = {
+  concept?: {
+    edition?: Edition;
+    invitation: string;
+    model: string;
+    tag: string;
+    reason: string;
+  };
   projectId?: string;
   previous?: Schedule;
   raw: string;
@@ -244,6 +251,13 @@ export function readCampaign(): Draft {
       )
         delete s.previous;
       if (typeof s.projectId !== "string") delete s.projectId;
+      if (
+        s.concept &&
+        !["invitation", "model", "tag", "reason"].every(
+          (k) => typeof s.concept[k] === "string",
+        )
+      )
+        delete s.concept;
       return s;
     }
   } catch {}

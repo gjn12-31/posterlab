@@ -45,6 +45,12 @@ export default defineConfig({
   build: { outDir: "../site", emptyOutDir: true },
   server: {
     proxy: {
+      ...(process.env.POSTERLAB_OUTREACH_PORT
+        ? {
+            "/api/outreach":
+              "http://127.0.0.1:" + Number(process.env.POSTERLAB_OUTREACH_PORT),
+          }
+        : {}),
       "/api": "http://127.0.0.1:8787",
       "/legacy": "http://127.0.0.1:8787",
     },

@@ -53,6 +53,13 @@ export const paperSchema = z.object({
     .optional(),
   body: z.string().min(20).max(140000),
   sample: z.boolean(),
+  model: z.string().max(100).optional(),
+  evidenceIds: z
+    .partialRecord(
+      z.enum(["x", "red", "moments", "wechat"]),
+      z.array(z.number().int().positive()),
+    )
+    .optional(),
   evidence: z
     .array(
       z.object({
@@ -283,6 +290,35 @@ export function channelCopy(p: Paper, c: Channel) {
     .filter(Boolean)
     .join("\n\n");
 }
+export function wordingToReview(paper: Paper, channel: Channel) {
+  const cited = paper.evidenceIds?.[channel];
+  const source = (
+    cited?.length
+      ? cited.map((id) => paper.evidence[id - 1]?.quote || "")
+      : paper.evidence.map((e) => e.quote)
+  ).join(" ");
+  const text = [
+    paper.headline,
+    channelCopy(paper, channel).replaceAll(paper.title, ""),
+  ].join(" ");
+  const terms = [];
+  const priority =
+    /(?:首次|首度|此前从未|史无前例|first[- ]ever|first (?:direct )?(?:image|detection|observation)|for the first time)/i;
+  const certainty =
+    /(?:完全吻合|彻底证实|实锤|conclusively prove[ds]?|perfect agreement)/i;
+  for (const pattern of [priority, certainty]) {
+    const match = text.match(pattern);
+    if (match && !pattern.test(source)) terms.push(match[0]);
+  }
+  if (/[≳≲]/.test(source)) {
+    const comparison = text.match(
+      /(?:超过|不低于|大于|小于|不高于|more than |less than )\s*\d+(?:[∶:]\d+)?/i,
+    );
+    if (comparison) terms.push(comparison[0]);
+  }
+  return terms;
+}
+
 export function evidenceText(p: Paper) {
   return [
     p.title,
@@ -292,6 +328,17 @@ export function evidenceText(p: Paper) {
       (e, i) =>
         "[ " + (i + 1) + " ]\n传播表述：" + e.line + "\n论文原句：" + e.quote,
     ),
+    ...(p.evidenceIds
+      ? Object.entries(p.evidenceIds).flatMap(([channel, ids]) =>
+          ids?.length
+            ? [
+                platforms[channel as Channel].name +
+                  " 初稿所用原句：" +
+                  ids.join("、"),
+              ]
+            : [],
+        )
+      : []),
     p.figure
       ? "图片：" + p.figure.credit
       : p.sample

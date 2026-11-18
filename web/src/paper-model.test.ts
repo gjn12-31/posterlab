@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import twitterText from "twitter-text";
 import {
   channelCopy,
+  wordingToReview,
   createPaper,
   evidenceText,
   examplePaper,
@@ -10,6 +11,18 @@ import {
   threadPosts,
 } from "./paper-model";
 describe("科研传播", () => {
+  it("标出所引原句缺少依据的首次、确定性和比较措辞", () => {
+    const paper = examplePaper();
+    paper.edits.red = "首次拍到，通量比超过10:1，结果完全吻合。";
+    expect(wordingToReview(paper, "red")).toEqual([
+      "首次",
+      "完全吻合",
+      "超过10:1",
+    ]);
+    paper.edits.red = "亮环的角直径为 42 ± 3 微角秒，与理论预期一致。";
+    expect(wordingToReview(paper, "red")).toEqual([]);
+  });
+
   it("从有标签的摘要分离出标题、引文与原文链接", () => {
     const d = prepareText(
       "城市步行与树荫\nDOI: 10.1234/walk\n摘要：研究团队记录了树荫与步行路径的关系。观察结果仅限于夏季。\n关键词：树荫\n引言\n其他论文的内容。",

@@ -215,6 +215,9 @@ def create_app(data_dir=None, api_key=None, budget=None, transport=None, serve_s
             ledger.finish(request_key, 'invalid', spent)
             raise HTTPException(502, '模型结果不完整或格式无效，未应用修改；未自动重试') from None
 
+    from .outreach import register_outreach
+    register_outreach(app, ledger, key, MODEL, transport)
+
     from .generation import register_generation
     register_generation(app, ledger, key, MODEL, transport)
 

@@ -299,7 +299,7 @@ export default function CoverStudio(p: Props) {
       <header className="cs-top">
         <a
           className="cs-wordmark"
-          href={import.meta.env.BASE_URL}
+          href={import.meta.env.BASE_URL + "#campaign"}
           title="返回宣传制作台"
         >
           <Asterisk /> PosterLab
@@ -637,7 +637,9 @@ export default function CoverStudio(p: Props) {
             )}
             {tool === "info" && (
               <>
-                {s.layout==="campaign"&&<p>宣传图显示活动安排，详细介绍随发布文案一起导出。</p>}
+                {s.layout === "campaign" && (
+                  <p>宣传图显示活动安排，详细介绍随发布文案一起导出。</p>
+                )}
                 <button className="cs-action" onClick={p.notice}>
                   <ScanText /> 从活动通知提取
                 </button>
