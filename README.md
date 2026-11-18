@@ -2,7 +2,7 @@
 
 给办市集、演出和社群活动的人。把活动通知贴到首页，即可预览竖版海报、社交方图和横版封面；输入报名链接可在三张图添加二维码。临时改期或换场地后，三张图、邀请文案会同步更新，还可以复制含新旧安排的群通知。
 
-[使用说明](docs/discovery-home.md) · [八个参考网站与设计决策](docs/reference-atlas.html) · [本机启动](#安装与启动)
+[使用说明](docs/discovery-home.md) · [活动宣传竞品分析](docs/competitive-design.html) · [八个设计参考网站](docs/reference-atlas.html) · [本机启动](#安装与启动)
 
 ## 2026-10-29 开放创作升级
 
