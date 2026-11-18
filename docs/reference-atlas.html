@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>从看见局部到读懂作品 · PosterLab 设计参考</title>
+  <style>
+    :root { color-scheme: light; --paper:#f6f4ed; --ink:#27271e; --muted:#575b50; --line:#c4c6b5; --accent:#5e3f2c }
+    * {box-sizing:border-box} body {margin:0;background:var(--paper);color:var(--ink);font:16px/1.8 system-ui,"PingFang SC","Microsoft YaHei",sans-serif}
+    main {width:min(100% - 44px,1040px);margin:0 auto;padding:60px 0 54px}
+    header {padding:0 0 32px;border-bottom:2px solid var(--ink)} h1,h2,h3 {font-family:Georgia,"Songti SC","STSong",serif;line-height:1.22}
+    h1 {font-size:clamp(37px,6vw,72px);letter-spacing:-.055em;margin:18px 0}
+    h2 {margin:43px 0 19px;font-size:clamp(26px,4vw,38px)} h3 {font-size:23px;margin:0}
+    header p {max-width:710px;font-size:18px;margin:0} .meta,small {color:var(--muted);font-size:13px}
+    .entry {display:grid;grid-template-columns:minmax(175px,1fr) minmax(0,3.5fr);gap:24px;padding:20px 0;border-top:1px solid var(--line)}
+    .entry p {margin:0 0 7px} .entry div>:last-child {margin-bottom:0} a {color:var(--accent);text-underline-offset:.22em} a:focus-visible {outline:2px solid #844128;outline-offset:3px}
+    .steps {padding-left:1.45em}.steps li {margin:12px 0;padding-left:5px}.method {margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:14px}
+    @media(max-width:650px){main{width:calc(100% - 36px);padding-top:31px}.entry{grid-template-columns:1fr;gap:8px}.entry h3{font-size:21px}.entry small{display:inline}}
+  </style>
+</head>
+<body><main>
+<header>
+  <div class="meta">PosterLab 产品设计研究 · <time datetime="2026-11-18">2026 年 11 月 18 日</time></div>
+  <h1>从看见局部，到读懂作品</h1>
+  <p>一张图让人停下来之后，访客可能想知道画的是哪里、作者如何用色，或者把它和另一张图放在一起。我们从八个参考站点研究这些动作如何发生，以及哪一步适合进入创作工具。</p>
+</header>
+<section aria-labelledby="research"><h2 id="research">八个站点的浏览方式</h2>
+  <article class="entry"><h3>数字敦煌</h3><div><p>首页先按洞窟与壁画提供入口，再把窟号、年代和壁面位置写在作品旁。“莫高窟第 23 窟主室北壁”本身就能帮助读者定位。专题里的局部也值得这样标注，让人知道当前看到整件作品的哪一处。</p><small><a href="https://www.e-dunhuang.com/index.htm">首页与经典壁画</a> · <a href="https://www.e-dunhuang.com/showmural/10.0001/0001/0001/0023/0001/0004/01">第 23 窟北壁</a></small></div></article>
+  <article class="entry"><h3>书格</h3><div><p>首页明确注明背景图是画作局部，补充馆藏线索与相关链接。《江枫秋艇图卷》条目从江面、霜林讲到山石皴法和点叶。局部裁切承担了一个具体的阅读任务，值得给它配一句指向可见细节的说明，再让读者展开全图。</p><small><a href="https://www.shuge.org/">首页背景图说明</a> · <a href="https://www.shuge.org/view/jiang_feng_qiu_ting_tu_juan/">江枫秋艇图卷</a></small></div></article>
+  <article class="entry"><h3>IGNANT</h3><div><p>Design 频道用一篇家具设计访谈开场，标题、地点和导言先建立主题，下方的最新文章继续标明家具、室内或产品等领域。首页的专题可以用一个明确的观察问题串起几件作品，作品总览则留给想自由浏览的访客。</p><small><a href="https://www.ignant.com/category/design/">Design 频道</a></small></div></article>
+  <article class="entry"><h3>Siteinspire</h3><div><p>作品目录把风格、网站类型、主题和平台拆成独立入口，列表还把站点与设计者关联起来。访客仅仅记得“木版画”或某位作者时，也应该能用这些已知线索找到作品。适合小型馆藏的起点是少量有内容的筛选项。</p><small><a href="https://www.siteinspire.com/">网站与设计者目录</a> · <a href="https://www.siteinspire.com/websites/selected">编辑精选</a></small></div></article>
+  <article class="entry"><h3>Mobbin</h3><div><p>首页分别展示单个界面、完整流程、动画和界面元素等浏览对象，让人先选自己想观察的尺度。我们可以把同样的清晰度用在作品上，分别以“看全图”“放大细节”“加入对照”说明操作结果。</p><small><a href="https://mobbin.com/">产品与资料库介绍</a></small></div></article>
+  <article class="entry"><h3>Studio Dumbar</h3><div><p>Work 目录用项目名称配简短用途说明。打开 DEMO 2025 后，独立项目页解释动态设计节与扭曲地球图形之间的关系。每件展品也可以有一个稳定入口，让人能够把正在读的那件作品直接发给别人。</p><small><a href="https://studiodumbar.com/work">项目目录</a> · <a href="https://studiodumbar.com/work/demo-2025">DEMO 2025 项目</a></small></div></article>
+  <article class="entry"><h3>Packaging of the World</h3><div><p>站点同时提供策展人精选和按材质、国家、年份查找的目录。帮助页还说明怎样找设计者以及怎样询问授权。作品档案同样应在赏析旁注明作者、藏馆、图像出处与使用条件，让观众能核对来源。</p><small><a href="https://packagingoftheworld.com/">项目与策展目录</a> · <a href="https://packagingoftheworld.com/faq">检索与署名说明</a></small></div></article>
+  <article class="entry"><h3>Fonts In Use</h3><div><p>它用真实应用实例组织字体资料，主题、载体和字体名称分别可查，高级检索允许组合条件。收藏之后的下一步可以是把两件作品并排，看相近颜色在不同媒介、不同画幅里的作用。</p><small><a href="https://fontsinuse.com/">字体应用档案</a> · <a href="https://fontsinuse.com/search/advanced">组合检索</a></small></div></article>
+</section>
+<section aria-labelledby="design"><h2 id="design">PosterLab 的设计取舍</h2>
+  <ol class="steps">
+    <li><strong>首页先给一个值得看的专题。</strong> 由一件作品的局部和一个观察方向开场。进入专题后，应能看到关联作品及它们被放在一起的理由。</li>
+    <li><strong>看图时，让作品身份与操作一起可见。</strong> 载明作者、年代、媒介和出处。放大查看细节后能回到全图，收藏后能在自己的收藏中找回同一件作品。</li>
+    <li><strong>给收藏一个用途。</strong> 并排查看两件作品时，保留各自的标题和署名，方便直接比较构图、笔触与配色。</li>
+    <li><strong>把创作留给可实际编辑的设计。</strong> 馆藏和参考作品提供赏析、收藏与来源；原创设计的编辑入口直达可拖动图层的画布。AI 在作者选中内容后按需辅助。</li>
+  </ol>
+</section>
+<p class="method">核对方式：直接读取了数字敦煌、书格、IGNANT、Mobbin、Studio Dumbar 与 Fonts In Use 的官方公开页面。本机访问 Siteinspire 和 Packaging of the World 首页时遇到浏览器验证，这两站的栏目与操作名称依据其官方页面的公开索引正文核对。研究范围为公开资料，未进入付费账户。文中的并排对照、编辑权限划分是本项目的产品设计取舍。</p>
+</main></body></html>

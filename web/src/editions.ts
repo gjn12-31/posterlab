@@ -1,6 +1,14 @@
-import type { Theme } from "./model";
+import type { Format, Theme } from "./model";
 
-export const editionIds = ["afterglow", "bloom", "vinyl", "coffee"] as const;
+export const editionIds = [
+  "afterglow",
+  "bloom",
+  "vinyl",
+  "coffee",
+  "launch",
+  "course",
+  "nature",
+] as const;
 export type Edition = (typeof editionIds)[number];
 type ArtDirection = {
   name: string;
@@ -10,6 +18,13 @@ type ArtDirection = {
   theme: Theme;
   color: string;
   mat: string;
+  print?: {
+    ink: string;
+    credit: string;
+    portraitY: number;
+    landscapeY: number;
+    face: "sans" | "serif";
+  };
 };
 export const editions: Record<Edition, ArtDirection> = {
   afterglow: {
@@ -48,7 +63,64 @@ export const editions: Record<Edition, ArtDirection> = {
     color: "#ffce8e",
     mat: "#663522",
   },
+  launch: {
+    category: "新品发布",
+    name: "折面研究",
+    title: "新作发布",
+    wordmark: "Fold",
+    theme: "orange",
+    color: "#28221e",
+    mat: "#f35334",
+    print: {
+      ink: "#28221e",
+      credit: "#28221e",
+      portraitY: 0.57,
+      landscapeY: 0.57,
+      face: "sans",
+    },
+  },
+  course: {
+    category: "课程讲座",
+    name: "间奏讲堂",
+    title: "看见设计的节奏",
+    wordmark: "Interval",
+    theme: "blue",
+    color: "#f9efb5",
+    mat: "#063c9e",
+    print: {
+      ink: "#fbf9eb",
+      credit: "#172740",
+      portraitY: 0.54,
+      landscapeY: 0.54,
+      face: "sans",
+    },
+  },
+  nature: {
+    category: "户外公益",
+    name: "山野手记",
+    title: "山野观察日",
+    wordmark: "Field Notes",
+    theme: "mint",
+    color: "#efe3ad",
+    mat: "#29513c",
+    print: {
+      ink: "#fff9e9",
+      credit: "#314d3a",
+      portraitY: 0.67,
+      landscapeY: 0.64,
+      face: "serif",
+    },
+  },
 };
+export function editionHref(
+  id: Edition,
+  format: Format = "portrait",
+  title?: string,
+) {
+  const params = new URLSearchParams({ edition: id, format });
+  if (title?.trim()) params.set("title", title.trim());
+  return import.meta.env.BASE_URL + "?mode=templates#new?" + params;
+}
 export function isEdition(value: string | null): value is Edition {
   return editionIds.includes(value as Edition);
 }

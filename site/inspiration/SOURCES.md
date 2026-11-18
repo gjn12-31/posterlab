@@ -24,6 +24,4 @@ The source gallery credits the following artists:
 Images are resized to 800px width and encoded as WebP, keeping the complete artwork
 and original aspect ratio. Chinese display titles and prose describing visual
 characteristics are PosterLab editorial text, not original titles or artist quotes.
-"Use this direction" transfers an editable textual brief only; it does not upload
-the reference image to the model, copy the artwork, or imply generated results will
-match it exactly. Source credits should be retained when extending the collection.
+The archive presents these as attributed reference works, with viewing, close reading, comparison, and collection tools.

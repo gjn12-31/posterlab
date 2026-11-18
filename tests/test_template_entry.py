@@ -33,7 +33,9 @@ def test_mobile_first_poster_and_local_resume(studio, tmp_path):
     browser, url = studio
     page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
     page.goto(url)
-    page.get_by_role("button", name="使用这张模板").tap()
+    page.get_by_role("link", name="创作室", exact=True).tap()
+    page.get_by_role("button", name="16:9",exact=True).tap()
+    page.get_by_role("link", name="编辑深海微光",exact=True).tap()
     canvas = page.locator(".cs-art")
     expect(canvas.get_by_text("深海回响", exact=True)).to_be_visible()
     expect(page.locator(".cs-inspector")).to_have_count(0)
@@ -59,10 +61,11 @@ def test_title_proof_drag_history_and_material_pack(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1360, "height": 880})
     page.goto(url)
+    page.get_by_role("link", name="创作室", exact=True).click()
     page.get_by_role("button", name="试排我的标题").click()
     page.get_by_label("海报标题").fill("植物开放日")
-    assert page.locator(".sr-card-sheet").get_by_text("植物开放日").count() == 4
-    page.get_by_role("button", name="使用植物图鉴模板").click()
+    assert page.locator(".at-proof").get_by_text("植物开放日").count() == 7
+    page.get_by_role("link", name="编辑植物图鉴").click()
     page.locator('.cs-art [data-layer="title"]').click()
     page.get_by_role("button", name="添加自由文字").click()
     page.get_by_label("修改图层文字").fill("仅此一日")
@@ -132,3 +135,48 @@ def test_ai_rewrite_preserves_other_layers(studio):
     page.get_by_role("button",name="撤销",exact=True).click()
     expect(display).to_have_text("Afterglow")
     assert requests[0]["brief"]["description"] == "Afterglow"
+
+
+def test_curated_detail_saved_crop_and_offline_folio(studio):
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 390, "height": 844}, has_touch=True)
+    page.goto(url)
+    page.get_by_role("button", name="放大观察富士山").tap()
+    lightbox = page.get_by_role("dialog")
+    expect(lightbox.locator("output")).to_have_text("300%")
+    lightbox.get_by_role("button", name="收藏当前局部").tap()
+    lightbox.get_by_role("button", name="关闭高清看图").tap()
+    page.get_by_role("link",name="我的收藏",exact=False).tap()
+    crop = page.get_by_alt_text("收藏的神奈川冲浪里局部")
+    expect(crop).to_be_visible()
+    page.get_by_label("神奈川冲浪里的笔记").fill("远山的轮廓与浪尖呼应。")
+    page.reload()
+    expect(page.get_by_label("神奈川冲浪里的笔记")).to_have_value("远山的轮廓与浪尖呼应。")
+    with page.expect_download() as dl:
+        page.get_by_role("button",name="导出图集").tap()
+    html = Path(dl.value.path()).read_text()
+    assert html.count("data:image/") == 2 and "远山的轮廓" in html and "metmuseum.org" in html
+    page.get_by_role("link",name="作品索引",exact=True).tap()
+    page.get_by_label("搜索作品").fill("葛饰北斋")
+    expect(page.locator(".at-card")).to_have_count(2)
+    page.get_by_role("link",name="查看神奈川冲浪里").tap()
+    expect(page.get_by_role("heading",name="神奈川冲浪里")).to_be_visible()
+    expect(page.get_by_text("大都会艺术博物馆",exact=True).last).to_be_visible()
+    page.get_by_role("button",name="返回浏览").tap()
+    expect(page.locator(".at-card")).to_have_count(2)
+
+
+def test_comparison_linked_and_independent_zoom(studio):
+    browser, url = studio
+    page = browser.new_page()
+    page.goto(url+"#compare/great-wave/red-fuji")
+    areas=page.locator(".at-pair section")
+    areas.first.get_by_role("button",name="放大",exact=True).click()
+    expect(areas.first.locator("output")).to_have_text("150%")
+    expect(areas.last.locator("output")).to_have_text("150%")
+    page.get_by_role("button",name="联动已开启").click()
+    areas.last.get_by_role("button",name="放大",exact=True).click()
+    expect(areas.first.locator("output")).to_have_text("150%")
+    expect(areas.last.locator("output")).to_have_text("200%")
+    page.get_by_label("右侧作品",exact=True).select_option("blue-fern")
+    expect(areas.last.get_by_role("heading")).to_have_text("蓝晒蕨叶")

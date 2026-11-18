@@ -68,10 +68,30 @@ type Props = {
   repair: { field: Field } | null;
 };
 const toolItems = [
-  { id: "text", name: "文字", icon: Type },
-  { id: "visual", name: "主视觉", icon: ImageIcon },
-  { id: "assistant", name: "创作助手", icon: Sparkles },
-  { id: "info", name: "活动信息", icon: CalendarDays },
+  {
+    id: "text",
+    name: "文字",
+    hint: "选中文字改内容、字号和颜色，也可添加自由文字",
+    icon: Type,
+  },
+  {
+    id: "visual",
+    name: "主视觉",
+    hint: "切换样张或上传图片替换背景",
+    icon: ImageIcon,
+  },
+  {
+    id: "assistant",
+    name: "创作助手",
+    hint: "预览排版建议，选择是否应用",
+    icon: Sparkles,
+  },
+  {
+    id: "info",
+    name: "活动信息",
+    hint: "按需添加日期、地点或报名二维码",
+    icon: CalendarDays,
+  },
 ] as const;
 type Gesture = {
   id: string;
@@ -277,7 +297,11 @@ export default function CoverStudio(p: Props) {
   return (
     <main className="cs-app">
       <header className="cs-top">
-        <a className="cs-wordmark" href="./">
+        <a
+          className="cs-wordmark"
+          href={import.meta.env.BASE_URL}
+          title="返回展馆"
+        >
           <Asterisk /> PosterLab
         </a>
         <span className="cs-divider" />
@@ -289,16 +313,34 @@ export default function CoverStudio(p: Props) {
           {p.saved}
         </small>
         <div className="cs-top-actions">
-          <button aria-label="撤销" disabled={!p.canUndo} onClick={p.undo}>
+          <button
+            aria-label="撤销"
+            title="撤销上一步"
+            disabled={!p.canUndo}
+            onClick={p.undo}
+          >
             <Undo2 />
           </button>
-          <button aria-label="重做" disabled={!p.canRedo} onClick={p.redo}>
+          <button
+            aria-label="重做"
+            title="重做上一步"
+            disabled={!p.canRedo}
+            onClick={p.redo}
+          >
             <Redo2 />
           </button>
-          <button aria-label="版本历史" onClick={p.history}>
+          <button
+            aria-label="版本历史"
+            title="查看或保存版本"
+            onClick={p.history}
+          >
             <History />
           </button>
-          <button aria-label="我的作品" onClick={p.files}>
+          <button
+            aria-label="我的作品"
+            title="浏览本机保存的作品"
+            onClick={p.files}
+          >
             <Folder />
           </button>
           <div className="cs-export">
@@ -306,7 +348,11 @@ export default function CoverStudio(p: Props) {
               <Download size={16} />
               {p.busy ? "处理中" : "下载 PNG"}
             </button>
-            <button aria-label="更多导出格式" onClick={p.more}>
+            <button
+              aria-label="更多导出格式"
+              title="导出 SVG、三种画幅或项目文件"
+              onClick={p.more}
+            >
               <ChevronDown size={15} />
             </button>
           </div>
@@ -317,6 +363,7 @@ export default function CoverStudio(p: Props) {
           {toolItems.map((t) => (
             <button
               aria-pressed={tool === t.id}
+              title={t.hint}
               key={t.id}
               onClick={() => openTool(t.id)}
             >
@@ -389,7 +436,9 @@ export default function CoverStudio(p: Props) {
             </div>
           </div>
           <div className="cs-stage-note">
-            <Move size={14} /> 点文字修改，拖动调整位置{" "}
+            <Move size={14} />{" "}
+            {toolItems.find((t) => t.id === tool)?.hint ??
+              "点文字修改，拖动调整位置"}{" "}
             <span>
               {dim.width} × {dim.height}
             </span>
@@ -502,7 +551,11 @@ export default function CoverStudio(p: Props) {
                     aria-label="文字颜色"
                     value={
                       style.color ??
-                      (selectedId === "display" ? art.color : "#fff8f1")
+                      (selectedId === "display"
+                        ? art.color
+                        : selectedId === "credit"
+                          ? (art.print?.credit ?? "#ffffff")
+                          : (art.print?.ink ?? "#fff8f1"))
                     }
                     onChange={(e) =>
                       patch(selectedId, { color: e.target.value })

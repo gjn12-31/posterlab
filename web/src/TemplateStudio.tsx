@@ -84,6 +84,7 @@ import "./style.css";
 import CoverStudio from "./CoverStudio";
 import { makeCover, changeText, layerText } from "./cover";
 import { editions, editionIds, editionImage, isEdition } from "./editions";
+const creationRoom = import.meta.env.BASE_URL + "#create";
 const clone = <T,>(x: T): T => structuredClone(x);
 function Modal({
   title,
@@ -124,14 +125,14 @@ function App() {
   const [entry] = useState(() => location.hash);
   const fromDiscovery = entry.startsWith("#new?");
 
-  const [page, setPage] = useState<"home" | "studio" | "gallery" | "brand">(
+  const [page, setPage] = useState<"studio" | "gallery" | "brand">(
       fromDiscovery || entry.startsWith("#studio")
         ? "studio"
         : entry === "#gallery"
           ? "gallery"
           : entry === "#brand"
             ? "brand"
-            : "home",
+            : "gallery",
     ),
     [project, setProject] = useState<Project>(() => {
       if (!fromDiscovery) return createProject();
@@ -256,7 +257,7 @@ function App() {
     })();
   }, [message]);
   useEffect(() => {
-    if (!initialized || (entry === "#gallery" && page === "gallery")) return;
+    if (!initialized || page !== "studio") return;
     setSaved("正在保存…");
     const p = clone(project);
     persist(p)
@@ -340,7 +341,7 @@ function App() {
     if (next === page) return;
     if (next === "gallery") {
       try {
-        await persist(currentRef.current);
+        if (page === "studio") await persist(currentRef.current);
         setProjects(await listProjects());
       } catch {
         message("作品列表读取失败，当前画布仍可导出");
@@ -352,20 +353,6 @@ function App() {
   function resizeCover(f: Format) {
     setFormat(f);
     setProject((previous) => ({ ...previous, lastFormat: f }));
-  }
-  function newProject() {
-    const next = makeCover("afterglow");
-    next.lastFormat = "landscape";
-    setFormat("landscape");
-    next.current.brand = clone(brand);
-    next.current.brand.enabled = false;
-    setProject(next);
-    setUndo([]);
-    setRedo([]);
-    setPage("studio");
-    setMobilePanel("editor");
-    setTab("content");
-    window.scrollTo(0, 0);
   }
   function travel(dir: "undo" | "redo") {
     const from = dir === "undo" ? undo : redo;
@@ -656,14 +643,9 @@ function App() {
           </a>
           <nav aria-label="主导航">
             <a href={import.meta.env.BASE_URL} className="template-home-link">
-              返回首页
+              返回展馆
             </a>
-            <button
-              className={page === "studio" ? "active" : ""}
-              onClick={() => navigate("studio")}
-            >
-              创作空间
-            </button>
+            <a href={creationRoom}>可编辑样张</a>
             <button
               className={page === "gallery" ? "active" : ""}
               onClick={() => navigate("gallery")}
@@ -700,165 +682,14 @@ function App() {
             >
               <Settings2 size={17} />
             </button>
-            <button className="outline small" onClick={newProject}>
+            <button
+              className="outline small"
+              onClick={() => location.assign(creationRoom)}
+            >
               新建作品 <Plus size={15} />
             </button>
           </div>
         </header>
-      )}
-      {page === "home" && (
-        <main className="home">
-          <section className="hero">
-            <div className="aurora" />
-            <div className="hero-copy">
-              <div className="eyebrow-pill">
-                <span /> YOUR IDEAS, IN FULL COLOR <i>01 / 光场</i>
-              </div>
-              <h1>
-                让灵感，
-                <br />
-                在此<span>大放异彩。</span>
-              </h1>
-              <p>
-                从一个想法，到一整套惊艳的视觉表达。
-                <br />
-                把创意、品牌与活动信息，放进同一个空间。
-              </p>
-              <div className="hero-cta">
-                <button className="primary" onClick={newProject}>
-                  开启我的创作 <ArrowRight size={19} />
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setPage("studio");
-                    setModal("brief");
-                  }}
-                >
-                  <ScanText size={18} />
-                  从活动通知开始
-                </button>
-              </div>
-              <div className="hero-proof">
-                <span>文</span>
-                <span>图</span>
-                <span>形</span>
-                <p>文字 · 图像 · 想象力，终于在一起。</p>
-              </div>
-            </div>
-            <div className="hero-art">
-              <div className="orbit" />
-              <div className="hero-card green">
-                <small>BOTANICAL NOTES / 2026</small>
-                <h2>
-                  NATURE
-                  <br />
-                  IN EVERY
-                  <br />
-                  FORM.
-                </h2>
-                <div className="hero-rings" />
-                <footer>
-                  自然的形状
-                  <br />A NEW PERSPECTIVE
-                </footer>
-              </div>
-              <div className="hero-card orange">
-                <small>BREAK THE GRID</small>
-                <h2>
-                  MAKE
-                  <br />
-                  NOISE.
-                </h2>
-                <div className="star-shape" />
-                <footer>创意，不必循规蹈矩。</footer>
-              </div>
-              <div className="hero-card purple">
-                <small>DESIGN BEYOND LIMITS</small>
-                <h2>
-                  IDEAS
-                  <br />
-                  TAKE
-                  <br />
-                  SHAPE.
-                </h2>
-                <div className="chrome-object" />
-                <footer>
-                  让想象，有形。
-                  <br />
-                  POSTERLAB CREATIVE STUDIO
-                </footer>
-              </div>
-              <div className="floating-label float-top">
-                <Sparkles size={17} />
-                一种灵感，无限种表达
-              </div>
-              <div className="floating-label float-bottom">
-                <span />
-                好设计，从这里发生
-              </div>
-            </div>
-          </section>
-          <section className="home-features">
-            <div className="section-title">
-              <div>
-                <p className="eyebrow">A LITTLE MORE POSSIBILITY</p>
-                <h2>漂亮之外，更有想象。</h2>
-              </div>
-              <button
-                className="text-button"
-                onClick={() => navigate("studio")}
-              >
-                进入工作台 <ArrowUpRight size={18} />
-              </button>
-            </div>
-            <div className="feature-grid">
-              {[
-                {
-                  icon: ScanText,
-                  title: "一份通知，创作的起点。",
-                  text: "粘贴活动信息，核对后直接带入海报。",
-                  action: () => {
-                    setPage("studio");
-                    setModal("brief");
-                  },
-                },
-                {
-                  icon: Layers,
-                  title: "每一种尺寸，都精彩。",
-                  text: "同一份内容同步三种画幅，整套打包下载。",
-                  action: () => navigate("studio"),
-                },
-                {
-                  icon: Palette,
-                  title: "好风格，有你的名字。",
-                  text: "六套视觉方向，加上你的品牌色和标识。",
-                  action: () => navigate("brand"),
-                },
-              ].map((item, i) => (
-                <motion.button
-                  className="feature-card"
-                  key={item.title}
-                  whileHover={motionOn ? { y: -6 } : undefined}
-                  onClick={item.action}
-                >
-                  <div className={"feature-visual fv" + i}>
-                    <item.icon size={38} />
-                    <i />
-                    <i />
-                  </div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                  <ArrowUpRight size={17} />
-                </motion.button>
-              ))}
-            </div>
-          </section>
-          <footer className="home-footer">
-            <span>POSTERLAB / MADE FOR YOUR NEXT BIG IDEA.</span>
-            <span>本地优先 · 可编辑 · 可追溯</span>
-          </footer>
-        </main>
       )}
       {coverOpen && (
         <CoverStudio
@@ -1556,7 +1387,10 @@ function App() {
                 <Upload size={16} />
                 导入项目 / CSV
               </button>
-              <button className="primary" onClick={newProject}>
+              <button
+                className="primary"
+                onClick={() => location.assign(creationRoom)}
+              >
                 <Plus size={16} />
                 新建作品
               </button>
@@ -1638,7 +1472,10 @@ function App() {
             <div className="empty">
               <FolderOpen size={42} />
               <h2>还没有保存的海报</h2>
-              <button className="primary" onClick={newProject}>
+              <button
+                className="primary"
+                onClick={() => location.assign(creationRoom)}
+              >
                 制作第一张海报 <ArrowRight size={16} />
               </button>
             </div>
@@ -1688,8 +1525,13 @@ function App() {
                 onClick={async () => {
                   try {
                     await setting("brand", brand);
-                    edit((s) => (s.brand = { ...brand, enabled: true }));
-                    message("品牌已保存并应用到当前作品");
+                    if (projects.some((p) => p.id === currentRef.current.id)) {
+                      edit((s) => (s.brand = { ...brand, enabled: true }));
+                      await persist(currentRef.current);
+                      message("品牌已保存并应用到当前作品");
+                    } else {
+                      message("品牌偏好已保存");
+                    }
                   } catch {
                     message("品牌保存失败，请检查浏览器存储");
                   }
@@ -1977,7 +1819,7 @@ function App() {
               <p>
                 {service?.ai
                   ? service.model
-                  : "六套模板、编辑、检查和导出均可离线使用。"}
+                  : "可编辑样张、画布和导出均可离线使用。"}
               </p>
             </div>
           </div>
@@ -2185,4 +2027,21 @@ function SuggestionModal({
     </Modal>
   );
 }
-export default App;
+export default function TemplateStudio() {
+  const [route, setRoute] = useState(() => ({ hash: location.hash, visit: 0 }));
+  useEffect(() => {
+    const changeRoute = () =>
+      setRoute((previous) => ({
+        hash: location.hash,
+        visit: previous.visit + 1,
+      }));
+    window.addEventListener("hashchange", changeRoute);
+    return () => window.removeEventListener("hashchange", changeRoute);
+  }, []);
+  const directory =
+    !route.hash || route.hash === "#home" || route.hash === "#choose";
+  useEffect(() => {
+    if (directory) location.replace(creationRoom);
+  }, [directory]);
+  return directory ? null : <App key={route.visit} />;
+}

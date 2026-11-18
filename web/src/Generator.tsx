@@ -1,5 +1,4 @@
 import { studioFetch, STATIC_DEMO, DEMO_MESSAGE } from "./studio-api";
-import DiscoveryHome from "./DiscoveryHome";
 import { GenerationFailure } from "./GenerationFailure";
 import React, { useEffect, useRef, useState, useId } from "react";
 import {
@@ -195,19 +194,11 @@ function ReplyText({ text }: { text: string }) {
   );
 }
 export default function Generator() {
-  const [home, setHome] = useState(
-    () => location.hash !== "#studio" && !load("posterlab.chat.pending", null),
-  );
-  useEffect(() => {
-    const route = () => setHome(location.hash !== "#studio");
-    window.addEventListener("hashchange", route);
-    return () => window.removeEventListener("hashchange", route);
-  }, []);
   function navigateHome(value: boolean) {
-    setHome(value);
-    location.hash = value ? "home" : "studio";
+    if (value) location.assign(import.meta.env.BASE_URL);
+    else if (location.hash !== "#studio")
+      history.replaceState(null, "", "#studio");
   }
-  const [initialScene, setInitialScene] = useState<string | null>(null);
   const [reviewScores, setReviewScores] = useState<Record<string, number>>({});
   const [reviewTarget, setReviewTarget] = useState<Job | null>(null);
   const [newJobId, setNewJobId] = useState<string | null>(null);
@@ -430,20 +421,7 @@ export default function Generator() {
   function rememberDraft() {
     save("posterlab.draft." + (threadId || "new"), draft);
   }
-  function showTools(tab: ToolTab, sceneId?: string) {
-    setInitialScene(sceneId || null);
-    if (sceneId) {
-      const prefix =
-        "posterlab.tools." +
-        (threadId || "new") +
-        ":" +
-        (artwork?.id || "none") +
-        ".";
-      try {
-        for (const field of ["scene", "fields", "direction"])
-          sessionStorage.removeItem(prefix + field);
-      } catch {}
-    }
+  function showTools(tab: ToolTab) {
     setToolTab(tab);
     setModal("creative");
   }
@@ -743,12 +721,14 @@ export default function Generator() {
         setSource((e as Error).message);
       }
   }
-  const newDesign = STATIC_DEMO ? () => navigateHome(true) : fresh;
+  const newDesign = STATIC_DEMO
+    ? () => location.assign(import.meta.env.BASE_URL + "#create")
+    : fresh;
   const composer = STATIC_DEMO ? (
     <div className="replay-actions">
       <span>已完成的创作记录</span>
-      <button onClick={() => navigateHome(true)}>
-        用自己的主题试印 <ArrowUpRight size={15} />
+      <button onClick={newDesign}>
+        选样张自己编辑 <ArrowUpRight size={15} />
       </button>
     </div>
   ) : (
@@ -787,7 +767,7 @@ export default function Generator() {
           onClick={() => showTools("scenes")}
         >
           <LayoutTemplate size={15} />
-          场景模板
+          可编辑样张
         </button>
         <button
           disabled={busy || !!pending}
@@ -915,46 +895,6 @@ export default function Generator() {
       </p>
     </div>
   );
-  if (home)
-    return (
-      <DiscoveryHome
-        threads={threads}
-        jobs={jobs}
-        blocked={busy || !!pending}
-        demo={STATIC_DEMO}
-        localTemplates={!ready || !service?.ai}
-        motion={motion}
-        onMotion={() => {
-          setMotion(!motion);
-          save("posterlab.creative.motion", !motion);
-        }}
-        onCreate={(prompt) => {
-          fresh();
-          setDraft(prompt);
-        }}
-        onResume={() => navigateHome(false)}
-        onOpen={open}
-        onGuide={(prompt) => {
-          fresh();
-          setDraft(prompt);
-          try {
-            sessionStorage.setItem(
-              "posterlab.tools.new:none.idea",
-              JSON.stringify(prompt),
-            );
-            sessionStorage.setItem(
-              "posterlab.tools.new:none.expanded",
-              JSON.stringify(""),
-            );
-            sessionStorage.setItem(
-              "posterlab.tools.new:none.plan-key",
-              JSON.stringify(crypto.randomUUID()),
-            );
-          } catch {}
-          showTools("brief");
-        }}
-      />
-    );
   return (
     <div
       className={
@@ -1079,7 +1019,7 @@ export default function Generator() {
               className="back-to-discover"
               onClick={() => navigateHome(true)}
             >
-              <ArrowLeft size={14} /> 发现灵感
+              <ArrowLeft size={14} /> 返回展馆
             </button>
             <button
               className="motion-toggle"
@@ -1147,50 +1087,10 @@ export default function Generator() {
                 </p>
                 <h1>这次想设计什么海报？</h1>
                 <p className="welcome-copy">
-                  写下简报或选择一个场景，生成后可在画布中评测、修改和导出。
+                  描述主题、受众和风格，发送后可查看生成结果、提出修改并导出。
                 </p>
                 {composer}
-                <div className="inspiration-strip" aria-label="场景灵感">
-                  {[
-                    {
-                      name: "周末咖啡市集",
-                      tag: "WARM & EDITORIAL",
-                      bg: "paper",
-                    },
-                    {
-                      name: "午夜音乐现场",
-                      tag: "BOLD & ELECTRIC",
-                      bg: "noir",
-                    },
-                    {
-                      name: "新灵感发布",
-                      tag: "LIGHT & FUTURISTIC",
-                      bg: "aurora",
-                    },
-                  ].map((item, i) => (
-                    <button
-                      key={item.bg}
-                      className={"inspiration-card inspiration-" + i}
-                      onClick={() =>
-                        showTools("scenes", ["coffee", "music", "launch"][i])
-                      }
-                    >
-                      <div
-                        style={{
-                          backgroundImage: `url(${import.meta.env.BASE_URL}library/${item.bg}.png)`,
-                        }}
-                      >
-                        <b>{item.name}</b>
-                        <i>{item.tag}</i>
-                        <ArrowUpRight size={19} />
-                      </div>
-                    </button>
-                  ))}
-                </div>
                 <div className="welcome-bottom">
-                  <a href="?mode=templates">
-                    使用本地模板排版 <ArrowUpRight size={13} />
-                  </a>
                   <button onClick={() => showTools("saved")}>
                     我的创作工具 <ArrowUpRight size={13} />
                   </button>
@@ -1501,7 +1401,6 @@ export default function Generator() {
         >
           <CreativeTools
             scope={(threadId || "new") + ":" + (artwork?.id || "none")}
-            initialScene={initialScene}
             generate={(text, preset) => send(false, text, preset || style)}
             tab={toolTab}
             setTab={setToolTab}
@@ -1730,9 +1629,9 @@ export default function Generator() {
           </button>
           <a
             className="source-download"
-            href={`${import.meta.env.BASE_URL}?mode=templates`}
+            href={import.meta.env.BASE_URL + "#create"}
           >
-            模板与旧版工具
+            打开样张与手动编辑器
             <ArrowUpRight size={16} />
           </a>
         </Dialog>

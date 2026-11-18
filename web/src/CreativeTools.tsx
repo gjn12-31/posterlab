@@ -12,8 +12,6 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import {
-  scenes,
-  scenePrompt,
   refinementDimensions,
   refinePrompt,
   emptyBrand,
@@ -23,6 +21,7 @@ import {
 } from "./creative-model";
 import type { Job } from "./chat-model";
 import "./creative.css";
+import EditionPicker from "./EditionPicker";
 import { RevisionModePicker, type RevisionMode } from "./RevisionMode";
 export type ToolTab =
   "scenes" | "brief" | "materials" | "refine" | "brand" | "saved";
@@ -53,7 +52,6 @@ function useToolDraft<T>(key: string, fallback: T): [T, (next: T) => void] {
 export function CreativeTools(p: {
   tab: ToolTab;
   scope: string;
-  initialScene?: string | null;
   generate: (text: string, style?: string) => void;
   setTab: (tab: ToolTab) => void;
   draft: string;
@@ -75,20 +73,6 @@ export function CreativeTools(p: {
   done: () => void;
 }) {
   const key = "posterlab.tools." + p.scope + ".";
-  const [scene, setScene] = useToolDraft<string | null>(
-      key + "scene",
-      p.initialScene || null,
-    ),
-    [fields, setFields] = useToolDraft<Record<string, string>>(
-      key + "fields",
-      p.initialScene
-        ? { 标题: scenes.find((s) => s.id === p.initialScene)?.title || "" }
-        : {},
-    );
-  const [direction, setDirection] = useToolDraft(
-    key + "direction",
-    scenes.find((s) => s.id === p.initialScene)?.direction || "",
-  );
   const [idea, setIdea] = useToolDraft(key + "idea", p.draft),
     [expanded, setExpanded] = useToolDraft(key + "expanded", "");
   const [working, setWorking] = useState(false),
@@ -110,14 +94,13 @@ export function CreativeTools(p: {
     key + "revision-mode",
     "redesign",
   );
-  const currentScene = scenes.find((s) => s.id === scene);
   const tabs: [ToolTab, string][] = [
-    ["scenes", "场景模板"],
+    ["scenes", "可编辑样张"],
     ["brief", "需求助手"],
     ["materials", "素材库"],
     ...(p.hasArtwork ? [["refine", "优化海报"] as [ToolTab, string]] : []),
     ["brand", "品牌偏好"],
-    ["saved", "我的收藏"],
+    ["saved", "收藏的提示词"],
   ];
   const usePrompt = (text: string, style?: string) => {
     if (p.busy) return;
@@ -154,116 +137,11 @@ export function CreativeTools(p: {
         )}
         {p.tab === "scenes" && (
           <>
-            <div className="tool-intro">
-              <span className="eyebrow">A LITTLE INSPIRATION</span>
-              <h3>从一个场景，开始你的创作。</h3>
-              <p>
-                选择方向，填写关键信息。每次由 AI 重新设计，并非套用固定版式。
-              </p>
+            <div className="ed-intro">
+              <h3>从一张样张开始</h3>
+              <p>点击作品即打开画布，可以改字、换图、拖动排版，再下载成品。</p>
             </div>
-            {!currentScene ? (
-              <div className="scene-grid">
-                {scenes.map((s) => (
-                  <button
-                    key={s.id}
-                    className={"scene-card scene-" + s.id}
-                    onClick={() => {
-                      setScene(s.id);
-                      setFields({ 标题: s.title });
-                      setDirection(s.direction);
-                    }}
-                    style={{ "--scene-color": s.color } as React.CSSProperties}
-                  >
-                    <div
-                      className="scene-art"
-                      style={{
-                        backgroundImage: `url(${import.meta.env.BASE_URL}library/${s.background}.png)`,
-                      }}
-                    >
-                      <span>{s.tag}</span>
-                      <b>
-                        {s.line.split(" / ").map((v) => (
-                          <span key={v}>
-                            {v}
-                            <br />
-                          </span>
-                        ))}
-                      </b>
-                      <i>POSTERLAB — CREATIVE STUDY</i>
-                    </div>
-                    <div className="scene-info">
-                      <b>{s.name}</b>
-                      <ArrowUpRight size={17} />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <>
-                <button className="text-action" onClick={() => setScene(null)}>
-                  ← 返回全部场景
-                </button>
-                <div className="scene-form-head">
-                  <span
-                    className={"scene-dot scene-" + currentScene.id}
-                    style={{ background: currentScene.color }}
-                  />
-                  <h3>{currentScene.name}</h3>
-                  <span>文字均可替换</span>
-                </div>
-                <div className="field-grid">
-                  {["标题", ...currentScene.fields].map((key) => (
-                    <label key={key}>
-                      {key}
-                      {key === "标题" ? " *" : "（可选）"}
-                      <input
-                        value={fields[key] || ""}
-                        maxLength={600}
-                        placeholder={
-                          key === "标题" ? "海报主标题" : "不填写则省略"
-                        }
-                        onChange={(e) =>
-                          setFields({ ...fields, [key]: e.target.value })
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
-                <label className="tool-field">
-                  视觉方向
-                  <textarea
-                    rows={3}
-                    value={direction}
-                    maxLength={1200}
-                    onChange={(e) => setDirection(e.target.value)}
-                  />
-                </label>
-                <button
-                  className="tool-primary"
-                  disabled={!fields.标题?.trim() || p.busy}
-                  onClick={() =>
-                    p.generate(
-                      scenePrompt(currentScene, fields, direction),
-                      currentScene.style,
-                    )
-                  }
-                >
-                  生成这张海报 <ArrowUpRight size={17} />
-                </button>
-                <button
-                  className="text-action secondary-draft"
-                  disabled={p.busy}
-                  onClick={() =>
-                    usePrompt(
-                      scenePrompt(currentScene, fields, direction),
-                      currentScene.style,
-                    )
-                  }
-                >
-                  先编辑完整提示词
-                </button>
-              </>
-            )}
+            <EditionPicker />
           </>
         )}
         {p.tab === "brief" && (
@@ -632,7 +510,7 @@ export function CreativeTools(p: {
                   <p>{f.text}</p>
                   <div>
                     <button disabled={p.busy} onClick={() => usePrompt(f.text)}>
-                      带入对话 <ArrowUpRight size={15} />
+                      填入对话输入框 <ArrowUpRight size={15} />
                     </button>
                     <button
                       aria-label="删除这条收藏"

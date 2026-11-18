@@ -13,3 +13,5 @@ https://github.com/notofonts/noto-cjk/tree/main/Serif/OTF/SimplifiedChinese
 https://github.com/google/fonts/tree/main/ofl/zcoolkuaile
 
 PosterCommon-Regular.woff2 and PosterCommon-Bold.woff2 are local subsets of the corresponding Noto Sans CJK SC files, distributed under the same SIL OFL 1.1. Regenerate with scripts/build_preview_fonts.py (fontTools and Brotli).
+
+AtlasSong.woff2: compact glyph subset of PosterSerif-Regular.woff2 used for the archive's editorial titles. SIL OFL 1.1, PosterSerif-LICENSE.txt.

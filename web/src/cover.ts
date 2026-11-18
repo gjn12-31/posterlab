@@ -98,16 +98,23 @@ export function renderCover(project: Project, format: Format) {
     });
   const background =
     (s.heroId && project.assets[s.heroId]?.data) || editionImage(id);
+  const print = art.print;
+  const ink = print?.ink ?? "#fff8f1";
   const palette =
     s.theme === art.theme
       ? art.color
       : s.theme === "night"
         ? themes.night.accent
-        : themes[s.theme].bg;
+        : id === "launch"
+          ? themes[s.theme].ink
+          : themes[s.theme].bg;
   const accent = s.brand.enabled ? s.brand.accent : palette;
   const ns = project.id.replace(/[^a-zA-Z0-9-]/g, "") + "-" + format;
   const fade = "veil-" + ns;
-  let content = `<image href="${background}" width="${w}" height="${h}" preserveAspectRatio="${id === "afterglow" && !land ? "xMaxYMid" : "xMidYMid"} slice"/><rect width="${w}" height="${h}" fill="url(#${fade})"/>`;
+  const overlay = print
+    ? ""
+    : `<rect width="${w}" height="${h}" fill="url(#${fade})"/>`;
+  let content = `<image href="${background}" width="${w}" height="${h}" preserveAspectRatio="${id === "afterglow" && !land ? "xMaxYMid" : "xMidYMid"} slice"/>${overlay}`;
   const logo = s.logoId && project.assets[s.logoId];
   if (logo)
     content += `<image href="${logo.data}" x="${margin}" y="${margin * 0.63}" width="52" height="52" preserveAspectRatio="xMidYMid meet"/>`;
@@ -127,11 +134,14 @@ export function renderCover(project: Project, format: Format) {
     const accentText = style === "display",
       title = style === "title";
     const family =
-      accentText && id !== "vinyl"
+      accentText && id !== "vinyl" && print?.face !== "sans"
         ? "Georgia,serif"
         : "PosterCommon,PosterSans,sans-serif";
     const italic = accentText && (id === "bloom" || id === "coffee");
-    const weight = title || (accentText && id === "vinyl") ? 700 : 400;
+    const weight =
+      title || (accentText && (id === "vinyl" || print?.face === "sans"))
+        ? 700
+        : 400;
     let px = Math.round(
       size * (settings.scale ?? 1) * (title ? s.titleScale : 1),
     );
@@ -193,7 +203,7 @@ export function renderCover(project: Project, format: Format) {
     (margin + (logo ? 66 : 0)) / w,
     (margin * 0.65) / h,
     unit * 0.022,
-    "#ffffff",
+    print?.credit ?? "#ffffff",
   );
   const factKeys = (
     ["speaker", "date", "time", "venue", "description", "cta"] as Field[]
@@ -220,7 +230,7 @@ export function renderCover(project: Project, format: Format) {
     x,
     0,
     titleSize,
-    "#fff8f1",
+    ink,
     "title",
     w - 2 * margin,
     true,
@@ -228,12 +238,31 @@ export function renderCover(project: Project, format: Format) {
   const factsSpan = factKeys.reduce(
     (sum, k) =>
       sum +
-      textLayer(k, b[k], x, 0, factSize, "#fffaf4", "body", factWidth, true) +
+      textLayer(
+        k,
+        b[k],
+        x,
+        0,
+        factSize,
+        print?.ink ?? "#fffaf4",
+        "body",
+        factWidth,
+        true,
+      ) +
       0.009,
     0,
   );
-  const preferredY =
-    id === "bloom" ? 0.16 : id === "vinyl" ? 0.56 : land ? 0.34 : 0.51;
+  const preferredY = print
+    ? land
+      ? print.landscapeY
+      : print.portraitY
+    : id === "bloom"
+      ? 0.16
+      : id === "vinyl"
+        ? 0.56
+        : land
+          ? 0.34
+          : 0.51;
   const titleY = Math.max(
     0.095,
     Math.min(preferredY, 0.965 - displaySpan - titleSpan - factsSpan - 0.044),
@@ -245,7 +274,7 @@ export function renderCover(project: Project, format: Format) {
     x,
     titleY + displaySpan + 0.008,
     titleSize,
-    "#fff8f1",
+    ink,
     "title",
   );
   let y = Math.max(
@@ -259,7 +288,7 @@ export function renderCover(project: Project, format: Format) {
       x,
       y,
       factSize,
-      "#fffaf4",
+      print?.ink ?? "#fffaf4",
       "body",
       factWidth,
     );
@@ -279,7 +308,7 @@ export function renderCover(project: Project, format: Format) {
       x,
       0.28 + i * 0.055,
       unit * 0.046,
-      "#ffffff",
+      print?.ink ?? "#ffffff",
       "body",
     );
   if (b.url && valid.success) {
