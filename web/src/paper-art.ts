@@ -1,6 +1,8 @@
 import { campaignLines as wrapLines } from "./campaign-lines";
 import { samplePaperImage } from "./paper-image";
 import { composePaperPoster } from "./paper-poster";
+import { PaperCanvas } from "./paper-canvas";
+import type { DrawioPage } from "./drawio";
 import { articleFragment, noteParts, postParts } from "./paper-publication";
 import { loadFonts } from "./render";
 import {
@@ -31,12 +33,13 @@ function rows(
     );
 }
 function editorialCover(
-  g: CanvasRenderingContext2D,
+  scene: PaperCanvas,
   p: Paper,
   c: Channel,
   w: number,
   h: number,
 ) {
+  const { g } = scene;
   const wide = w / h > 1.4,
     pad = w * 0.065,
     short = Math.min(w, h);
@@ -46,8 +49,7 @@ function editorialCover(
     x: ["#e5e7ec", "#445e9b"],
     wechat: ["#eddfcc", "#8b582e"],
   }[c];
-  g.fillStyle = palette[0];
-  g.fillRect(0, 0, w, h);
+  scene.rect("底色", { x: 0, y: 0, w, h }, palette[0]);
   const method = p.title.match(/^([A-Za-z][A-Za-z0-9 -]{1,22})[:：]/)?.[1];
   // On stacked layouts the complete, rotated deck must end above the title.
   // Limit its size by height as well as width for square and portrait exports.
@@ -59,20 +61,38 @@ function editorialCover(
   g.translate(visualX, visualY);
   g.rotate(-0.12);
   for (let i = 3; i >= 0; i--) {
-    g.fillStyle = i === 0 ? palette[1] : palette[0];
-    g.strokeStyle = palette[1];
-    g.lineWidth = 2;
-    g.fillRect(i * sw * 0.14, i * sw * 0.12, sw, sh);
-    g.strokeRect(i * sw * 0.14, i * sw * 0.12, sw, sh);
+    scene.rect(
+      "叠页 " + (i + 1),
+      { x: i * sw * 0.14, y: i * sw * 0.12, w: sw, h: sh },
+      i === 0 ? palette[1] : palette[0],
+      palette[1],
+      2,
+    );
   }
   g.fillStyle = "#fff9eb";
   g.textAlign = "left";
   g.font = "bold " + sw * 0.12 + "px Arial";
-  g.fillText(method || "Paper", sw * 0.1, sh * 0.82, sw * 0.82);
+  scene.text(
+    "论文简称",
+    [method || "Paper"],
+    sw * 0.1,
+    sh * 0.82,
+    sw * 0.82,
+    sw * 0.15,
+    true,
+  );
   g.restore();
   g.fillStyle = palette[1];
   g.font = "bold " + short * 0.029 + "px " + paperFont;
-  g.fillText(platforms[c].name + "  /  " + platforms[c].type, pad, h * 0.105);
+  scene.layer = "标题与文案";
+  scene.text(
+    "栏目",
+    [platforms[c].name + "  /  " + platforms[c].type],
+    pad,
+    h * 0.105,
+    w * 0.6,
+    short * 0.036,
+  );
   const title = c === "x" ? p.title : p.headline;
   let size = short * (wide ? 0.113 : 0.092),
     top = h * (wide ? 0.235 : 0.355);
@@ -87,40 +107,67 @@ function editorialCover(
   } while (true);
   g.fillStyle = "#22211d";
   g.textBaseline = "top";
-  lines.forEach((l, i) => g.fillText(l, pad, top + i * size * 1.16));
+  scene.text("海报标题", lines, pad, top, textWidth, size * 1.16);
   const x = pad,
     y = h * (wide ? 0.72 : 0.73);
-  g.fillStyle = palette[1];
-  g.fillRect(x, y, short * 0.05, Math.max(3, short * 0.004));
+  scene.rect(
+    "引文色条",
+    { x, y, w: short * 0.05, h: Math.max(3, short * 0.004) },
+    palette[1],
+  );
   g.font = "600 " + short * 0.021 + "px " + paperFont;
-  g.fillText("论文原句", x, y + short * 0.015);
+  scene.text(
+    "引文标题",
+    ["论文原句"],
+    x,
+    y + short * 0.015,
+    w * 0.34,
+    short * 0.027,
+  );
   const quote = p.evidence[0].quote;
   const qs = short * 0.027;
   g.font = "400 " + qs + "px " + paperFont;
   const q = rows(g, quote, wide ? w * 0.83 : w * 0.84);
   const count = 2;
   g.fillStyle = "#3d3934";
-  q.slice(0, count).forEach((line, i) =>
-    g.fillText(
-      line + (i === count - 1 && q.length > count ? "…" : ""),
-      x,
-      y + short * 0.048 + i * qs * 1.27,
-      wide ? w * 0.85 : w * 0.86,
-    ),
+  const quoteLines = q
+    .slice(0, count)
+    .map((line, i) => line + (i === count - 1 && q.length > count ? "…" : ""));
+  scene.text(
+    "原文引句",
+    quoteLines,
+    x,
+    y + short * 0.048,
+    wide ? w * 0.85 : w * 0.86,
+    qs * 1.27,
+    true,
   );
-  g.fillStyle = "#8f877d";
-  g.fillRect(pad, h * 0.923, w - 2 * pad, 1);
+  scene.layer = "出处";
+  scene.rect(
+    "出处分隔线",
+    { x: pad, y: h * 0.923, w: w - 2 * pad, h: 1 },
+    "#8f877d",
+  );
   g.font = "500 " + short * 0.021 + "px " + paperFont;
   g.fillStyle = "#3b3934";
-  g.fillText(p.byline || p.title, pad, h * 0.944, w - 2 * pad);
+  scene.text(
+    "论文出处",
+    [p.byline || p.title],
+    pad,
+    h * 0.944,
+    w - 2 * pad,
+    short * 0.027,
+    true,
+  );
 }
 
-export async function drawPaper(p: Paper, c: Channel) {
+async function paintPaper(p: Paper, c: Channel, editable = false) {
   const { width: w, height: h } = platforms[c];
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
-  const g = canvas.getContext("2d")!;
+  const scene = new PaperCanvas(canvas.getContext("2d")!, editable);
+  const { g } = scene;
   const title = c === "x" ? p.title : p.headline;
   await loadFonts(title + "科研笔记论文导读研究分享");
   if (p.artwork || p.figure) {
@@ -129,48 +176,45 @@ export async function drawPaper(p: Paper, c: Channel) {
         .filter(Boolean)
         .join(" "),
     );
-    await composePaperPoster(g, p, c);
-    return canvas;
+    await composePaperPoster(scene, p, c);
+    return scene;
   }
   if (!p.sample) {
-    editorialCover(g, p, c, w, h);
-    return canvas;
+    editorialCover(scene, p, c, w, h);
+    return scene;
   }
   const wide = w / h > 1.4,
     pad = w * 0.062,
-    warm = p.sample && !p.figure,
-    dark = warm ? "#120e10" : "#191c32",
-    accent = warm ? "#ffa16d" : "#cdc6ff";
-  g.fillStyle = dark;
-  g.fillRect(0, 0, w, h);
-  if (warm) {
-    const img = await samplePaperImage();
-    const size = wide ? h * 1.27 : w * 0.84,
-      cx = wide ? w * 0.77 : w * 0.5,
-      cy = wide ? h * 0.5 : h * 0.32;
-    g.save();
-    g.beginPath();
-    g.rect(0, 0, w, h);
-    g.clip();
-    g.globalCompositeOperation = "screen";
-    g.drawImage(img, cx - size * 0.85, cy - size * 0.5, size * 1.7, size);
-    g.restore();
-  } else {
-    g.save();
-    g.fillStyle = "#343252";
-    g.translate(wide ? w * 0.82 : w * 0.76, wide ? h * 0.5 : h * 0.2);
-    g.rotate(-0.24);
-    for (const shift of [-1, 1]) {
-      const q = wide ? h * 0.27 : w * 0.22;
-      g.fillRect(shift * q * 0.52 - q * 0.45, -q * 0.82, q * 0.88, q * 1.24);
-      g.beginPath();
-      g.moveTo(shift * q * 0.52 - q * 0.45, q * 0.38);
-      g.lineTo(shift * q * 0.52 + q * 0.43, q * 0.38);
-      g.lineTo(shift * q * 0.52 - q * 0.45, q * 0.97);
-      g.fill();
-    }
-    g.restore();
-  }
+    dark = "#120e10",
+    accent = "#ffa16d";
+  scene.rect("底色", { x: 0, y: 0, w, h }, dark);
+  const img = await samplePaperImage();
+  const size = wide ? h * 1.27 : w * 0.84,
+    cx = wide ? w * 0.77 : w * 0.5,
+    cy = wide ? h * 0.5 : h * 0.32;
+  const photo = {
+    x: cx - size * 0.85,
+    y: cy - size * 0.5,
+    w: size * 1.7,
+    h: size,
+  };
+  const x0 = Math.max(0, photo.x),
+    y0 = Math.max(0, photo.y);
+  const visible = {
+    x: x0,
+    y: y0,
+    w: Math.min(w, photo.x + photo.w) - x0,
+    h: Math.min(h, photo.y + photo.h) - y0,
+  };
+  scene.artwork("M87 · " + imageCredit, visible, (ctx) => {
+    ctx.save();
+    ctx.fillStyle = dark;
+    ctx.fillRect(visible.x, visible.y, visible.w, visible.h);
+    ctx.globalCompositeOperation = "screen";
+    ctx.drawImage(img, photo.x, photo.y, photo.w, photo.h);
+    ctx.restore();
+  });
+  scene.layer = "标题与文案";
   g.fillStyle = accent;
   g.font = "bold " + Math.round(Math.min(w, h) * 0.029) + "px Arial";
   const tag = {
@@ -179,7 +223,14 @@ export async function drawPaper(p: Paper, c: Channel) {
     moments: "PAPER SPOTLIGHT",
     wechat: "RESEARCH BRIEF",
   }[c];
-  g.fillText(tag, pad, wide ? h * 0.125 : h * 0.083);
+  scene.text(
+    "栏目",
+    [tag],
+    pad,
+    wide ? h * 0.125 : h * 0.083,
+    w * 0.6,
+    Math.min(w, h) * 0.036,
+  );
   const areaW = wide ? w * 0.53 : w * 0.87,
     top = wide ? h * 0.23 : h * 0.505;
   const take =
@@ -201,33 +252,70 @@ export async function drawPaper(p: Paper, c: Channel) {
   }
   g.fillStyle = "#fffaf5";
   g.textBaseline = "top";
-  lines.forEach((s, i) => g.fillText(s, pad, top + i * font * 1.15));
+  scene.text("海报标题", lines, pad, top, areaW, font * 1.15);
   if (fits) {
     g.font = "400 " + captionSize + "px " + paperFont;
     g.fillStyle = "#e7dcd3";
-    caption.forEach((s, i) =>
-      g.fillText(s, pad, bottom + h * 0.026 + i * captionSize * 1.36),
+    scene.text(
+      "宣传导语",
+      caption,
+      pad,
+      bottom + h * 0.026,
+      areaW,
+      captionSize * 1.36,
     );
   }
+  scene.layer = "出处";
   g.textBaseline = "alphabetic";
-  g.strokeStyle = "#60575c";
-  g.beginPath();
-  g.moveTo(pad, h * 0.885);
-  g.lineTo(w - pad, h * 0.885);
-  g.stroke();
+  scene.rect(
+    "出处分隔线",
+    { x: pad, y: h * 0.885 - 0.5, w: w - 2 * pad, h: 1 },
+    "#60575c",
+  );
   g.fillStyle = accent;
   g.font = "bold " + Math.round(Math.min(w, h) * 0.023) + "px Arial";
-  g.fillText(
-    warm ? "M87*   /   EHT 2019" : "PAPER  /  RESEARCH NOTES",
+  scene.text(
+    "论文出处",
+    ["M87*   /   EHT 2019"],
     pad,
     h * 0.94,
+    w * 0.38,
+    Math.min(w, h) * 0.028,
   );
   g.textAlign = "right";
   g.fillStyle = "#e4d9d6";
   g.font = Math.round(Math.min(w, h) * 0.018) + "px Arial";
-  g.fillText(warm ? imageCredit : "PosterLab", w - pad, h * 0.94, w * 0.54);
-  return canvas;
+  scene.text(
+    "图像署名",
+    [imageCredit],
+    w - pad,
+    h * 0.94,
+    w * 0.54,
+    Math.min(w, h) * 0.023,
+    true,
+  );
+  return scene;
 }
+export async function drawPaper(p: Paper, c: Channel) {
+  return (await paintPaper(p, c)).g.canvas;
+}
+export async function paperDrawioPage(
+  p: Paper,
+  c: Channel,
+): Promise<DrawioPage> {
+  const scene = await paintPaper(p, c, true);
+  return {
+    name: platforms[c].name + " · " + p.headline,
+    width: scene.g.canvas.width,
+    height: scene.g.canvas.height,
+    elements: scene.elements,
+  };
+}
+export async function paperDrawio(p: Paper, c: Channel) {
+  const { drawioBlob } = await import("./drawio");
+  return drawioBlob(await paperDrawioPage(p, c));
+}
+
 export async function paperPng(p: Paper, c: Channel) {
   const canvas = await drawPaper(p, c);
   return new Promise<Blob>((resolve, reject) =>

@@ -4,7 +4,7 @@ import { exportBlob } from "./render";
 
 export type ExportSelection = {
   formats: Format[];
-  imageType: "png" | "jpg";
+  imageType: "png" | "jpg" | "drawio";
   copy: boolean;
   calendar: boolean;
 };
@@ -60,10 +60,15 @@ export async function exportSelection(
   name: string,
 ) {
   if (!files.length) throw new Error("请选择要导出的文件。");
-  const read = async (file: FileSpec) =>
-    "format" in file
-      ? exportBlob(project, file.format, file.type)
-      : new Blob([file.text], { type: file.mime + ";charset=utf-8" });
+  const read = async (file: FileSpec) => {
+    if (!("format" in file))
+      return new Blob([file.text], { type: file.mime + ";charset=utf-8" });
+    if (file.type === "drawio") {
+      const { exportCampaignDrawio } = await import("./campaign-drawio");
+      return exportCampaignDrawio(project, file.format);
+    }
+    return exportBlob(project, file.format, file.type);
+  };
 
   if (files.length === 1) {
     return {

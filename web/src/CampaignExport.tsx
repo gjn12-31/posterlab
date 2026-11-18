@@ -123,9 +123,9 @@ export default function CampaignExport({
             disabled={busy || !selection.formats.length}
             className="ce-group"
           >
-            <legend>图片格式</legend>
+            <legend>文件格式</legend>
             <div className="ce-types">
-              {(["png", "jpg"] as const).map((type) => (
+              {(["png", "jpg", "drawio"] as const).map((type) => (
                 <label key={type}>
                   <input
                     type="radio"
@@ -135,7 +135,13 @@ export default function CampaignExport({
                       setSelection((s) => ({ ...s, imageType: type }))
                     }
                   />
-                  <span>{type === "png" ? "PNG · 高清" : "JPG · 压缩"}</span>
+                  <span>
+                    {type === "png"
+                      ? "PNG · 高清"
+                      : type === "jpg"
+                        ? "JPG · 压缩"
+                        : ".drawio · 可编辑"}
+                  </span>
                 </label>
               ))}
             </div>

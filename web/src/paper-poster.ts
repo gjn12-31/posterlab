@@ -1,13 +1,14 @@
 import { campaignLines } from "./campaign-lines";
 import { platforms, type Channel, type Paper } from "./paper-model";
 
-type Rect = { x: number; y: number; w: number; h: number };
+import { PaperCanvas, type PaperRect as Rect } from "./paper-canvas";
 const type = 'PosterCommon, PosterSans, "PingFang SC", sans-serif';
 const paperWhite = "#f9f8f4";
 const ink = "#182528";
 
 function textBlock(
-  g: CanvasRenderingContext2D,
+  canvas: PaperCanvas,
+  name: string,
   text: string,
   box: Rect,
   size: number,
@@ -17,6 +18,7 @@ function textBlock(
   leading = 1.18,
   alignBottom = false,
 ) {
+  const { g } = canvas;
   const family = /[\u2e80-\u9fff]/u.test(text)
     ? type
     : "Arial, Helvetica, sans-serif";
@@ -43,21 +45,30 @@ function textBlock(
   g.fillStyle = color;
   g.textBaseline = "top";
   const y = box.y + (alignBottom ? box.h - lines.length * size * leading : 0);
-  lines.forEach((line, i) => g.fillText(line, box.x, y + i * size * leading));
+  canvas.text(name, lines, box.x, y, box.w, size * leading);
 }
 
 function label(
-  g: CanvasRenderingContext2D,
+  canvas: PaperCanvas,
+  name: string,
   text: string,
   x: number,
   y: number,
   size: number,
   color: string,
 ) {
+  const { g } = canvas;
   g.fillStyle = color;
   g.font = `700 ${size}px ${type}`;
   g.textBaseline = "top";
-  g.fillText(text, x, y);
+  canvas.text(
+    name,
+    [text],
+    x,
+    y,
+    Math.ceil(g.measureText(text).width) + 2,
+    size * 1.2,
+  );
 }
 
 async function decode(src: string) {
@@ -77,31 +88,34 @@ function cover(g: CanvasRenderingContext2D, image: HTMLImageElement, r: Rect) {
 }
 
 function figurePanel(
-  g: CanvasRenderingContext2D,
+  canvas: PaperCanvas,
+  source: string,
   figure: HTMLImageElement,
   credit: string,
   box: Rect,
   short: number,
   english: boolean,
 ) {
+  const { g } = canvas;
+  canvas.layer = "论文原图";
   const m = short * 0.036,
     labelSize = short * 0.02;
-  g.fillStyle = paperWhite;
-  g.fillRect(box.x, box.y, box.w, box.h);
+  canvas.rect("图版衬底", box, paperWhite);
   const fx = box.x + m,
     fy = box.y + m * 0.72,
     fw = box.w - 2 * m;
   const marker = /^(?:fig(?:ure)?\.?\s*1\b|图\s*1\b)/i.test(credit)
     ? "FIG. 01"
     : "SOURCE FIGURE";
-  label(g, marker, fx, fy, labelSize, ink);
+  label(canvas, "图号", marker, fx, fy, labelSize, ink);
   const sourceCredit = english
     ? credit.replace(/原论文第\s*(\d+)\s*页/g, "p. $1")
     : credit;
   const detail = sourceCredit.replace(/^Figure\s*1\s*[·•|—-]?\s*/i, "").trim();
   g.textAlign = "right";
   textBlock(
-    g,
+    canvas,
+    "原图署名",
     detail,
     { x: fx + fw, y: fy, w: fw * 0.64, h: labelSize * 1.3 },
     labelSize * 0.89,
@@ -110,33 +124,30 @@ function figurePanel(
   );
   g.textAlign = "left";
   const edge = fy + labelSize * 1.7;
-  g.fillStyle = "#c6cfca";
-  g.fillRect(fx, edge, fw, 1.5);
+  canvas.rect("图注分隔线", { x: fx, y: edge, w: fw, h: 1.5 }, "#c6cfca");
   const imageBox = {
     x: fx,
     y: edge + m * 0.34,
     w: fw,
     h: box.y + box.h - m * 0.55 - edge - m * 0.34,
   };
-  g.fillStyle = "#ffffff";
-  g.fillRect(imageBox.x, imageBox.y, imageBox.w, imageBox.h);
+  canvas.rect("原图底色", imageBox, "#ffffff");
   const scale = Math.min(
     imageBox.w / figure.naturalWidth,
     imageBox.h / figure.naturalHeight,
   );
   const w = figure.naturalWidth * scale,
     h = figure.naturalHeight * scale;
-  g.drawImage(
-    figure,
-    imageBox.x + (imageBox.w - w) / 2,
-    imageBox.y + (imageBox.h - h) / 2,
+  canvas.image("论文原图 · " + credit, figure, source, {
+    x: imageBox.x + (imageBox.w - w) / 2,
+    y: imageBox.y + (imageBox.h - h) / 2,
     w,
     h,
-  );
+  });
 }
 
 export async function composePaperPoster(
-  g: CanvasRenderingContext2D,
+  canvas: PaperCanvas,
   paper: Paper,
   channel: Channel,
 ) {
@@ -185,24 +196,44 @@ export async function composePaperPoster(
       : "论文导读";
   // Keep the artwork and the source figure in separate rectangles: landscape
   // diagrams keep their original aspect ratio, labels, tick marks and colors.
-  const wash = g.createLinearGradient(0, 0, hero.w, hero.h);
-  wash.addColorStop(0, "#284848");
-  wash.addColorStop(0.43, "#1d3235");
-  wash.addColorStop(1, "#091516");
-  g.fillStyle = wash;
-  g.fillRect(0, 0, hero.w, hero.h);
-  if (art) cover(g, art, hero);
-  const shade = g.createLinearGradient(0, 0, 0, hero.h);
-  shade.addColorStop(0, art ? "rgba(4,12,15,.32)" : "rgba(4,12,15,0)");
-  shade.addColorStop(0.3, "rgba(4,12,15,.06)");
-  shade.addColorStop(0.66, "rgba(4,12,15,.63)");
-  shade.addColorStop(1, "rgba(4,12,15,.96)");
-  g.fillStyle = shade;
-  g.fillRect(0, 0, hero.w, hero.h);
+  if (!art)
+    canvas.artwork("背景渐变", hero, (g) => {
+      const wash = g.createLinearGradient(0, 0, hero.w, hero.h);
+      wash.addColorStop(0, "#284848");
+      wash.addColorStop(0.43, "#1d3235");
+      wash.addColorStop(1, "#091516");
+      g.fillStyle = wash;
+      g.fillRect(0, 0, hero.w, hero.h);
+    });
+  if (art)
+    canvas.artwork("AI 主视觉 · " + paper.artwork!.model, hero, (g) =>
+      cover(g, art, hero),
+    );
+  canvas.artwork("主视觉文字渐暗遮罩", hero, (g) => {
+    const shade = g.createLinearGradient(0, 0, 0, hero.h);
+    shade.addColorStop(0, art ? "rgba(4,12,15,.32)" : "rgba(4,12,15,0)");
+    shade.addColorStop(0.3, "rgba(4,12,15,.06)");
+    shade.addColorStop(0.66, "rgba(4,12,15,.63)");
+    shade.addColorStop(1, "rgba(4,12,15,.96)");
+    g.fillStyle = shade;
+    g.fillRect(0, 0, hero.w, hero.h);
+  });
   const accent = "#c5f58b";
-  g.fillStyle = accent;
-  g.fillRect(m, m * 0.93, Math.max(3, short * 0.004), short * 0.024);
-  label(g, edition, m + short * 0.014, m * 0.87, short * 0.024, "#f3fae9");
+  canvas.layer = "标题与文案";
+  canvas.rect(
+    "栏目色条",
+    { x: m, y: m * 0.93, w: Math.max(3, short * 0.004), h: short * 0.024 },
+    accent,
+  );
+  label(
+    canvas,
+    "栏目",
+    edition,
+    m + short * 0.014,
+    m * 0.87,
+    short * 0.024,
+    "#f3fae9",
+  );
   const textW =
     !figure && wide ? Math.min(w - m * 2, w * 0.73) : hero.w - 2 * m;
   const deckH = deck ? Math.min(short * 0.101, hero.h * 0.17) : 0;
@@ -213,7 +244,8 @@ export async function composePaperPoster(
     h: hero.h * 0.79 - m - deckH - (deck ? short * 0.018 : 0),
   };
   textBlock(
-    g,
+    canvas,
+    "海报标题",
     title,
     headlineBox,
     short * (english ? 0.079 : 0.091),
@@ -225,7 +257,8 @@ export async function composePaperPoster(
   );
   if (deck)
     textBlock(
-      g,
+      canvas,
+      "宣传导语",
       deck,
       { x: m, y: hero.h - m - deckH, w: textW, h: deckH },
       short * 0.028,
@@ -240,12 +273,23 @@ export async function composePaperPoster(
     const panel = sideFigure
       ? { x: hero.w, y: 0, w: w - hero.w, h: bodyH }
       : { x: 0, y: hero.h, w, h: bodyH - hero.h };
-    figurePanel(g, figure, paper.figure.credit, panel, short, english);
+    figurePanel(
+      canvas,
+      paper.figure.data,
+      figure,
+      paper.figure.credit,
+      panel,
+      short,
+      english,
+    );
   }
-  g.fillStyle = ink;
-  g.fillRect(0, bodyH, w, footerH);
-  g.fillStyle = accent;
-  g.fillRect(m, bodyH + footerH * 0.43, short * 0.021, short * 0.005);
+  canvas.layer = "出处";
+  canvas.rect("出处底栏", { x: 0, y: bodyH, w, h: footerH }, ink);
+  canvas.rect(
+    "出处色条",
+    { x: m, y: bodyH + footerH * 0.43, w: short * 0.021, h: short * 0.005 },
+    accent,
+  );
   const citation = paper.byline || paper.title;
   const citationBox = {
     x: m + short * 0.036,
@@ -254,7 +298,8 @@ export async function composePaperPoster(
     h: footerH * 0.7,
   };
   textBlock(
-    g,
+    canvas,
+    "论文出处",
     citation,
     citationBox,
     short * 0.0195,

@@ -116,7 +116,7 @@ export default function PublicationDesk({
   figure: () => void;
   makeArtwork?: () => void;
   zoom: () => void;
-  exportFile: (what: "image" | "channel") => void;
+  exportFile: (what: "image" | "channel" | "drawio") => void;
   clipboard: (s: string, rich?: boolean) => Promise<boolean>;
 }) {
   const [copied, setCopied] = useState<string | null>(null);
@@ -242,6 +242,10 @@ export default function PublicationDesk({
               <button disabled={!!busy} onClick={() => exportFile("image")}>
                 <ArrowDownToLine size={15} />
                 下载配图
+              </button>
+              <button disabled={!!busy} onClick={() => exportFile("drawio")}>
+                <Layers size={15} />
+                {busy === "drawio" ? "正在导出图层…" : "下载可编辑 Draw.io"}
               </button>
             </div>
           </div>

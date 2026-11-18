@@ -690,6 +690,16 @@ export default function CampaignHome() {
       say("图片已下载");
     });
   }
+  function downloadDrawio(f: Format) {
+    run("drawio", async () => {
+      const { exportCampaignDrawio } = await import("./campaign-drawio");
+      download(
+        await exportCampaignDrawio(project, f),
+        name + "-" + formats[f].name + ".drawio",
+      );
+      say("可编辑源文件已下载");
+    });
+  }
   function editor(f: Format) {
     run("edit", async () => {
       const p = await saveCampaignProject(
@@ -1302,6 +1312,14 @@ export default function CampaignHome() {
               onClick={() => editor(selected)}
             >
               拖动编辑 <MousePointer2 size={14} />
+            </button>
+            <button
+              className="cp-textbutton"
+              disabled={inactive}
+              onClick={() => downloadDrawio(selected)}
+              title="在 draw.io 中编辑当前画幅的文字、照片和装饰"
+            >
+              {busy === "drawio" ? "正在导出…" : "下载 .drawio"}
             </button>
             <button
               className="cp-dark"

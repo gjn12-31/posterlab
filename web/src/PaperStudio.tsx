@@ -52,7 +52,7 @@ import {
   type Paper,
   type Channel,
 } from "./paper-model";
-import { drawPaper, paperPack, paperPng } from "./paper-art";
+import { drawPaper, paperPack, paperPng, paperDrawio } from "./paper-art";
 import { adaptEvidence, adaptChannel } from "./paper-assist";
 import { download } from "./render";
 import { studioFetch, STATIC_DEMO } from "./studio-api";
@@ -1088,19 +1088,26 @@ function PaperWorkspace({
       lock.current = false;
     }
   }
-  async function save(which: "all" | "channel" | "image") {
+  async function save(which: "all" | "channel" | "image" | "drawio") {
     if (lock.current) return;
     lock.current = true;
     setBusy(which);
     try {
       const blob =
-        which === "image"
-          ? await paperPng(paper, channel)
-          : await paperPack(paper, which === "channel" ? channel : undefined);
+        which === "drawio"
+          ? await paperDrawio(paper, channel)
+          : which === "image"
+            ? await paperPng(paper, channel)
+            : await paperPack(paper, which === "channel" ? channel : undefined);
       const suffix =
         which === "all"
           ? "论文宣传套装.zip"
-          : channelInfo.name + (which === "channel" ? "发布包.zip" : ".png");
+          : channelInfo.name +
+            (which === "channel"
+              ? "发布包.zip"
+              : which === "drawio"
+                ? ".drawio"
+                : ".png");
       download(blob, name + "-" + suffix);
       setMessage("文件已下载");
     } catch (e) {
@@ -1449,6 +1456,13 @@ function PaperWorkspace({
           >
             <Download size={16} />
             下载 PNG
+          </button>
+          <button
+            className="pr-reset"
+            disabled={!!busy}
+            onClick={() => save("drawio")}
+          >
+            下载可编辑 Draw.io
           </button>
         </Dialog>
       )}

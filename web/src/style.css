@@ -3093,6 +3093,9 @@ dialog.wide {
   padding: 17px 12px;
   color: #9cacc7;
 }
+.export-options.export-campaign-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .export-options button[aria-pressed="true"] {
   border-color: #bba5ee;
   background: #bba5ee10;

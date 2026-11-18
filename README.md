@@ -10,6 +10,10 @@
 
 [安装与启动](#安装与启动) · [操作说明](docs/discovery-home.md) · [论文开源项目调研与实测](docs/outreach-research.md) · [活动版式选型](docs/activity-layout.md) · [桌面设计参考](docs/desktop-direction.md)
 
+## 下载可编辑海报
+
+论文工作台可为 X、小红书、朋友圈和公众号分别下载当前配图的 `.drawio`。活动海报可从预览或画布的「更多导出格式」下载，支持竖版、方图和横幅。用 diagrams.net 的「文件 → 打开 → 设备」选择文件，即可双击文字修改内容或拖动图片调整版式。标题、导语、原论文插图、主视觉和活动信息各自独立。照片和二维码以图片对象保存。打开的设备会使用它能找到的字体。
+
 ## 2026-10-29 开放创作升级
 
 - 在 StepFun 模式下，设计与修改默认使用 `step-5-preview`，`reasoning_effort=high`，输出上限按模型公开支持的64K设置；对话整理继续使用 `step-3.5-flash`。视觉评测默认 `step-5-preview`。

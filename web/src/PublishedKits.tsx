@@ -234,6 +234,11 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
           <button disabled={!item} onClick={() => setOpen(true)}>
             查看完整文案
           </button>
+          {index === 0 && (kit.id === "ligo" || kit.id === "cyanotype") && (
+            <a href={base + kit.id + "-source.drawio"} download={kit.label + "-" + kit.formats[0] + ".drawio"}>
+              <ArrowDownToLine size={15} /> 可编辑源文件
+            </a>
+          )}
           <a
             href={base + kit.id + ".zip"}
             download={kit.title + "-宣传材料.zip"}

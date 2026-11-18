@@ -205,7 +205,9 @@ function App() {
     [initialized, setInitialized] = useState(false),
     [storageError, setStorageError] = useState(false),
     [selectedField, setSelectedField] = useState<Field>("title"),
-    [exportKind, setExportKind] = useState<"png" | "svg" | "pack">("png");
+    [exportKind, setExportKind] = useState<"png" | "svg" | "drawio" | "pack">(
+      "png",
+    );
   const reduced = useReducedMotion(),
     currentRef = useRef(project),
     saveQueue = useRef(Promise.resolve()),
@@ -548,6 +550,12 @@ function App() {
           setBusy(`正在打包 ${n}/3 张海报`),
         );
         download(blob, `${name}-活动宣传材料包.zip`);
+      } else if (kind === "drawio") {
+        const { exportCampaignDrawio } = await import("./campaign-drawio");
+        download(
+          await exportCampaignDrawio(frozen, format),
+          `${name}-${formats[format].name}.drawio`,
+        );
       } else {
         download(
           await exportBlob(frozen, format, kind),
@@ -1742,30 +1750,49 @@ function App() {
       )}
       {modal === "export" && (
         <Modal title="导出海报" close={() => !busy && setModal(null)}>
-          <div className="export-options">
-            {(["png", "svg", "pack"] as const).map((k) => (
-              <button
-                key={k}
-                aria-pressed={exportKind === k}
-                onClick={() => setExportKind(k)}
-              >
-                {k === "pack" ? <Layers size={24} /> : <ImageIcon size={24} />}
-                <b>
-                  {k === "png"
-                    ? "高清 PNG"
-                    : k === "svg"
-                      ? "可编辑 SVG"
-                      : "整套活动包"}
-                </b>
-                <small>
-                  {k === "pack"
-                    ? "3张 PNG + 项目 + 文案"
-                    : k === "svg"
-                      ? "文字保持独立元素"
-                      : formats[format].name + " · 原始尺寸"}
-                </small>
-              </button>
-            ))}
+          <div
+            className={
+              "export-options" +
+              (project.current.layout === "campaign"
+                ? " export-campaign-options"
+                : "")
+            }
+          >
+            {(["png", "svg", "drawio", "pack"] as const)
+              .filter(
+                (k) => k !== "drawio" || project.current.layout === "campaign",
+              )
+              .map((k) => (
+                <button
+                  key={k}
+                  aria-pressed={exportKind === k}
+                  onClick={() => setExportKind(k)}
+                >
+                  {k === "pack" ? (
+                    <Layers size={24} />
+                  ) : (
+                    <ImageIcon size={24} />
+                  )}
+                  <b>
+                    {k === "png"
+                      ? "高清 PNG"
+                      : k === "svg"
+                        ? "可编辑 SVG"
+                        : k === "drawio"
+                          ? "可编辑 .drawio"
+                          : "整套活动包"}
+                  </b>
+                  <small>
+                    {k === "pack"
+                      ? "3张 PNG + 项目 + 文案"
+                      : k === "svg"
+                        ? "文字保持独立元素"
+                        : k === "drawio"
+                          ? "文字、照片和装饰可独立移动"
+                          : formats[format].name + " · 原始尺寸"}
+                  </small>
+                </button>
+              ))}
           </div>
           <div className="export-checks">
             {exportFormats.map((r) => (

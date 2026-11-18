@@ -112,6 +112,78 @@ def test_title_proof_drag_history_and_material_pack(studio):
     assert moved in svg and "仅此一日" in svg and "data:image/webp;base64," in svg
 
 
+def test_activity_drawio_keeps_editable_fields_images_qr_and_dragged_position(studio):
+    import base64
+    import html
+    from io import BytesIO
+    import xml.etree.ElementTree as ET
+
+    browser, url = studio
+    page = browser.new_page(viewport={"width":1440,"height":960})
+    page.route("**/api/status", lambda route: route.fulfill(json={"ai":False}))
+    page.goto(url + "#campaign")
+    page.locator("#cp-notice").fill("蓝晒 & 印刷\n日期：2026-12-12\n地点：海边印刷室\n报名链接：https://example.org/print")
+    page.get_by_role("button", name="生成并预览").click()
+    dialog = page.get_by_role("dialog")
+
+    def layers(file, width, height):
+        doc = ET.parse(file)
+        model = doc.find(".//mxGraphModel")
+        assert (model.get("pageWidth"),model.get("pageHeight"))==(str(width),str(height))
+        return {node.get("name"):node for node in model.findall(".//UserObject")}
+
+    def bitmap(layer):
+        style = layer.find("mxCell").get("style")
+        data = re.search(r"image=data:image/(?:png|jpeg|webp),([A-Za-z0-9+/=]+);",style)
+        assert data
+        return Image.open(BytesIO(base64.b64decode(data[1])))
+
+    def value(node):
+        return html.unescape(re.sub(r"<[^>]+>", "", node.get("label")))
+
+    for f,width,height in (("社交方图",1080,1080),("横版封面",1920,1080),("竖版海报",1080,1440)):
+        dialog.get_by_role("button",name=f,exact=True).click()
+        with page.expect_download() as download:
+            dialog.get_by_role("button",name="下载 .drawio",exact=True).click()
+        assert download.value.suggested_filename.endswith(f + ".drawio")
+        cells = layers(download.value.path(),width,height)
+        assert value(cells["活动标题"]).replace(" ","")=="蓝晒&印刷"
+        assert value(cells["活动日期"])=="2026-12-12" and value(cells["活动地点"])=="海边印刷室"
+        assert "shape=rectangle" in cells["分隔线"].find("mxCell").get("style")
+        photo = bitmap(cells["主视觉"])
+        assert photo.width>300 and photo.height>250
+        if f=="社交方图":
+            assert photo.mode=="RGBA" and photo.getpixel((0,0))[3]==0
+            assert photo.getpixel((photo.width//2,photo.height//2))[3] == 255
+        qr = bitmap(cells["报名二维码"]).convert("L")
+        assert qr.getextrema() == (0,255) and qr.width == qr.height
+
+    dialog.get_by_role("button",name="拖动编辑").click()
+    title = page.locator('.cs-art [data-layer="title"]')
+    original = title.get_attribute("transform")
+    area = title.bounding_box()
+    x,y=area["x"]+area["width"]/2,area["y"]+area["height"]/2
+    page.mouse.move(x,y)
+    page.mouse.down()
+    page.mouse.move(x+50,y+60,steps=8)
+    page.mouse.up()
+    moved=title.get_attribute("transform")
+    assert moved != original
+    title.click()
+    page.get_by_role("button", name="添加自由文字").click()
+    page.get_by_label("修改图层文字").fill("现场自由创作")
+    page.get_by_role("button",name="更多导出格式").click()
+    page.get_by_role("button",name="可编辑 .drawio").click()
+    with page.expect_download() as download:
+        page.get_by_role("button",name="下载作品").click()
+    edited=layers(download.value.path(),1080,1440)
+    assert value(edited["自由文字"]) == "现场自由创作"
+    geometry=edited["活动标题"].find("mxCell/mxGeometry")
+    expected = [float(n) for n in re.findall(r"[\d.]+",moved)]
+    assert [float(geometry.get(v)) for v in ("x","y")] == pytest.approx(expected,abs=.002)
+    page.close()
+
+
 def test_ai_rewrite_preserves_other_layers(studio):
     browser, url = studio
     page = browser.new_page()
@@ -1018,4 +1090,50 @@ def test_paper_preserves_successful_stage_when_only_one_retry_is_needed(studio, 
     expect(page.locator(".pr-copy")).to_contain_text("四座公园")
     assert len(keys[failed_stage]) == 2
     assert sum(len(v) for v in keys.values()) == 3
+    page.close()
+
+
+def test_paper_drawio_exports_editable_text_and_original_figure_at_channel_size(studio):
+    import base64
+    from io import BytesIO
+    from xml.etree import ElementTree
+
+    browser, url = studio
+    page = browser.new_page()
+    page.goto(url + "#papers")
+    expect(page.locator(".pub-proof canvas")).to_be_visible()
+    with page.expect_download() as sample:
+        page.get_by_role("button", name="下载可编辑 Draw.io").click()
+    sample_xml = ElementTree.parse(sample.value.path())
+    assert sample_xml.find(".//UserObject[@name='海报标题']/mxCell").get("style").startswith("text;")
+    assert sample_xml.find(".//UserObject[@name='图像署名']") is not None
+
+    def image(format):
+        buf = BytesIO()
+        Image.new("RGB", (40, 15), "#668866").save(buf, format)
+        return "data:image/" + format.lower() + ";base64," + base64.b64encode(buf.getvalue()).decode()
+
+    fig = image("JPEG")
+    paper = {"id":"drawio-qa", "title":"Why compare shade?", "headline":"树荫下的测量", "source":"",
+             "body":"Four city parks were measured in summer.", "sample":False,
+             "edits":{}, "evidence":[{"quote":"Four city parks were measured in summer.","line":"四座公园。"}],
+             "figure":{"data":fig,"credit":"Figure 1 · 原论文第 2 页"},
+             "artwork":{"data":image("WEBP"),"model":"test-image"}, "coverLine":"夏季测量覆盖四座公园。"}
+    page.evaluate("(p) => localStorage.setItem('posterlab.paper.v1',JSON.stringify(p))", paper)
+    page.reload()
+    page.get_by_role("button", name="公众号", exact=True).click()
+    with page.expect_download() as download:
+        page.get_by_role("button", name="下载可编辑 Draw.io").click()
+    assert download.value.suggested_filename.endswith("公众号.drawio")
+    doc = ElementTree.parse(download.value.path())
+    model = doc.find(".//mxGraphModel")
+    assert (model.get("pageWidth"), model.get("pageHeight")) == ("1800", "766")
+    objects = {item.get("name"): item for item in model.findall(".//UserObject")}
+    assert objects["宣传导语"].find("mxCell").get("style").startswith("text;")
+    assert "夏季测量" in objects["宣传导语"].get("label"), objects["宣传导语"].attrib
+    assert "AI 主视觉 · test-image" in objects and "原图署名" in objects
+    original = objects["论文原图 · Figure 1 · 原论文第 2 页"].find("mxCell")
+    assert fig.replace(";base64,", ",") in original.get("style")
+    geometry = original.find("mxGeometry")
+    assert float(geometry.get("width"))/float(geometry.get("height")) == pytest.approx(40/15, rel=1e-4)
     page.close()
