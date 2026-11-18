@@ -320,7 +320,7 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
                 colors = [rgb for _, rgb in art.convert("RGB").resize((100,100)).getcolors(10000)]
                 assert any(g>80 and g-r>60 and b-r>60 for r,g,b in colors)
     page.get_by_role("button", name="我的论文").click()
-    dialog.get_by_role("button", name="黑洞的阴影，是怎样拍到的？").click()
+    dialog.get_by_role("button", name="M87 中心的亮环有多大？").click()
     expect(page.locator(".pr-space")).to_be_visible()
     page.get_by_role("button", name="我的论文").click()
     dialog.get_by_role("button", name="Urban shade observations").click()
@@ -328,47 +328,64 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     page.close()
 
 
-def test_paper_story_reorders_exports_and_restores_each_paper(studio):
+def test_paper_channels_preserve_existing_work_and_export_platform_files(studio):
     browser, url = studio
-    page = browser.new_page(viewport={"width": 390, "height": 844})
+    ctx = browser.new_context(permissions=["clipboard-read", "clipboard-write"])
+    page = ctx.new_page()
     page.route("**/api/status", lambda route: route.fulfill(json={"ai": False}))
+    page.goto(url + "#papers")
+    expect(page.locator(".pub-copy")).to_contain_text("M87 中心的亮环")
+    # A previously saved paper with custom copy and archived card data.
+    page.evaluate(r"""() => {
+        const key = 'posterlab.paper.v1';
+        const p = JSON.parse(localStorage.getItem(key));
+        p.edits.red = '我的发布标题\n\n我编辑过的正文';
+        p.story = [{id:'cover',role:'封面',title:'旧封面',body:'',quote:''},
+                   {id:'note',role:'发现',title:'旧标题',body:'我的笔记',quote:p.evidence[0].quote}];
+        localStorage.setItem(key,JSON.stringify(p));
+    }""")
+    page.goto(url)
     page.goto(url + "#papers/story")
-    dialog = page.get_by_role("dialog", name="编排论文图解长帖")
-    dialog.get_by_role("button", name="03 发现").click()
-    dialog.get_by_label("卡片标题").fill("亮环角直径有多大？")
-    dialog.get_by_role("button", name="前移一页").click()
-    expect(dialog.get_by_role("heading", name="第 2 张 · 发现")).to_be_visible()
+    expect(page).to_have_url(re.compile(r"#papers/channels$"))
+    expect(page.locator(".pub-copy")).to_contain_text("我编辑过的正文")
+    expect(page.get_by_role("dialog")).to_have_count(0)
+    page.get_by_role("button", name="复制标题").click()
+    assert page.evaluate("navigator.clipboard.readText()") == "我的发布标题"
     with page.expect_download() as dl:
-        dialog.get_by_role("button", name="下载图组 ZIP").click()
+        page.get_by_role("button", name="下载本平台").click()
     with ZipFile(dl.value.path()) as z:
-        pages = [name for name in z.namelist() if name.endswith(".png")]
-        assert pages == ["01-封面.png", "02-发现.png", "03-方法.png", "04-解读.png"]
-        for name in pages:
-            with Image.open(z.open(name)) as art:
-                assert art.format == "PNG" and art.size == (1080, 1440)
-        assert "02 / 亮环角直径有多大？" in z.read("发布文案.txt").decode()
-        sources = z.read("逐卡引文.txt").decode()
-        assert sources.index("diameter of 42 ± 3") < sources.index("a wavelength of 1.3")
-    dialog.get_by_role("button", name="关闭").click()
-    page.get_by_role("button", name="粘贴摘要").click()
-    intake = page.get_by_role("dialog", name="导入论文")
-    intake.get_by_label("论文标题").fill("Urban paths")
-    sentence = "The paths were observed during summer afternoons."
-    intake.get_by_label("摘要或论文原文").fill(sentence)
-    intake.get_by_role("button", name="生成四套本地摘录稿").click()
-    page.get_by_role("button", name="编辑第 2 张摘录卡").click()
-    expect(dialog.get_by_label("卡片解读")).to_have_value(sentence)
-    dialog.get_by_label("卡片标题").fill("夏日下午的观察")
-    dialog.get_by_role("button", name="关闭").click()
+        assert z.read("小红书/标题.txt").decode() == "我的发布标题"
+        assert z.read("小红书/正文.txt").decode() == "我编辑过的正文"
+        assert [n for n in z.namelist() if n.endswith(".png")] == ["小红书/配图.png"]
+    page.locator(".pub-channels").get_by_role("button", name="X", exact=True).click()
+    page.get_by_role("button", name="复制第 1 帖").click()
+    first = page.evaluate("navigator.clipboard.readText()")
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="下载本平台").click()
+    with ZipFile(dl.value.path()) as z:
+        assert z.read("X/短帖/01.txt").decode() == first
+    page.locator(".pub-channels").get_by_role("button", name="公众号").click()
+    page.get_by_role("button", name="编辑", exact=True).click()
+    article = "研究导读\n\n文字 <img src=x onerror=alert(1)> 与引文"
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("发布文案").fill(article)
+    dialog.get_by_role("button",name="保存文案").click()
+    page.get_by_role("button", name="复制排版").click()
+    expect(page.get_by_role("status").filter(has_text="已复制标题和段落排版")).to_be_visible()
+    assert page.evaluate("navigator.clipboard.readText()") == article
+    rich = page.evaluate("async () => (await (await navigator.clipboard.read())[0].getType('text/html')).text()")
+    assert "研究导读" in rich and "&lt;img" in rich and "<img" not in rich
+    with page.expect_download() as dl:
+        page.get_by_role("button", name="下载整套 ZIP").click()
+    with ZipFile(dl.value.path()) as z:
+        assert len([n for n in z.namelist() if n.endswith(".png")]) == 4
+        assert z.read("公众号/发布文案.txt").decode() == article
+        assert "&lt;img" in z.read("公众号/排版稿.html").decode()
+        assert not any("图解" in n for n in z.namelist())
     page.reload()
-    page.get_by_role("button", name="编辑第 2 张摘录卡").click()
-    expect(dialog.get_by_label("卡片标题")).to_have_value("夏日下午的观察")
-    dialog.get_by_role("button", name="关闭").click()
-    page.get_by_role("button", name="我的论文").click()
-    page.get_by_role("button", name="黑洞的阴影，是怎样拍到的？").click()
-    page.get_by_role("button", name="编辑第 2 张发现卡").click()
-    expect(dialog.get_by_label("卡片标题")).to_have_value("亮环角直径有多大？")
-    page.close()
+    expect(page.locator(".pub-copy")).to_contain_text("文字 <img")
+    assert page.evaluate("JSON.parse(localStorage.getItem('posterlab.paper.v1')).story[1].body") == "我的笔记"
+    ctx.close()
 
 
 def test_home_previews_show_files_from_downloaded_kits(studio):
@@ -393,21 +410,29 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     research.focus()
     for _ in range(5):
         page.keyboard.press("Tab")
-    expect(page.get_by_role("button", name="下一张论文图解")).to_be_visible()
-    page.get_by_role("button", name="下一张论文图解").click()
-    expect(page.locator(".pl-sample-controls")).to_contain_text("02")
+    preview = page.get_by_role("region", name="成品交互演示")
+    group = preview.get_by_role("group", name="选择案例平台")
+    group.get_by_role("button", name="X", exact=True).click()
+    expect(preview.get_by_role("img", name="M87 黑洞观测 · X成品")).to_be_visible()
+    # A pending anchor scroll must keep the selected paper kit under the pointer.
+    page.evaluate("scrollTo(0, document.querySelector('.pl-chapter-1').offsetHeight + document.querySelector('#workbench').offsetTop)")
+    page.wait_for_function("document.querySelector('.pl-chapter-1').getBoundingClientRect().top < innerHeight * .54")
+    expect(group.get_by_role("button", name="X", exact=True)).to_have_attribute("aria-pressed", "true")
+    with page.expect_download() as sample:
+        preview.get_by_role("link", name="下载示例整套").click()
+    with ZipFile(sample.value.path()) as archive:
+        assert preview.locator(".pl-output-copy p").inner_text() == archive.read("X/发布文案.txt").decode().strip()
     page.get_by_role("button", name="活动宣传", exact=True).click()
-    page.get_by_role("button", name="当天", exact=True).click()
-    expect(page.locator(".pl-plan-page")).to_contain_text("10.24")
-    with page.expect_download() as calendar:
-        page.get_by_role("link", name="下载示例日历").click()
-    assert calendar.value.path().read_bytes().count(b"BEGIN:VEVENT") == 3
+    preview.get_by_role("button", name="横幅", exact=True).click()
+    expect(preview.get_by_role("heading", name="横版封面")).to_be_visible()
+    with page.expect_download() as banner:
+        preview.get_by_role("link", name="下载此画幅").click()
+    with page.expect_download() as event:
+        preview.get_by_role("link", name="下载示例整套").click()
+    with ZipFile(event.value.path()) as archive:
+        assert banner.value.path().read_bytes() == archive.read("横版封面.png")
     research.click()
-    expect(page.locator(".pl-sample-controls")).to_contain_text("02")
-    with page.expect_download() as story:
-        page.get_by_role("link", name="下载图组").click()
-    with ZipFile(story.value.path()) as z:
-        assert len([name for name in z.namelist() if name.endswith(".png")]) == 4
+    expect(group.get_by_role("button", name="X", exact=True)).to_have_attribute("aria-pressed", "true")
     for case_name, title, channel, filename in [
         ("秋夜设计书展", "秋夜设计书展", "社交方图", "发布文案.txt"),
         ("PonderLM", "把思考藏进一次预测里", "小红书", "小红书/发布文案.txt"),
@@ -481,7 +506,7 @@ def test_paper_sends_reviewed_first_two_pages_and_keeps_partial_reply(studio, tm
     page.get_by_role("button", name="复制正文").click()
     assert page.evaluate("navigator.clipboard.readText()") == "模型返回的笔记\n\n论文：City shades"
     page.locator(".pr-tabs").get_by_role("button", name="公众号").click()
-    expect(page.get_by_role("heading", name="本地摘录",exact=False)).to_be_visible()
+    expect(page.get_by_text("本地摘录稿", exact=True)).to_be_visible()
     page.close()
 
 

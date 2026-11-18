@@ -132,7 +132,7 @@ export default function StudioHome() {
                 <span lang="en">PosterLab</span>
                 <strong>论文与活动宣传工作室</strong>
               </h1>
-              <p>从一篇论文到图解长帖，从一场活动到整套宣传计划。</p>
+              <p>为研究准备各平台的发布稿，为活动做好每一种尺寸的海报。</p>
               <div className="pl-hero-actions">
                 <a className="pl-down" href="#workbench">
                   探索工作台 <ArrowDown size={17} />

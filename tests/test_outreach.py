@@ -131,3 +131,20 @@ def test_individual_paper_rewrite_uses_the_same_publication_format(tmp_path):
         response = client.post("/api/assist", headers=HEADERS, json=request)
     assert response.is_success, response.text
     assert response.json()["fields"]["description"] == "PonderLM\n\n" + fields["description"]
+
+
+def test_direct_paper_requests_exclude_review_watermarks_and_preserve_scientific_numbers():
+    from pydantic import ValidationError
+    from posterlab.outreach import PaperRequest
+
+    notice = 'CVPR 2027 Submission #702. CONFIDENTIAL REVIEW COPY. DO NOT DISTRIBUTE.'
+    finding = 'We used Sensor013 and measured 1.3 ± 0.2 mm.'
+    source = PaperRequest(title='Measured light', sections={'abstract': notice + '\n' + finding})
+    assert source.sections.abstract == finding
+    assert PaperRequest(title='Light', evidence=[notice + ' ' + finding]).evidence == [finding]
+    with pytest.raises(ValidationError):
+        PaperRequest(title='Light', sections={'abstract': notice})
+    with pytest.raises(ValidationError):
+        PaperRequest(title='Light', evidence=[notice, finding])
+    context = 'We study the phrase “do not distribute”. CVPR 2027 submission rates were measured.'
+    assert PaperRequest(title='Decisions', evidence=[context]).evidence == [context]

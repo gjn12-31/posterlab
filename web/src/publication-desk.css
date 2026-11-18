@@ -1,0 +1,397 @@
+/* The paper, copy and exports stay in one channel-specific proof. */
+#publicity-studio .pub-desk {
+  display: grid;
+  grid-template-columns: clamp(164px, 14.5vw, 215px) minmax(0, 1fr);
+  border: 1px solid #d4d6df;
+  border-radius: 19px;
+  overflow: hidden;
+  color: #262637;
+  background: #fff;
+  box-shadow:
+    0 8px 26px #29294009,
+    0 1px 3px #29294006;
+  --channel-ink: #8a354b;
+}
+#publicity-studio .pub-desk[data-channel="x"] {
+  --channel-ink: #35353e;
+}
+#publicity-studio .pub-desk[data-channel="moments"] {
+  --channel-ink: #237456;
+}
+#publicity-studio .pub-desk[data-channel="wechat"] {
+  --channel-ink: #226b63;
+}
+.pub-rail {
+  padding: 23px 12px;
+  background: #f3f3f8;
+  border-right: 1px solid #dedee8;
+}
+.pub-rail h3 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  margin: 0 0 20px;
+  font-size: 13px;
+  font-weight: 650;
+  color: #67677b;
+}
+#publicity-studio .pub-channels.pr-tabs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  width: 100%;
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+#publicity-studio .pub-channels.pr-tabs > button {
+  display: flex;
+  min-width: 0;
+  background: none;
+  gap: 10px;
+  text-align: left;
+  padding: 11px 9px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #4a4b59;
+}
+#publicity-studio .pub-channels.pr-tabs > button:hover {
+  background: #ffffffaa;
+}
+#publicity-studio .pub-channels.pr-tabs > button[aria-pressed="true"] {
+  background: #fff;
+  color: #1f2030;
+  border-color: #dcdde8;
+  box-shadow: 0 2px 6px #2222390c;
+}
+#publicity-studio .pub-channels .pub-channel-label {
+  display: grid;
+  gap: 3px;
+  color: inherit;
+  font-size: 15px;
+}
+.pub-channel-label small {
+  color: #6c6c7d;
+  font-size: 11px;
+  font-weight: 400;
+}
+#publicity-studio .pub-desk .pub-mark {
+  flex: 0 0 30px;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.pub-mark.is-red {
+  background: #ffe6e9;
+  color: #a33c54;
+}
+.pub-mark.is-x {
+  background: #292c31;
+  color: white;
+}
+.pub-mark.is-moments {
+  background: #d5f1e2;
+  color: #277557;
+}
+.pub-mark.is-wechat {
+  background: #dbf1eb;
+  color: #257266;
+}
+.pub-mark.is-x strong {
+  font:
+    600 17px/1 system-ui,
+    sans-serif;
+}
+.pub-chevron {
+  opacity: 0;
+  margin-left: auto;
+  flex: none;
+}
+.pub-channels button[aria-pressed="true"] .pub-chevron {
+  opacity: 1;
+}
+.pub-sheet {
+  min-width: 0;
+}
+.pub-head,
+.pub-head-title,
+.pub-button,
+.pub-media-tools,
+.pub-media-tools button,
+.pub-copy-heading,
+.pub-copy-tools,
+.pub-copy-tools > div,
+.pub-copy-tools button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pub-head {
+  justify-content: space-between;
+  padding: 17px clamp(15px, 2vw, 32px);
+  border-bottom: 1px solid #e1e2ea;
+}
+.pub-head-title {
+  gap: 10px;
+}
+.pub-head-title h3 {
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: -0.035em;
+  margin: 0;
+}
+#publicity-studio .pub-button,
+#publicity-studio .pub-media-tools button,
+#publicity-studio .pub-copy-tools button {
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 550;
+  color: #474958;
+}
+#publicity-studio .pub-desk button:enabled:hover {
+  filter: brightness(0.96);
+}
+#publicity-studio .pub-button {
+  border: 1px solid #dddde6;
+  background: #f9f9fc;
+}
+#publicity-studio .pub-button.pub-deliver {
+  background: #282837;
+  color: white;
+  padding: 9px 13px;
+  border-color: #282837;
+}
+.pub-columns {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.85fr) minmax(250px, 1.15fr);
+}
+.pub-media {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px clamp(15px, 1.8vw, 30px) 13px;
+  background: linear-gradient(140deg, #e9e8f1, #f5f5f8);
+  border-right: 1px solid #dfdfe8;
+}
+#publicity-studio .pub-proof {
+  position: relative;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  min-height: clamp(245px, 23vw, 350px);
+  flex: 1;
+  cursor: zoom-in;
+}
+.pub-proof .pr-art {
+  width: min(96%, calc(clamp(225px, 22vw, 340px) * var(--ratio, 1)));
+  box-shadow:
+    0 12px 26px #27233924,
+    0 2px 5px #24243a1d;
+}
+.pub-zoom {
+  position: absolute;
+  right: 0;
+  bottom: 3px;
+  display: grid;
+  place-items: center;
+  height: 29px;
+  width: 29px;
+  border-radius: 7px;
+  background: #faf9fcdf;
+  box-shadow: 0 1px 4px #30303e1c;
+  color: #454252;
+}
+.pub-dimensions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 10px;
+  font-size: 11px;
+  color: #656879;
+  font-variant-numeric: tabular-nums;
+}
+.pub-media-tools {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-top: 1px solid #d8d8e1;
+  padding-top: 8px;
+}
+.pub-writing {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pub-copy-heading {
+  justify-content: space-between;
+  padding: 18px 20px 3px;
+}
+.pub-copy-heading strong {
+  font-size: 14px;
+}
+#publicity-studio .pub-copy {
+  flex: 1;
+  min-height: 170px;
+  max-height: 320px;
+  border: 0;
+  padding: 10px 20px 18px;
+}
+#publicity-studio .pub-copy h4 {
+  font-size: clamp(17px, 1.45vw, 23px);
+  line-height: 1.5;
+  letter-spacing: -0.025em;
+  margin: 0 0 12px;
+  font-weight: 680;
+  overflow-wrap: anywhere;
+}
+#publicity-studio .pub-copy p {
+  font-size: 14px;
+  line-height: 1.85;
+  white-space: pre-wrap;
+  margin: 0 0 10px;
+  color: #454653;
+}
+#publicity-studio .pub-copy p:last-child {
+  margin-bottom: 0;
+}
+#publicity-studio .pub-copy p.pub-tags {
+  color: var(--channel-ink);
+}
+.pub-local {
+  font-size: 12px;
+  color: #806039;
+  margin: 3px 20px;
+}
+.pub-copy-tools {
+  margin-top: auto;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-top: 1px solid #e8e8ef;
+}
+.pub-copy-tools > div {
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+#publicity-studio .pub-copy-tools > div button {
+  background: #f0f0f6;
+  color: #38384d;
+}
+.pub-tweet {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 10px;
+  position: relative;
+}
+.pub-tweet + .pub-tweet {
+  margin-top: 15px;
+}
+.pub-tweet:not(:last-child):after {
+  content: "";
+  position: absolute;
+  width: 1px;
+  left: 11px;
+  top: 28px;
+  bottom: -9px;
+  background: #dddde5;
+}
+.pub-tweet-count {
+  font-size: 10px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #dcdce3;
+  border-radius: 50%;
+  height: 24px;
+  display: grid;
+  place-items: center;
+}
+.pub-tweet button {
+  font-size: 12px;
+  color: #464565;
+}
+.pub-tweet button small {
+  color: #686976;
+}
+#publicity-studio.pr-page .pr-hero {
+  padding-block: clamp(22px, 2.6vw, 45px);
+}
+#publicity-studio.pr-page .pr-hero-copy p {
+  margin-top: 10px;
+}
+#publicity-studio.pr-page .pr-results {
+  scroll-margin-top: 84px;
+}
+@media (max-width: 1000px) {
+  #publicity-studio .pub-desk {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pub-rail {
+    padding: 6px;
+    border-right: 0;
+    border-bottom: 1px solid #dddde6;
+  }
+  .pub-rail > h3 {
+    display: none;
+  }
+  #publicity-studio .pub-channels.pr-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  #publicity-studio .pub-channels.pr-tabs > button {
+    justify-content: center;
+    padding: 7px 4px;
+  }
+  .pub-chevron,
+  #publicity-studio .pub-channel-label small {
+    display: none;
+  }
+}
+@media (max-width: 670px) {
+  .pub-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pub-media {
+    border-right: 0;
+    border-bottom: 1px solid #dedee8;
+    padding: 14px 14px 7px;
+  }
+  #publicity-studio .pub-proof {
+    min-height: 160px;
+  }
+  .pub-proof .pr-art {
+    width: min(100%, calc(180px * var(--ratio, 1)));
+  }
+  #publicity-studio .pub-channels.pr-tabs > button {
+    gap: 4px;
+  }
+  #publicity-studio .pub-channels .pub-channel-label {
+    font-size: 12px;
+  }
+  #publicity-studio .pub-channels.pr-tabs .pub-mark {
+    display: none;
+  }
+  .pub-head {
+    padding: 13px 14px;
+  }
+  .pub-head-title h3 {
+    font-size: 17px;
+  }
+  .pub-copy-heading {
+    padding: 14px 14px 3px;
+  }
+  #publicity-studio .pub-copy {
+    padding: 8px 14px 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  #publicity-studio.pr-page .cp-nav .cp-shell {
+    width: 96%;
+    gap: 6px;
+  }
+  #publicity-studio.pr-page .cp-nav nav {
+    gap: 7px;
+  }
+}

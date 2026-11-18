@@ -1,4 +1,6 @@
 // PDF text runs can be fragments of a single word, especially in TeX small caps.
+import { cleanManuscriptText } from "./paper-clean";
+import { unwrapPdfWords } from "./paper-sections";
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 
 export type PrintRun = Pick<TextItem, "str" | "height" | "width" | "transform">;
@@ -108,7 +110,7 @@ function lineText(line: Line, names = false) {
 function credibleNames(lines: Line[], lastTitle: Line) {
   const names: string[] = [];
   let previous = lastTitle;
-  for (const line of lines.slice(0, 4)) {
+  for (const line of lines) {
     if (
       previous.y - line.y > previous.height * 2.5 ||
       line.height > lastTitle.height * 0.94
@@ -118,7 +120,7 @@ function credibleNames(lines: Line[], lastTitle: Line) {
       .replace(/[∗*†‡]+/gu, "")
       .trim();
     if (
-      /@|\b(?:university|institute|research|school|lab|laboratory|college|department|abstract|anonymous|conference)\b/i.test(
+      /@|\b(?:university|institute|research|school|lab|laboratory|college|department|corporation|inc|ltd|gmbh|centre|center|academy|technologies|abstract|anonymous|conference)\b/i.test(
         text,
       )
     )
@@ -134,8 +136,16 @@ function credibleNames(lines: Line[], lastTitle: Line) {
     names.push(...pieces);
     previous = line;
   }
+  if (names.length < 2) return "";
   const byline = names.join(", ");
-  return names.length >= 2 && byline.length <= 240 ? byline : "";
+  if (byline.length <= 240) return byline;
+  // Keep the field limit without cutting off part of a person's name.
+  const shortened: string[] = [];
+  for (const name of names) {
+    if ([...shortened, name, "et al."].join(", ").length > 240) break;
+    shortened.push(name);
+  }
+  return shortened.length ? shortened.join(", ") + ", et al." : "";
 }
 
 export function printedFrontmatter(items: PrintRun[], page: number[]) {
@@ -160,6 +170,7 @@ export function printedFrontmatter(items: PrintRun[], page: number[]) {
     )
       break;
     if (
+      !cleanManuscriptText(text[i]) ||
       line.height < typical * 1.12 ||
       !/\p{L}{2}/u.test(text[i]) ||
       /copyright|arxiv:|preprint|https?:|proceedings|permission|published (?:by|as)|^\s*(?:ICLR|NeurIPS|ICML)\s+\d{4}\s*$/i.test(
@@ -188,7 +199,9 @@ export function printedFrontmatter(items: PrintRun[], page: number[]) {
     (line) => line.y < lastTitle.y && inTitleColumn(line),
   );
   return {
-    title: heading.join(" ").slice(0, 500),
+    title: unwrapPdfWords(heading.join("\n"), runs.map((r) => r.str).join(" "))
+      .replaceAll("\n", " ")
+      .slice(0, 500),
     byline: credibleNames(below, lastTitle),
   };
 }
@@ -203,7 +216,7 @@ function metadataText(value: unknown) {
 }
 
 export function metadataTitle(value: unknown) {
-  const title = metadataText(value);
+  const title = cleanManuscriptText(metadataText(value));
   return /^(?:untitled|microsoft (?:word|powerpoint)|arxiv:\s*\d|anonymous submission)|^main(?:\.pdf)?$|\.pdf$/i.test(
     title,
   )

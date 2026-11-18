@@ -1,5 +1,6 @@
+import { campaignLines as wrapLines } from "./campaign-lines";
 import { samplePaperImage } from "./paper-image";
-import { addStoryToZip } from "./paper-story-art";
+import { articleFragment, noteParts, postParts } from "./paper-publication";
 import { loadFonts } from "./render";
 import {
   channels,
@@ -11,26 +12,22 @@ import {
   type Paper,
 } from "./paper-model";
 const paperFont = 'PosterCommon, PosterSans, "PingFang SC", sans-serif';
-function rows(ctx: CanvasRenderingContext2D, text: string, w: number) {
-  const out: string[] = [];
-  let row = "";
-  const tokens = Array.from(
-    new Intl.Segmenter(undefined, { granularity: "word" }).segment(text),
-    (s) => s.segment,
-  );
-  for (const segment of tokens) {
-    for (const token of ctx.measureText(segment).width > w
-      ? [...segment]
-      : [segment]) {
-      if (row && ctx.measureText(row + token).width > w) {
-        out.push(row.trimEnd());
-        row = "";
-      }
-      row += row ? token : token.trimStart();
-    }
-  }
-  if (row) out.push(row.trimEnd());
-  return out;
+function rows(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  width: number,
+  headline = false,
+) {
+  return text
+    .split(/\r?\n/)
+    .flatMap((paragraph) =>
+      wrapLines(
+        paragraph,
+        width,
+        (line) => ctx.measureText(line).width,
+        headline,
+      ),
+    );
 }
 function editorialCover(
   g: CanvasRenderingContext2D,
@@ -82,7 +79,7 @@ function editorialCover(
   let lines: string[] = [];
   do {
     g.font = "700 " + size + "px " + paperFont;
-    lines = rows(g, title, textWidth);
+    lines = rows(g, title, textWidth, true);
     if (lines.length * size * 1.16 <= h * (wide ? 0.43 : 0.31) || size <= 16)
       break;
     size *= 0.94;
@@ -203,7 +200,7 @@ export async function drawPaper(p: Paper, c: Channel) {
     lines: string[] = [];
   while (true) {
     g.font = "700 " + font + "px " + paperFont;
-    lines = rows(g, title, areaW);
+    lines = rows(g, title, areaW, true);
     if (lines.length * font * 1.15 <= bottom - top || font <= 12) break;
     font *= 0.94;
   }
@@ -256,15 +253,33 @@ export async function paperPng(p: Paper, c: Channel) {
     ),
   );
 }
-export async function paperPack(p: Paper) {
+export async function paperPack(p: Paper, selected?: Channel) {
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
-  for (const c of channels) {
-    const folder = platforms[c].name + "/";
-    zip.file(folder + "配图.png", await paperPng(p, c));
-    zip.file(folder + "发布文案.txt", channelCopy(p, c));
+  for (const c of selected ? [selected] : channels) {
+    const folder = zip.folder(platforms[c].name)!;
+    const copy = channelCopy(p, c);
+    folder.file("配图.png", await paperPng(p, c));
+    folder.file("发布文案.txt", copy);
+    if (c === "x") {
+      postParts(copy).forEach((text, i) =>
+        folder.file(`短帖/${String(i + 1).padStart(2, "0")}.txt`, text),
+      );
+    } else if (c === "red") {
+      const { title, body } = noteParts(copy);
+      if (title) {
+        folder.file("标题.txt", title);
+        folder.file("正文.txt", body);
+      }
+    } else if (c === "wechat") {
+      folder.file(
+        "排版稿.html",
+        '<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>公众号排版稿</title><body>' +
+          articleFragment(copy) +
+          "</body></html>",
+      );
+    }
   }
   zip.file("原文与引文.txt", evidenceText(p));
-  await addStoryToZip(zip.folder("论文图解长帖")!, p);
   return zip.generateAsync({ type: "blob" });
 }

@@ -3,24 +3,17 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type ClipboardEvent,
 } from "react";
 import {
-  ArrowDownToLine,
   ArrowUpRight,
-  BookOpen,
   Check,
   Clipboard,
   Download,
   FileText,
   FileUp,
   LoaderCircle,
-  MessageCircle,
-  NotebookPen,
-  PencilLine,
   Quote,
-  ScanText,
   Sparkles,
   Upload,
 } from "lucide-react";
@@ -29,7 +22,10 @@ import { ModelUnavailable, writePaper } from "./outreach";
 import { extractSections } from "./paper-sections";
 import PaperFigure from "./PaperFigure";
 import Dialog from "./PaperDialog";
-import PaperStoryPanel from "./PaperStoryPanel";
+import PublicationDesk, { Art } from "./PublicationDesk";
+import { articleFragment, noteParts } from "./paper-publication";
+import exampleCopy from "./paper-example-copy.json";
+import { cleanManuscriptText } from "./paper-clean";
 import { CampaignNav } from "./CampaignNav";
 import {
   channels,
@@ -53,13 +49,8 @@ import { studioFetch, STATIC_DEMO } from "./studio-api";
 import twitterText from "twitter-text";
 import "./paper.css";
 import "./publicity-workroom.css";
+import "./publication-desk.css";
 
-const icons = {
-  x: FileText,
-  red: NotebookPen,
-  moments: MessageCircle,
-  wechat: BookOpen,
-};
 type ModelState = "checking" | "ready" | "offline" | "unreachable";
 const sectionLimit = 45000;
 
@@ -78,50 +69,6 @@ function preserveLongPaste(
     event.preventDefault();
     update(pasted);
   }
-}
-function Art({ paper, channel }: { paper: Paper; channel: Channel }) {
-  const target = useRef<HTMLDivElement>(null);
-  const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    let live = true;
-    setFailed(false);
-    target.current?.replaceChildren();
-    drawPaper(paper, channel)
-      .then((canvas) => {
-        if (live) target.current?.replaceChildren(canvas);
-      })
-      .catch(() => {
-        if (live) setFailed(true);
-      });
-    return () => {
-      live = false;
-    };
-  }, [
-    paper.title,
-    paper.byline,
-    paper.headline,
-    paper.sample,
-    paper.figure,
-    paper.evidence,
-    channel,
-  ]);
-  return (
-    <div
-      className="pr-art"
-      role="img"
-      aria-label={platforms[channel].name + "配图预览"}
-      style={
-        {
-          aspectRatio:
-            platforms[channel].width + "/" + platforms[channel].height,
-          "--ratio": platforms[channel].width / platforms[channel].height,
-        } as CSSProperties
-      }
-      ref={target}
-    >
-      {failed ? "配图未能载入，请刷新后重试。" : null}
-    </div>
-  );
 }
 function ImportPaper({
   close,
@@ -221,17 +168,15 @@ function ImportPaper({
     setError("");
     try {
       const extracted = label ? null : extractSections(text);
-      const abstract = (
+      const abstract = cleanManuscriptText(
         extracted?.namedAbstract ||
-        (!title.trim() && extracted?.title) ||
-        extracted?.hasIntroduction
+          (!title.trim() && extracted?.title) ||
+          extracted?.hasIntroduction
           ? extracted.abstract
-          : text
+          : text,
       ).trim();
-      const intro = (
-        introduction.trim() ||
-        extracted?.introduction ||
-        ""
+      const intro = cleanManuscriptText(
+        introduction.trim() || extracted?.introduction || "",
       ).trim();
       const sections = { abstract, introduction: intro };
       const p = createPaper(
@@ -872,12 +817,20 @@ function PaperLibrary({
     </Dialog>
   );
 }
+function starterPaper(): Paper {
+  return {
+    ...examplePaper(),
+    headline: noteParts(exampleCopy.red).title,
+    edits: { ...exampleCopy },
+  };
+}
 export default function PaperStudio() {
   const [paper, setPaper] = useState<Paper>(() => {
       try {
-        return recoverPaper(localStorage.getItem(paperKey));
+        const previous = localStorage.getItem(paperKey);
+        return previous ? recoverPaper(previous) : starterPaper();
       } catch {
-        return examplePaper();
+        return starterPaper();
       }
     }),
     [channel, setChannel] = useState<Channel>("red"),
@@ -907,12 +860,29 @@ export default function PaperStudio() {
   const reviewTerms = paper.model ? wordingToReview(paper, channel) : [];
   const channelInfo = platforms[channel];
   useEffect(() => {
-    if (location.hash === "#papers/import") {
-      setModal("file");
-      history.replaceState(null, "", "#papers");
+    function openRoute() {
+      const hash = location.hash;
+      if (hash === "#papers/import") {
+        setModal("file");
+        history.replaceState(history.state, "", "#papers");
+      } else if (
+        hash === "#papers/story" ||
+        hash.startsWith("#papers/channels")
+      ) {
+        if (hash === "#papers/story")
+          history.replaceState(history.state, "", "#papers/channels");
+        const platform = hash.split("/")[2];
+        if (channels.includes(platform as Channel))
+          setChannel(platform as Channel);
+        result.current?.scrollIntoView({ block: "start" });
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
     document.title = "论文宣传 · PosterLab";
-    window.scrollTo(0, 0);
+    openRoute();
+    window.addEventListener("hashchange", openRoute);
+    return () => window.removeEventListener("hashchange", openRoute);
   }, []);
   useEffect(() => {
     if (STATIC_DEMO) return;
@@ -987,22 +957,20 @@ export default function PaperStudio() {
       setBusy("");
     }
   }
-  async function save(which: "all" | "image") {
+  async function save(which: "all" | "channel" | "image") {
     if (lock.current) return;
     lock.current = true;
     setBusy(which);
     try {
       const blob =
+        which === "image"
+          ? await paperPng(paper, channel)
+          : await paperPack(paper, which === "channel" ? channel : undefined);
+      const suffix =
         which === "all"
-          ? await paperPack(paper)
-          : await paperPng(paper, channel);
-      download(
-        blob,
-        name +
-          (which === "all"
-            ? "-论文宣传套装.zip"
-            : "-" + channelInfo.name + ".png"),
-      );
+          ? "论文宣传套装.zip"
+          : channelInfo.name + (which === "channel" ? "发布包.zip" : ".png");
+      download(blob, name + "-" + suffix);
       setMessage("文件已下载");
     } catch (e) {
       setMessage((e as Error).message || "导出失败，请重试。");
@@ -1011,22 +979,39 @@ export default function PaperStudio() {
       lock.current = false;
     }
   }
-  async function clipboard(text: string) {
+  async function clipboard(text: string, rich = false) {
     try {
+      if (
+        rich &&
+        typeof ClipboardItem !== "undefined" &&
+        navigator.clipboard?.write
+      ) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/plain": new Blob([text], { type: "text/plain" }),
+              "text/html": new Blob([articleFragment(text)], {
+                type: "text/html",
+              }),
+            }),
+          ]);
+          setMessage("已复制标题和段落排版，可粘贴到公众号编辑器");
+          return true;
+        } catch {
+          // Some browsers only allow the text clipboard, even on localhost.
+        }
+      }
       await navigator.clipboard.writeText(text);
-      setMessage("文案已复制");
+      setMessage(rich ? "已复制纯文本，排版稿可在发布包中获取" : "文案已复制");
+      return true;
     } catch {
       setManualSelect(true);
       setEdit(text);
       setModal("copy");
       setMessage("已选中文案，可手动复制");
+      return false;
     }
   }
-  const posts = channel === "x" ? copy.split(/\n\s*\n/).filter(Boolean) : [];
-  const [redTitle, ...redLines] =
-    channel === "red" ? copy.trim().split(/\n/) : [];
-  const redHasTitle =
-    redLines.some((line) => line.trim()) && redTitle.length <= 72;
   return (
     <div id="publicity-studio" className="campaign pr-page ds-workroom">
       <CampaignNav active="papers" onPapers={() => setModal("library")} />
@@ -1039,10 +1024,7 @@ export default function PaperStudio() {
         >
           <div className="pr-hero-copy">
             <h1>论文宣传</h1>
-            <p>
-              上传论文，获得
-              X、小红书、朋友圈和公众号的文案与配图。可逐个平台编辑、核对和下载。
-            </p>
+            <p>导入一篇论文，为小红书、X、朋友圈和公众号准备发布稿。</p>
             <div className="pr-actions">
               <button className="pr-import" onClick={() => setModal("file")}>
                 <FileUp size={17} />
@@ -1088,12 +1070,7 @@ export default function PaperStudio() {
             </div>
           </aside>
         </section>
-        <PaperStoryPanel
-          key={paper.id}
-          paper={paper}
-          apply={(story) => setPaper((current) => ({ ...current, story }))}
-        />
-        <section className="pr-results" ref={result}>
+        <section className="pr-results" ref={result} aria-label="平台发布台">
           <div className="pr-resultshead">
             <div>
               <div className="pr-eyebrow">
@@ -1138,139 +1115,27 @@ export default function PaperStudio() {
               )}
             </div>
           )}
-          <div className="pr-tabs" aria-label="发布平台">
-            {channels.map((c) => {
-              const Icon = icons[c];
-              return (
-                <button
-                  key={c}
-                  aria-pressed={channel === c}
-                  onClick={() => setChannel(c)}
-                >
-                  <Icon size={17} />
-                  <b>{platforms[c].name}</b>
-                  <span>{platforms[c].type}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="pr-workspace">
-            <section className="pr-vis">
-              <div className="pr-panelhead">
-                <h3>发布配图</h3>
-                <small>
-                  {channelInfo.width} × {channelInfo.height}
-                </small>
-                <button onClick={() => setModal("figure")}>
-                  <ScanText size={15} />
-                  {paper.figure ? "更换论文插图" : "选取论文插图"}
-                </button>
-              </div>
-              <button
-                className="pr-mat"
-                aria-label="放大发布配图"
-                onClick={() => setModal("preview")}
-              >
-                <Art paper={paper} channel={channel} />
-              </button>
-              <div className="pr-panelactions">
-                <span>{channelInfo.ratio} · PNG</span>
-                <button disabled={!!busy} onClick={() => save("image")}>
-                  <ArrowDownToLine size={15} />
-                  下载配图
-                </button>
-              </div>
-            </section>
-            <section className="pr-writing">
-              <div className="pr-panelhead">
-                <h3>
-                  {channelInfo.type}文案
-                  {paper.localChannels?.includes(channel) && (
-                    <small> · 本地摘录</small>
-                  )}
-                </h3>
-                {ai && (
-                  <button
-                    onClick={() => {
-                      setManualSelect(false);
-                      setEdit(copy);
-                      setModal("copy");
-                    }}
-                  >
-                    <Sparkles size={15} />
-                    平台改写
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    setManualSelect(false);
-                    setEdit(copy);
-                    setModal("copy");
-                  }}
-                >
-                  <PencilLine size={15} />
-                  编辑
-                </button>
-              </div>
-              {reviewTerms.length > 0 && (
-                <button
-                  className="pr-reviewnote"
-                  onClick={() => setModal("evidence")}
-                >
-                  <ScanText size={15} />
-                  <span>
-                    <b>建议对照原句</b>　
-                    {reviewTerms.map((t) => "「" + t + "」").join("、")}
-                  </span>
-                  <ArrowUpRight size={14} />
-                </button>
-              )}
-              <div className="pr-copy">
-                {channel === "x" ? (
-                  posts.map((s, i) => (
-                    <div className="pr-post" key={i}>
-                      <p>{s}</p>
-                      <button onClick={() => clipboard(s)}>
-                        复制第 {i + 1} 帖{" "}
-                        <small>
-                          {twitterText.parseTweet(s).weightedLength}/280
-                        </small>
-                      </button>
-                    </div>
-                  ))
-                ) : redHasTitle ? (
-                  <article className="pr-note">
-                    <h4>{redTitle}</h4>
-                    <p>{redLines.join("\n").trim()}</p>
-                  </article>
-                ) : (
-                  <p>{copy}</p>
-                )}
-              </div>
-              <div className="pr-panelactions">
-                <button onClick={() => setModal("evidence")}>
-                  <ScanText size={16} />
-                  核对原句{" "}
-                  {paper.evidenceIds?.[channel]?.join("、") ||
-                    "· " + paper.evidence.length}
-                </button>
-                {redHasTitle && (
-                  <button onClick={() => clipboard(redTitle)}>
-                    <Clipboard size={15} />
-                    复制标题
-                  </button>
-                )}
-                <button
-                  onClick={() =>
-                    clipboard(redHasTitle ? redLines.join("\n").trim() : copy)
-                  }
-                >
-                  <Clipboard size={15} />
-                  {redHasTitle ? "复制正文" : "复制文案"}
-                </button>
-              </div>
-            </section>
-          </div>
+          <PublicationDesk
+            paper={paper}
+            channel={channel}
+            copy={copy}
+            reviewTerms={reviewTerms}
+            busy={busy}
+            choose={(c) => {
+              setChannel(c);
+              history.replaceState(history.state, "", "#papers/channels/" + c);
+            }}
+            edit={() => {
+              setManualSelect(false);
+              setEdit(copy);
+              setModal("copy");
+            }}
+            evidence={() => setModal("evidence")}
+            figure={() => setModal("figure")}
+            zoom={() => setModal("preview")}
+            exportFile={save}
+            clipboard={clipboard}
+          />
           <div className="pr-source">
             <Quote size={18} />
             <div>

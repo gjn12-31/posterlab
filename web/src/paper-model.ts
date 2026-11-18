@@ -1,4 +1,5 @@
 import twitterText from "twitter-text";
+import { cleanManuscriptText } from "./paper-clean";
 import { z } from "zod";
 import { storySchema } from "./paper-story-model";
 
@@ -112,10 +113,75 @@ export function examplePaper(): Paper {
   };
 }
 export const paperKey = "posterlab.paper.v1";
+const flatText = (text: string) => text.replace(/\s+/g, " ").trim();
+
+// Earlier versions saved review stamps as editable evidence. Repair the sources
+// at both storage entry points. Published drafts and authored paraphrases stay
+// intact; a missing source must never attribute a claim to a different sentence.
+export function readSavedPaper(value: unknown): Paper {
+  const p = paperSchema.parse(value);
+  const sections = p.sections && {
+    abstract: cleanManuscriptText(p.sections.abstract),
+    introduction: cleanManuscriptText(p.sections.introduction),
+  };
+  const originalSections =
+    p.sections && flatText(p.sections.abstract + " " + p.sections.introduction);
+  const body =
+    sections && originalSections === flatText(p.body)
+      ? flatText(sections.abstract + " " + sections.introduction)
+      : flatText(cleanManuscriptText(p.body));
+  if (
+    body.length < 20 ||
+    (body === flatText(p.body) &&
+      sections?.abstract === p.sections?.abstract &&
+      sections?.introduction === p.sections?.introduction)
+  )
+    return p;
+
+  const evidence: Paper["evidence"] = [];
+  const ids = new Map<number, number>();
+  for (const [index, old] of p.evidence.entries()) {
+    const quote = flatText(cleanManuscriptText(old.quote));
+    if (!quote || !body.includes(quote)) continue;
+    evidence.push({ quote, line: old.line === old.quote ? quote : old.line });
+    ids.set(index + 1, evidence.length);
+  }
+  if (evidence.length < p.evidence.length) {
+    const extracted = createPaper(
+      body,
+      p.title,
+      p.source,
+      p.byline,
+      sections?.abstract && body.includes(flatText(sections.abstract))
+        ? sections.abstract
+        : body,
+    );
+    for (const item of extracted.evidence) {
+      if (
+        !evidence.some((e) => e.quote === item.quote) &&
+        body.includes(item.quote) &&
+        evidence.length < 4
+      )
+        evidence.push(item);
+    }
+  }
+  const evidenceIds =
+    p.evidenceIds &&
+    Object.fromEntries(
+      Object.entries(p.evidenceIds).flatMap(([channel, refs]) =>
+        refs?.every((id) => ids.has(id))
+          ? [[channel, refs.map((id) => ids.get(id)!)]]
+          : [],
+      ),
+    );
+  return { ...p, body, sections, evidence, evidenceIds };
+}
+
 export function recoverPaper(raw: string | null) {
   try {
-    const p = paperSchema.parse(JSON.parse(raw || "null"));
-    if (p.evidence.every((e) => p.body.includes(e.quote))) return p;
+    const p = readSavedPaper(JSON.parse(raw || "null"));
+    const body = flatText(p.body);
+    if (p.evidence.every((e) => body.includes(flatText(e.quote)))) return p;
   } catch {}
   return examplePaper();
 }
@@ -142,8 +208,7 @@ export function sentences(body: string): string[] {
     .filter((s) => s.length >= 6 && s.length <= 3000);
 }
 export function prepareText(raw: string, titleHint = "") {
-  const normalized = raw
-    .replace(/\r/g, "")
+  const normalized = cleanManuscriptText(raw)
     .replace(/(\p{Script=Latin})-\n(?=\p{Script=Latin})/gu, "$1")
     .trim();
   const beforeRefs = normalized.split(
@@ -205,11 +270,11 @@ export function createPaper(
   byline = "",
   evidenceSource = raw,
 ) {
-  const body = raw.replace(/\s+/g, " ").trim();
+  const body = flatText(cleanManuscriptText(raw));
   if (body.length < 20)
     throw Error("请提供至少 20 个字符的摘要或正文，以便提取论文要点。");
   if (!title.trim()) throw Error("请填写论文标题。");
-  const sourceText = evidenceSource.trim() || raw;
+  const sourceText = cleanManuscriptText(evidenceSource) || body;
   const all = sentences(sourceText);
   const complete = all.filter((s) => /[。.!?！？][”’"'）)\]]*$/.test(s));
   const candidates = complete.length ? complete : all;

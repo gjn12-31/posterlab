@@ -1,5 +1,6 @@
 import type { TextItem } from "pdfjs-dist/types/src/display/api";
 import { prepareText } from "./paper-model";
+import { cleanManuscriptText } from "./paper-clean";
 
 // Only match section names at a line boundary. Numbers in citations and
 // occurrences of "introduction" in ordinary prose are part of the source.
@@ -27,6 +28,56 @@ export function abstractBeforeFigure(section: string) {
   return (axes ? before.slice(0, axes.index) : before).trimEnd();
 }
 
+// Line counters in review PDFs are separate runs aligned down the outside
+// margins or the column gutter. Identify a numbered series before flattening
+// the page, when it is still distinguishable from prose, years and quantities.
+function reviewCounters(items: TextItem[], view: number[]) {
+  const counters = new Set<TextItem>();
+  const templateText = items.map((item) => item.str.trim()).join(" ");
+  if (
+    !/confidential\s+review\s+copy|(?:CVPR|ICCV|ECCV|ICLR|NeurIPS|ICML)\s+20\d{2}\s+submission|under review as a conference paper/i.test(
+      templateText,
+    )
+  )
+    return counters;
+  const columns: TextItem[][] = [];
+  const width = view[2] - view[0];
+  for (const item of items) {
+    if (!/^\d{3}$/.test(item.str.trim())) continue;
+    const x = item.transform[4];
+    const fraction = (x - view[0]) / width;
+    if (fraction > 0.12 && fraction < 0.88 && Math.abs(fraction - 0.5) > 0.045)
+      continue;
+    const column = columns.find(
+      (group) => Math.abs(group[0].transform[4] - x) <= 2,
+    );
+    if (column) column.push(item);
+    else columns.push([item]);
+  }
+  for (const column of columns) {
+    column.sort((a, b) => b.transform[5] - a.transform[5]);
+    for (let i = 0; i < column.length;) {
+      let j = i + 1;
+      for (; j < column.length; j++) {
+        const prev = column[j - 1],
+          next = column[j];
+        const drop = prev.transform[5] - next.transform[5];
+        if (
+          Number(next.str) !== Number(prev.str) + 1 ||
+          drop < prev.height * 0.6 ||
+          drop > prev.height * 4
+        )
+          break;
+      }
+      if (j - i >= 3 && column[i].str.trim().startsWith("0")) {
+        for (let k = i; k < j; k++) counters.add(column[k]);
+      }
+      i = j;
+    }
+  }
+  return counters;
+}
+
 // Use the page geometry before flattening PDF.js runs into text. Footnote
 // indices and mathematical exponents often contain the very same characters.
 export function pdfPageText(
@@ -40,7 +91,7 @@ export function pdfPageText(
   let previous: TextItem | undefined;
   const visible = items.filter((item) => item.str.trim());
   const captionStart = /^(?:Fig(?:ure)?\.?\s*\d+|图\s*\d+)\s*[.:：|丨｜—–-]/iu;
-  const hidden = new Set<TextItem>();
+  const hidden = reviewCounters(visible, view);
   const anchors = new Map<TextItem, string>();
   let footerY = -Infinity;
   let footerHeight = 0;
@@ -127,7 +178,9 @@ export function pdfPageText(
     if (item.hasEOL) lines.push("\n");
     previous = item;
   }
-  return stripDiagramLabels(lines.join("").replace(/ *\n+ */g, "\n"));
+  return stripDiagramLabels(
+    lines.join("").replace(/(?:[ \t]*\n)+[ \t]*/g, "\n"),
+  );
 }
 
 // Unwrap typeset English lines while retaining paragraph/section breaks and
@@ -140,10 +193,12 @@ export function pdfProse(text: string) {
     .trim();
 }
 
-export function unwrapPdfWords(text: string) {
+export function unwrapPdfWords(text: string, spellingSource = text) {
   // Prefer the spelling printed elsewhere in the same extract. Productive
   // compound prefixes retain their hyphens; TeX syllable splits are rejoined.
-  const spellings = new Set(text.toLowerCase().match(/[a-z]+(?:-[a-z]+)+/g));
+  const spellings = new Set(
+    spellingSource.toLowerCase().match(/[a-z]+(?:-[a-z]+)+/g),
+  );
   return text
     .replace(/([a-z]+)-\n([a-z]+)/gi, (_, left: string, right: string) => {
       const hyphenated = left + "-" + right;
@@ -189,7 +244,7 @@ export function stripDiagramLabels(page: string) {
 }
 
 export function extractSections(raw: string, titleHint = "") {
-  const text = raw.replace(/\r/g, "").trim();
+  const text = cleanManuscriptText(raw);
   const front = prepareText(text, titleHint);
   const intro = introductionHeading.exec(text);
   const before = intro ? text.slice(0, intro.index) : text;

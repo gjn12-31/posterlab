@@ -325,7 +325,7 @@ function fontStyle(family: string) {
 export async function exportBlob(
   project: Project,
   format: Format,
-  type: "png" | "svg",
+  type: "png" | "jpg" | "svg",
 ) {
   const text = [
     project.current.brand.name,
@@ -375,7 +375,8 @@ export async function exportBlob(
     return await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
         (b) => (b ? resolve(b) : reject(Error("图片导出失败"))),
-        "image/png",
+        type === "jpg" ? "image/jpeg" : "image/png",
+        type === "jpg" ? 0.88 : undefined,
       ),
     );
   } finally {

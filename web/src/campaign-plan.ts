@@ -161,6 +161,7 @@ function foldCalendarLine(line: string) {
 export function releaseCalendar(
   project: Project,
   entries = releasePlan(project),
+  imageName = (format: Format) => formats[format].name + ".png",
 ) {
   if (!entries.length || entries.some((entry) => !entry.date)) return "";
   const stamp = new Date()
@@ -174,7 +175,7 @@ export function releaseCalendar(
     "CALSCALE:GREGORIAN",
   ];
   for (const entry of entries) {
-    const description = `配图：${formats[entry.format].name}.png\n\n${entry.copy}`;
+    const description = `配图：${imageName(entry.format)}\n\n${entry.copy}`;
     lines.push(
       "BEGIN:VEVENT",
       `UID:${encodeURIComponent(project.id)}.${entry.id}@posterlab.local`,

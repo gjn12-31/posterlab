@@ -1,0 +1,81 @@
+import { releaseCalendar, releasePlan } from "./campaign-plan";
+import { formats, type Format, type Project } from "./model";
+import { exportBlob } from "./render";
+
+export type ExportSelection = {
+  formats: Format[];
+  imageType: "png" | "jpg";
+  copy: boolean;
+  calendar: boolean;
+};
+
+type FileSpec =
+  | { filename: string; format: Format; type: ExportSelection["imageType"] }
+  | { filename: string; text: string; mime: string };
+
+export function campaignExportFiles(
+  project: Project,
+  selection: ExportSelection,
+  updateCopy = "",
+) {
+  const files: FileSpec[] = selection.formats.map((format) => ({
+    filename: formats[format].name + "." + selection.imageType,
+    format,
+    type: selection.imageType,
+  }));
+  const entries = releasePlan(project);
+  if (selection.copy) {
+    for (const entry of entries) {
+      files.push({
+        filename: entry.name + ".txt",
+        text: entry.copy,
+        mime: "text/plain",
+      });
+    }
+    if (updateCopy)
+      files.push({
+        filename: "改期通知.txt",
+        text: updateCopy,
+        mime: "text/plain",
+      });
+  }
+  if (selection.calendar && project.current.brief.date) {
+    const calendar = releaseCalendar(project, entries, (format) =>
+      selection.formats.includes(format)
+        ? formats[format].name + "." + selection.imageType
+        : formats[format].name,
+    );
+    files.push({
+      filename: "发布日历.ics",
+      text: calendar,
+      mime: "text/calendar",
+    });
+  }
+  return files;
+}
+
+export async function exportSelection(
+  project: Project,
+  files: FileSpec[],
+  name: string,
+) {
+  if (!files.length) throw new Error("请选择要导出的文件。");
+  const read = async (file: FileSpec) =>
+    "format" in file
+      ? exportBlob(project, file.format, file.type)
+      : new Blob([file.text], { type: file.mime + ";charset=utf-8" });
+
+  if (files.length === 1) {
+    return {
+      blob: await read(files[0]),
+      filename: name + "-" + files[0].filename,
+    };
+  }
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  for (const file of files) zip.file(file.filename, await read(file));
+  return {
+    blob: await zip.generateAsync({ type: "blob" }),
+    filename: name + "-渠道发布包.zip",
+  };
+}

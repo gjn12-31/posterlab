@@ -4,30 +4,33 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
+  Check,
+  Copy,
+  PanelsTopLeft,
   FileStack,
-  MapPin,
+  Images,
 } from "lucide-react";
-import plan from "./showcase-plan.json";
+import { kits, kitBase, useKitFiles } from "./published-kits";
 
-const art = import.meta.env.BASE_URL + "showcase/";
+const paperKit = kits.find((kit) => kit.id === "paper")!;
+const eventKit = kits.find((kit) => kit.id === "bookfair")!;
 const chapters = [
   {
     name: "论文宣传",
-    title: "让论文逐页展开",
-    description: "导入 PDF，选好原句，让研究问题、方法和发现各占一页。",
+    title: "一篇论文，四套图文",
+    description:
+      "上传 PDF，一次备齐小红书、X、朋友圈和公众号各自的宣传文案与配图。",
     primary: "导入论文 PDF",
     path: "#papers/import",
-    secondary: "编辑图解长帖",
-    deep: "#papers/story",
+    secondary: "查看平台成稿",
+    deep: "#papers/channels",
     icon: FileStack,
   },
   {
     name: "活动宣传",
-    title: "把发布排上日历",
+    title: "一场活动，整套宣传",
     description:
-      "粘贴活动通知，得到三种画幅，以及预告、行前、当天分别该发的内容。",
+      "贴入活动通知，做好竖版海报、方图和横幅，再配上预告、行前提醒和当天邀请。",
     primary: "制作活动海报",
     path: "#campaign",
     secondary: "打开发布计划",
@@ -35,127 +38,158 @@ const chapters = [
     icon: CalendarDays,
   },
 ];
-const pages = ["封面", "研究方法", "观测结果", "研究解释"];
+const channels = ["小红书笔记", "X 串帖", "朋友圈分享", "公众号导读"];
+const shapes = [
+  { name: "竖版", size: "1080 × 1440", use: "张贴与群聊邀请" },
+  { name: "方图", size: "1080 × 1080", use: "社交动态" },
+  { name: "横幅", size: "1920 × 1080", use: "活动页与演示封面" },
+];
 
-function ResearchSample({
-  page,
-  setPage,
+function Sample({
+  event,
+  index,
+  select,
+  ready,
 }: {
-  page: number;
-  setPage: (n: number) => void;
+  event: boolean;
+  index: number;
+  select: (index: number) => void;
+  ready: boolean;
 }) {
+  const kit = event ? eventKit : paperKit;
+  const { files, error, retry } = useKitFiles(kit, ready);
+  const current = files[index];
+  const [notice, setNotice] = useState("");
+  const sequence = useRef(0);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    setNotice("");
+    return () => {
+      sequence.current++;
+      clearTimeout(timer.current);
+    };
+  }, [index]);
+  async function copy() {
+    if (!current) return;
+    const seq = ++sequence.current;
+    let answer = "已复制全文";
+    try {
+      await navigator.clipboard.writeText(current.text);
+    } catch {
+      answer = "可选中正文复制";
+    }
+    if (seq !== sequence.current) return;
+    clearTimeout(timer.current);
+    setNotice(answer);
+    timer.current = setTimeout(() => setNotice(""), 2600);
+  }
+  const channel = kit.formats[index];
+  const [leading, ...remaining] = (current?.text.trim() || "").split(/\n\s*\n/);
+  const hasTitle = !event && (channel === "小红书" || channel === "公众号");
+  const words = hasTitle ? remaining.join("\n\n") : current?.text.trim();
   return (
-    <div className="pl-sample pl-research-sample">
-      <div className="pl-sample-caption">
-        <span>
-          <FileStack size={16} /> 论文图解长帖
-        </span>
-        <span>M87 黑洞观测</span>
+    <div
+      className={"pl-sample pl-output pl-output-" + (event ? "event" : "paper")}
+    >
+      <div className="pl-output-head">
+        <strong>
+          {event ? <Images size={17} /> : <PanelsTopLeft size={17} />}{" "}
+          {event ? "活动海报" : "平台成稿"}
+        </strong>
+        <span>{kit.label}</span>
       </div>
-      <div className="pl-paper-spread" aria-hidden="true">
-        {pages.map((_, i) => {
-          const offset = (i - page + pages.length) % pages.length;
-          return (
+      <div className="pl-output-stage">
+        <div className="pl-output-art" data-channel={channel}>
+          {current ? (
+            <img src={current.url} alt={kit.label + " · " + channel + "成品"} />
+          ) : (
             <img
-              key={i}
-              data-depth={offset}
-              src={art + "m87-story-" + (i + 1) + ".webp"}
+              className="pl-cover-thumb"
+              src={kitBase + kit.id + ".webp"}
               alt=""
               loading="lazy"
             />
-          );
-        })}
-      </div>
-      <div className="pl-sample-controls">
-        <span aria-live="polite">
-          {String(page + 1).padStart(2, "0")} <i>/ 04</i>　{pages[page]}
-        </span>
-        <div>
-          <a
-            className="pl-sample-download"
-            href={import.meta.env.BASE_URL + "kits/m87-story.zip"}
-            download="M87-论文图解长帖.zip"
-          >
-            <Download size={14} />
-            下载图组
-          </a>
-          <button
-            type="button"
-            aria-label="上一张论文图解"
-            onClick={() => setPage((page + 3) % 4)}
-          >
-            <ChevronLeft size={19} />
-          </button>
-          <button
-            type="button"
-            aria-label="下一张论文图解"
-            onClick={() => setPage((page + 1) % 4)}
-          >
-            <ChevronRight size={19} />
-          </button>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function EventSample({
-  stage,
-  setStage,
-}: {
-  stage: number;
-  setStage: (n: number) => void;
-}) {
-  return (
-    <div className="pl-sample pl-event-sample">
-      <div className="pl-sample-caption">
-        <span>
-          <CalendarDays size={16} /> 活动发布计划
-        </span>
-        <span>秋夜设计书展</span>
-      </div>
-      <div className="pl-plan-spread">
-        <img
-          src={art + "bookfair-" + plan[stage].format + ".webp"}
-          width="680"
-          height="907"
-          alt={
-            "秋夜设计书展" +
-            (plan[stage].format === "portrait" ? "竖版海报" : "社交方图")
-          }
-          loading="lazy"
-        />
-        <div className="pl-plan-sheet">
-          <div className="pl-plan-tabs" aria-label="预览各阶段文案">
-            {plan.map((s, i) => (
+        <div className="pl-output-content">
+          <div
+            className="pl-output-tabs"
+            role="group"
+            aria-label={event ? "选择案例画幅" : "选择案例平台"}
+          >
+            {kit.formats.map((label, i) => (
               <button
                 type="button"
-                key={s.name}
-                aria-pressed={i === stage}
-                onClick={() => setStage(i)}
+                key={label}
+                aria-pressed={index === i}
+                onClick={() => select(i)}
               >
-                {["预告", "行前", "当天"][i]}
+                {event ? shapes[i].name : label}
               </button>
             ))}
           </div>
-          <div className="pl-plan-page" key={stage} aria-live="polite">
-            <time>{plan[stage].date}</time>
-            <strong>{plan[stage].name}</strong>
-            <p>{plan[stage].copy}</p>
+          {event ? (
+            <div className="pl-format-detail">
+              <h4>{channel}</h4>
+              <b>
+                {shapes[index].size} <small>px</small>
+              </b>
+              <p>{shapes[index].use}</p>
+            </div>
+          ) : (
+            <div
+              className="pl-output-copy"
+              tabIndex={0}
+              aria-label={channels[index] + "示例全文"}
+            >
+              {hasTitle && leading && <h4>{leading}</h4>}
+              <p lang={channel === "X" ? "en" : "zh-CN"}>{words}</p>
+            </div>
+          )}
+          <div className="pl-output-action">
+            {error ? (
+              <button type="button" onClick={retry}>
+                重试加载
+              </button>
+            ) : event && current ? (
+              <a
+                href={current.url}
+                download={kit.title + "-" + channel + ".png"}
+              >
+                <Download size={15} />
+                下载此画幅
+              </a>
+            ) : !event ? (
+              <button type="button" onClick={copy} disabled={!current}>
+                {notice.startsWith("已复制") ? (
+                  <Check size={15} />
+                ) : (
+                  <Copy size={15} />
+                )}
+                <span aria-live="polite">{notice || "复制文案"}</span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
-      <div className="pl-sample-controls">
-        <span>
-          <MapPin size={14} /> 纸间书房 · 二层展厅
-        </span>
+      <div className="pl-output-foot">
+        {event ? (
+          <span>秋夜设计书展 · 纸间书房</span>
+        ) : (
+          <a
+            href="https://www.eso.org/public/images/eso1907a/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            图像 © EHT Collaboration · CC BY 4.0
+          </a>
+        )}
         <a
-          className="pl-sample-download"
-          href={import.meta.env.BASE_URL + "kits/bookfair.ics"}
-          download="秋夜设计书展-发布日历.ics"
+          href={kitBase + kit.id + ".zip"}
+          download={kit.label + "-宣传材料.zip"}
         >
           <Download size={14} />
-          下载示例日历
+          下载示例整套
         </a>
       </div>
     </div>
@@ -167,6 +201,21 @@ export default function StudioWorkbench() {
   const [page, setPage] = useState(0);
   const [stage, setStage] = useState(0);
   const rail = useRef<HTMLDivElement>(null);
+  const followScroll = useRef(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setReady(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "220px" },
+    );
+    observer.observe(rail.current!);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     const entries = Array.from(
       rail.current!.querySelectorAll<HTMLElement>(".pl-chapter"),
@@ -180,6 +229,7 @@ export default function StudioWorkbench() {
         dy = y - previousY;
       previousY = y;
       if (
+        !followScroll.current ||
         !wide.matches ||
         !dy ||
         document.querySelector("#pl-live-preview :focus-visible")
@@ -192,9 +242,38 @@ export default function StudioWorkbench() {
     function schedule() {
       if (!frame) frame = requestAnimationFrame(track);
     }
+    // An anchor's smooth scroll can continue after the visitor has selected a
+    // channel. Only a fresh, deliberate page scroll may change the scene.
+    function scrollIntent(event: Event) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest(".pl-output-copy")
+      )
+        return;
+      if (
+        event instanceof KeyboardEvent &&
+        ![
+          "PageDown",
+          "PageUp",
+          "ArrowDown",
+          "ArrowUp",
+          "End",
+          "Home",
+          " ",
+        ].includes(event.key)
+      )
+        return;
+      followScroll.current = true;
+    }
+    window.addEventListener("wheel", scrollIntent, { passive: true });
+    window.addEventListener("touchmove", scrollIntent, { passive: true });
+    window.addEventListener("keydown", scrollIntent);
     window.addEventListener("scroll", schedule, { passive: true });
     return () => {
       window.removeEventListener("scroll", schedule);
+      window.removeEventListener("wheel", scrollIntent);
+      window.removeEventListener("touchmove", scrollIntent);
+      window.removeEventListener("keydown", scrollIntent);
       cancelAnimationFrame(frame);
     };
   }, []);
@@ -221,7 +300,10 @@ export default function StudioWorkbench() {
                   type="button"
                   aria-controls="pl-live-preview"
                   aria-pressed={active === i}
-                  onClick={() => setActive(i)}
+                  onClick={() => {
+                    followScroll.current = false;
+                    setActive(i);
+                  }}
                 >
                   <span>
                     <item.icon size={18} />
@@ -245,13 +327,31 @@ export default function StudioWorkbench() {
             <div
               className={"pl-demo-frame pl-frame-" + active}
               id="pl-live-preview"
+              onPointerDownCapture={() => {
+                followScroll.current = false;
+              }}
+              onFocusCapture={() => {
+                followScroll.current = false;
+              }}
               role="region"
               aria-label="成品交互演示"
             >
               {active === 0 ? (
-                <ResearchSample page={page} setPage={setPage} />
+                <Sample
+                  key="paper"
+                  event={false}
+                  index={page}
+                  select={setPage}
+                  ready={ready}
+                />
               ) : (
-                <EventSample stage={stage} setStage={setStage} />
+                <Sample
+                  key="event"
+                  event
+                  index={stage}
+                  select={setStage}
+                  ready={ready}
+                />
               )}
             </div>
           </div>

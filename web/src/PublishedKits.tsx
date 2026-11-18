@@ -1,100 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowDownToLine, Expand, Pencil, X } from "lucide-react";
-import type JSZip from "jszip";
+import {
+  kits,
+  kitBase as base,
+  useKitFiles,
+  type Kit,
+  type PreviewFile,
+} from "./published-kits";
 import type { Format } from "./model";
-const paperFormats = {
-  formats: ["小红书", "X", "朋友圈", "公众号"],
-  image: (f: string) => f + "/配图.png",
-  copy: (f: string) => f + "/发布文案.txt",
-};
-const campaignFormats = {
-  editable: true,
-  formats: ["竖版海报", "社交方图", "横版封面"],
-  image: (f: string) => f + ".png",
-  copy: () => "发布文案.txt",
-};
-const kits = [
-  {
-    id: "bookfair",
-    label: "秋夜设计书展",
-    title: "秋夜设计书展",
-    ...campaignFormats,
-  },
-  {
-    id: "ponder-live",
-    label: "PonderLM",
-    title: "把思考藏进一次预测里",
-    ...paperFormats,
-  },
-  {
-    id: "paper",
-    label: "M87 黑洞观测",
-    title: "M87 中心的亮环有多大？",
-    ...paperFormats,
-  },
-  {
-    id: "campaign",
-    label: "街区咖啡日",
-    title: "街区咖啡日",
-    ...campaignFormats,
-  },
-];
-type PreviewFile = { url: string; text: string };
-type Kit = (typeof kits)[number];
-const base = import.meta.env.BASE_URL + "kits/";
-function useKitFiles(kit: Kit, ready: boolean) {
-  const [files, setFiles] = useState<PreviewFile[]>([]);
-  const [projectFile, setProjectFile] = useState<JSZip.JSZipObject | null>(
-    null,
-  );
-  const [error, setError] = useState("");
-  const [attempt, retry] = useState(0);
-  useEffect(() => {
-    if (!ready) return;
-    setError("");
-    setFiles([]);
-    setProjectFile(null);
-    const controller = new AbortController();
-    const urls: string[] = [];
-    async function load() {
-      const [res, { default: JSZip }] = await Promise.all([
-        fetch(base + kit.id + ".zip", { signal: controller.signal }),
-        import("jszip"),
-      ]);
-      if (!res.ok) throw Error();
-      const zip = await JSZip.loadAsync(await res.arrayBuffer());
-      const data = await Promise.all(
-        kit.formats.map(async (f) => {
-          const [image, text] = await Promise.all([
-            zip.file(kit.image(f))!.async("uint8array"),
-            zip.file(kit.copy(f))!.async("string"),
-          ]);
-          return {
-            blob: new Blob([new Uint8Array(image)], { type: "image/png" }),
-            text,
-          };
-        }),
-      );
-      if (controller.signal.aborted) return;
-      setProjectFile(zip.file("project.posterlab.json"));
-      setFiles(
-        data.map(({ blob, text }) => {
-          const url = URL.createObjectURL(blob);
-          urls.push(url);
-          return { url, text };
-        }),
-      );
-    }
-    load().catch(() => {
-      if (!controller.signal.aborted) setError("暂时无法读取成品。");
-    });
-    return () => {
-      controller.abort();
-      urls.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [kit, ready, attempt]);
-  return { files, projectFile, error, retry: () => retry((x) => x + 1) };
-}
 function KitPreview({
   kit,
   index,

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema } from "idb";
-import { paperSchema, type Paper } from "./paper-model";
+import { readSavedPaper, type Paper } from "./paper-model";
 type Entry = { id: string; title: string; saved: string };
 interface Library extends DBSchema {
   papers: { key: string; value: Paper };
@@ -41,7 +41,7 @@ export async function paperEntries() {
 export async function openPaper(id: string) {
   const db = await open();
   try {
-    return paperSchema.parse(await db.get("papers", id));
+    return readSavedPaper(await db.get("papers", id));
   } finally {
     db.close();
   }

@@ -8,6 +8,7 @@ import {
   Clipboard,
   Download,
   Expand,
+  FolderOutput,
   LayoutTemplate,
   ImagePlus,
   LoaderCircle,
@@ -30,6 +31,7 @@ import {
   type Draft,
 } from "./campaign-model";
 import CampaignReleasePlan from "./CampaignPlan";
+import CampaignExport from "./CampaignExport";
 import { releasePlan } from "./campaign-plan";
 import { campaignTag } from "./campaign-design";
 import { makeCover } from "./cover";
@@ -97,11 +99,13 @@ function Modal({
   close,
   children,
   large = false,
+  locked = false,
 }: {
   name: string;
   close: () => void;
   children: ReactNode;
   large?: boolean;
+  locked?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -112,17 +116,20 @@ function Modal({
   return (
     <dialog
       ref={ref}
-      onCancel={close}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!locked) close();
+      }}
       className={"cp-dialog" + (large ? " cp-large" : "")}
       aria-label={name}
       onClick={(e) => {
-        if (e.target === ref.current) close();
+        if (!locked && e.target === ref.current) close();
       }}
     >
       <div>
         <header>
           <h2>{name}</h2>
-          <button aria-label="关闭" onClick={close}>
+          <button aria-label="关闭" onClick={close} disabled={locked}>
             <X size={20} />
           </button>
         </header>
@@ -161,12 +168,13 @@ function campaignProject(
 }
 export default function CampaignHome() {
   const [planView, setPlanView] = useState(location.hash === "#campaign/plan");
+  const [exportFormat, setExportFormat] = useState<Format | "all">("all");
   const [proofFormat, setProofFormat] = useState<Format | "all">("all");
 
   const [draft, setDraft] = useState<Draft>(readCampaign),
     [fontRev, setFontRev] = useState(0);
   const [modal, setModal] = useState<
-      "facts" | "schedule" | "preview" | "qr" | null
+      "facts" | "schedule" | "preview" | "qr" | "export" | null
     >(null),
     [editing, edit] = useState<Brief>(draft.brief),
     [selected, select] = useState<Format>("portrait");
@@ -600,6 +608,11 @@ export default function CampaignHome() {
       say("宣传套装已下载");
     });
   }
+  function openExport(format: Format | "all") {
+    setExportFormat(format);
+    setError("");
+    setModal("export");
+  }
   function png(f: Format) {
     run(f, async () => {
       download(
@@ -643,7 +656,9 @@ export default function CampaignHome() {
       <main className="cp-shell">
         <header className="wx-campaign-title">
           <h1>活动宣传</h1>
-          <p>从一条活动通知制作宣传海报，编排从预告到当天提醒的文案。</p>
+          <p>
+            把活动通知做成海报、朋友圈配图和活动页封面，配好从预告到当天的发布文案。
+          </p>
         </header>
         <section className="cp-hero" aria-label="活动创作台">
           <div className="cp-intro">
@@ -834,18 +849,27 @@ export default function CampaignHome() {
               </div>
               <h2 id="cp-delivery-title">{draft.brief.title}</h2>
             </div>
-            <button
-              className="cp-dark"
-              onClick={pack}
-              disabled={inactive || !!allErrors.length}
-            >
-              {busy === "pack" ? (
-                <LoaderCircle className="cp-spin" size={16} />
-              ) : (
-                <Download size={16} />
-              )}{" "}
-              {busy === "pack" ? "正在打包" : "下载整套 ZIP"}
-            </button>
+            <div className="ce-launchers">
+              <button
+                className="ce-backup"
+                onClick={pack}
+                disabled={inactive || !!allErrors.length}
+              >
+                {busy === "pack" ? (
+                  <LoaderCircle className="cp-spin" size={15} />
+                ) : (
+                  <Download size={15} />
+                )}
+                {busy === "pack" ? "正在打包" : "下载整套 ZIP"}
+              </button>
+              <button
+                className="cp-dark"
+                onClick={() => openExport(proofFormat)}
+                disabled={inactive}
+              >
+                <FolderOutput size={16} /> 按渠道导出
+              </button>
+            </div>
           </div>
           {dirty && (
             <p className="cp-state">通知已修改。请重新生成，再下载新版。</p>
@@ -1086,6 +1110,32 @@ export default function CampaignHome() {
           </form>
         </Modal>
       )}
+      {modal === "export" && (
+        <Modal
+          name="按渠道导出"
+          large
+          locked={!!busy}
+          close={() => {
+            setModal(null);
+            setError("");
+          }}
+        >
+          <CampaignExport
+            project={project}
+            initialFormat={exportFormat}
+            updateCopy={updateCopy}
+            layouts={layouts}
+            busy={!!busy}
+            name={name}
+            error={error}
+            run={run}
+            complete={() => {
+              setModal(null);
+              say("所选文件已下载");
+            }}
+          />
+        </Modal>
+      )}
       {modal === "preview" && (
         <Modal large name="查看发布成品" close={() => setModal(null)}>
           <div className="cp-previewtabs">
@@ -1124,10 +1174,10 @@ export default function CampaignHome() {
             </button>
             <button
               className="cp-dark"
-              disabled={inactive || !!allErrors.length}
-              onClick={pack}
+              disabled={inactive}
+              onClick={() => openExport(selected)}
             >
-              下载整套 ZIP
+              按渠道导出
             </button>
             <button
               className="cp-primary"

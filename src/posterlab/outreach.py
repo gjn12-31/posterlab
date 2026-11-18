@@ -1,11 +1,12 @@
 """Generate and validate a complete outreach kit with the configured model service."""
 import hashlib
 import json
+import re
 from typing import Annotated, Literal
 
 import httpx
 from fastapi import HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from .outreach_strategy import build_messages, publication_text
 from .server import Brief
@@ -16,10 +17,33 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 Quote = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3000)]
 
 
+# A publisher or reviewer notice can also arrive from an older client, without
+# PDF geometry. Remove only complete template sentences at source boundaries.
+_REVIEW_NOTICE = re.compile(
+    r'(^|(?<=[.!?。！？])[ \t]+|\n[ \t]*)(?:'
+    r'(?:CVPR|ICCV|ECCV|ICLR|ICML|NeurIPS|ACL|EMNLP|AAAI)[ \t]+20\d{2}[ \t]+submission'
+    r'(?:[ \t]+(?:ID|number|no\.?))?(?:[ \t]*#?[ \t]*\d{1,8})?'
+    r'|confidential[ \t]+review[ \t]+copy|do[ \t]+not[ \t]+distribute'
+    r'|anonymous[ \t]+(?:conference[ \t]+)?submission'
+    r'|under[ \t]+review[ \t]+(?:as[ \t]+a[ \t]+conference[ \t]+paper[ \t]+at|at)'
+    r'[ \t]+(?:ICLR|ICML|NeurIPS|CVPR)[ \t]+20\d{2})'
+    r'(?:[.!](?=\s|$)|(?=[ \t]*(?:\n|$)))', re.IGNORECASE,
+)
+
+
+def _clean_review_notices(text: str) -> str:
+    return _REVIEW_NOTICE.sub(r'\1', text.replace('\r\n', '\n')).strip()
+
+
 class PaperSections(BaseModel):
     model_config = ConfigDict(extra='forbid')
     abstract: str = Field(default='', max_length=45000)
     introduction: str = Field(default='', max_length=45000)
+
+    @field_validator('abstract', 'introduction')
+    @classmethod
+    def strip_review_notices(cls, value: str) -> str:
+        return _clean_review_notices(value)
 
 
 class PaperRequest(BaseModel):
@@ -28,6 +52,14 @@ class PaperRequest(BaseModel):
     byline: str = Field(default='', max_length=240)
     evidence: list[Quote] = Field(default_factory=list, max_length=5)
     sections: PaperSections | None = None
+
+    @field_validator('evidence')
+    @classmethod
+    def clean_evidence(cls, evidence: list[str]) -> list[str]:
+        cleaned = [_clean_review_notices(quote) for quote in evidence]
+        if any(not quote for quote in cleaned):
+            raise ValueError('请用论文正文替换审稿信息作为引文')
+        return cleaned
 
     @model_validator(mode='after')
     def has_source(self):

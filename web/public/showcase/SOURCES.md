@@ -14,7 +14,7 @@ Lusion 的作品目录与三维叙事、宇树 G1 产品页的分段演示，是
 
 ## 当前首页图像与交互
 
-印版主视觉 `print-prism.webp` 由内置 ImageGen 生成并优化为 WebP。论文画面 `m87-story-1.webp` 至 `m87-story-4.webp` 均缩自产品实际导出的 M87 图解，封面及来源信息保留 EHT Collaboration 署名。活动演示的图像、文案与日历取自同一份秋夜设计书展发布包。工作台可直接下载两份示例。
+印版主视觉 `print-prism.webp` 由内置 ImageGen 生成并优化为 WebP。工作台直接从 `kits/paper.zip` 和 `kits/bookfair.zip` 读取 PNG 原图和发布文案。M87 原图来自 EHT Collaboration，保留 CC BY 4.0 署名。活动案例为工作室创作的秋夜设计书展。
 
 桌面交互参考 Ant Design X 中文官网的首屏双列、收拢导航、圆角章节叠放以及同框场景切换。首页演示使用 PosterLab 的论文卡片和活动海报。[Ant Design X](https://x.ant.design/index-cn)
 

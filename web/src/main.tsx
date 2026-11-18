@@ -10,7 +10,11 @@ const Assistant = lazy(() => import("./Generator"));
 function renderer() {
   if (new URLSearchParams(location.search).get("mode") === "templates")
     return "editor";
-  if (["#papers", "#papers/import", "#papers/story"].includes(location.hash))
+  if (
+    /^#papers(?:\/(?:import|story|channels(?:\/(?:x|red|moments|wechat))?))?$/.test(
+      location.hash,
+    )
+  )
     return "papers";
   if (location.hash === "#studio") return "ai";
   if (location.hash === "#create") return "templates";

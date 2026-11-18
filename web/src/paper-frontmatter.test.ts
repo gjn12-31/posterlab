@@ -125,3 +125,45 @@ it("restores the two printed PonderLM proceedings title lines from their PDF.js 
     "PonderLM: Pretraining Language Models to Ponder in Continuous Space",
   );
 });
+
+it("joins a typeset title break and reads the whole two-row author grid before the affiliation", () => {
+  const names = [
+    "Ada Stone",
+    "Mei Lin",
+    "Carlo Rossi",
+    "Alex Allen-Zhu",
+    "Carol Wright",
+    "Tom Jones",
+    "Lu Wang",
+    "Jean Chen",
+  ];
+  const authors = names.map((name, i) =>
+    run(name, 52 + (i % 4) * 88, 649 - Math.floor(i / 4) * 12, 10, 65),
+  );
+  expect(
+    printedFrontmatter(
+      [
+        run("Efficient Lan-", 48, 702, 18, 350),
+        run("guage Models", 48, 681, 18, 150),
+        ...authors,
+        run("Example Corporation", 52, 625, 10, 140),
+        ...body,
+      ],
+      page,
+    ),
+  ).toEqual({ title: "Efficient Language Models", byline: names.join(", ") });
+});
+
+it("keeps a hyphenated term repeated in the paper across a printed title break", () => {
+  expect(
+    printedFrontmatter(
+      [
+        run("Benchmarking Domain-", 48, 702, 18, 260),
+        run("specific Models", 48, 681, 18, 145),
+        run("We evaluated domain-specific models.", 48, 486, 10, 180),
+        ...body,
+      ],
+      page,
+    ).title,
+  ).toBe("Benchmarking Domain-specific Models");
+});
