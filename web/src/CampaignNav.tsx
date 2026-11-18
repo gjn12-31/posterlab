@@ -9,7 +9,7 @@ export function CampaignNav({
   active: "home" | "create" | "papers" | "desk";
 }) {
   return (
-    <header className="cp-nav">
+    <header className="cp-nav pl-toolnav">
       <div className="cp-shell">
         <a className="cp-logo" href="#desk" aria-label="PosterLab 工作台首页">
           <span>
@@ -18,7 +18,10 @@ export function CampaignNav({
           PosterLab
         </a>
         <nav aria-label="主导航">
-          <a href="#desk" aria-current={active === "desk" ? "page" : undefined}>
+          <a
+            href="#workbench"
+            aria-current={active === "desk" ? "page" : undefined}
+          >
             工作台
           </a>
           <a
@@ -31,7 +34,7 @@ export function CampaignNav({
             href="#papers"
             aria-current={active === "papers" ? "page" : undefined}
           >
-            论文传播
+            论文宣传
           </a>
           <a
             href="#create"

@@ -1142,3 +1142,33 @@ body:has(.cs-app) .cs-wordmark {
   background: #f1ece2;
   color: #373028;
 }
+
+/* Keep the studio masthead recognizable when moving from the introduction to a tool. */
+.campaign header.cp-nav.pl-toolnav {
+  background: #fcfcf8;
+  color: #1a1c19;
+  border-bottom: 1px solid #d7d7cf;
+}
+.campaign .pl-toolnav .cp-logo {
+  color: #1a1c19;
+  letter-spacing: -0.08em;
+}
+.campaign .pl-toolnav .cp-logo > span,
+.campaign .pl-toolnav nav a[aria-current="page"],
+.campaign .pl-toolnav nav a:hover {
+  color: #263abe;
+}
+.campaign .pl-toolnav nav a[aria-current="page"]:after {
+  background: #263abe;
+}
+.campaign .pl-toolnav nav a {
+  color: #545650;
+}
+.campaign .pl-toolnav :is(a, button).cp-projects {
+  color: #272a25;
+  border-color: #c6c8c1;
+}
+.campaign .pl-toolnav :is(a, button).cp-projects:hover {
+  color: #263abe;
+  border-color: #263abe;
+}

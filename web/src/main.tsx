@@ -20,7 +20,8 @@ function renderer() {
       new URLSearchParams(location.search).get("view") === "campaign")
   )
     return "campaign";
-  if (!location.hash || location.hash === "#desk") return "desk";
+  if (!location.hash || ["#desk", "#workbench"].includes(location.hash))
+    return "desk";
   return "gallery";
 }
 function subscribe(notify: () => void) {

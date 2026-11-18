@@ -617,14 +617,14 @@ function Evidence({
     }
   }
   return (
-    <Dialog title="核对原句与传播表述" close={close}>
+    <Dialog title="核对原句与宣传文案" close={close}>
       <p className="pr-help">
         {paper.evidenceIds?.[channel]?.length
           ? platforms[channel].name +
             " 初稿引用了第 " +
             paper.evidenceIds[channel]!.join("、") +
             " 句。请对照原句核对数字、比较方向和结论范围。"
-          : "可对照下方原句核对发布文案。修改传播表述会更新四个平台的本地摘录稿。"}
+          : "可对照下方原句核对发布文案。修改宣传文案会更新四个平台的本地摘录稿。"}
       </p>
       <label>
         中文平台封面标题
@@ -660,7 +660,7 @@ function Evidence({
           </label>
           <blockquote>{e.quote}</blockquote>
           <label>
-            传播表述 {i + 1}
+            宣传文案 {i + 1}
             <textarea
               rows={2}
               value={e.line}
@@ -794,7 +794,7 @@ export default function PaperStudio() {
       setModal("file");
       history.replaceState(null, "", "#papers");
     }
-    document.title = "论文传播 · PosterLab";
+    document.title = "论文宣传 · PosterLab";
     window.scrollTo(0, 0);
     let live = true;
     if (!STATIC_DEMO)
@@ -877,7 +877,7 @@ export default function PaperStudio() {
         blob,
         name +
           (which === "all"
-            ? "-论文传播套装.zip"
+            ? "-论文宣传套装.zip"
             : "-" + channelInfo.name + ".png"),
       );
       setMessage("文件已下载");
@@ -915,12 +915,7 @@ export default function PaperStudio() {
           }
         >
           <div className="pr-hero-copy">
-            <div className="pr-eyebrow">
-              <span /> 科研论文传播
-            </div>
-            <h1>
-              论文传播工作台<span>。</span>
-            </h1>
+            <h1>论文宣传</h1>
             <p>
               上传论文，获得
               X、小红书、朋友圈和公众号的文案与配图。可逐个平台编辑、核对和下载。

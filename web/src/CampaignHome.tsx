@@ -479,17 +479,9 @@ export default function CampaignHome() {
       <main className="cp-shell">
         <section className="cp-hero">
           <div className="cp-intro">
-            <div className="cp-kicker">
-              <span />
-              活动海报工作台
-            </div>
-            <h1>
-              输入活动通知，
-              <br />
-              <em>三张宣传图。</em>
-            </h1>
+            <h1>活动宣传</h1>
             <p className="cp-lead">
-              粘贴一条通知，同时生成竖版海报、社交方图、活动横幅与邀请文案。
+              粘贴活动通知，制作竖版海报、社交方图、横幅与邀请文案。
             </p>
             <form
               className="cp-form"

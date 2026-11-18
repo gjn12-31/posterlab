@@ -61,7 +61,7 @@ export async function adaptEvidence(p: Paper, requestId: string) {
   const data = await requestDraft(
     p,
     requestId,
-    "为科研论文传播改写 title 和 description。title 写成简明中文传播标题。description 中逐条用简体中文解释每一个编号的原句，保持 [1]、[2] 等编号及顺序，每个编号独占一段。只返回这两个文字字段。",
+    "为科研论文宣传改写 title 和 description。title 写成简明中文宣传标题。description 中逐条用简体中文解释每一个编号的原句，保持 [1]、[2] 等编号及顺序，每个编号独占一段。只返回这两个文字字段。",
   );
   const matches = [
     ...data.description.matchAll(

@@ -407,7 +407,7 @@ export function evidenceText(p: Paper) {
       : []),
     ...p.evidence.map(
       (e, i) =>
-        "[ " + (i + 1) + " ]\n传播表述：" + e.line + "\n论文原句：" + e.quote,
+        "[ " + (i + 1) + " ]\n宣传文案：" + e.line + "\n论文原句：" + e.quote,
     ),
     ...(p.evidenceIds
       ? Object.entries(p.evidenceIds).flatMap(([channel, ids]) =>

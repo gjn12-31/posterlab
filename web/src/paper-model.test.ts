@@ -11,7 +11,7 @@ import {
   recoverPaper,
   threadPosts,
 } from "./paper-model";
-describe("科研传播", () => {
+describe("论文宣传", () => {
   it("标出所引原句缺少依据的首次、确定性和比较措辞", () => {
     const paper = examplePaper();
     paper.edits.red = "首次拍到，通量比超过10:1，结果完全吻合。";

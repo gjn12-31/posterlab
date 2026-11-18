@@ -258,8 +258,7 @@ def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
     path = tmp_path / "study.pdf"
     page.pdf(path=path, print_background=True)
     page.goto(url)
-    page.get_by_role("link", name="论文传播").click()
-    page.get_by_role("button", name="导入论文 PDF").click()
+    page.get_by_role("link", name="导入论文 PDF").click()
     page.get_by_label("选择论文文件").set_input_files(path)
     dialog = page.get_by_role("dialog")
     expect(dialog.get_by_label("摘要或论文原文")).to_be_hidden()
@@ -310,16 +309,19 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     browser, url = studio
     page = browser.new_page(viewport={"width": 1440, "height": 960})
     page.goto(url)
-    carousel = page.get_by_role("region", name="精选宣传案例")
-    carousel.get_by_role("button", name="下一个案例").click()
-    expect(carousel.get_by_role("heading", level=1)).to_contain_text("街区咖啡日")
-    carousel.get_by_role("button", name="看三种画幅").click()
-    expect(page.get_by_role("dialog").get_by_role("img")).to_be_visible()
-    page.keyboard.press("Escape")
-    carousel.get_by_role("button", name="下一个案例").click()
-    expect(carousel.get_by_role("link", name="打开这张画布")).to_have_attribute("href", "./?mode=templates#new?edition=vinyl&format=portrait")
+    intro = page.get_by_role("region", name="把论文和活动",exact=False)
+    expect(intro.get_by_role("heading", level=1)).to_contain_text("文案与海报")
+    expect(intro.get_by_role("link")).to_have_count(1)
+    paper = page.get_by_role("link", name="导入论文 PDF")
+    expect(paper).not_to_be_in_viewport()
+    page.mouse.wheel(0, 900)
+    expect(paper).to_be_in_viewport()
+    expect(page.get_by_role("link",name="制作活动海报")).to_be_in_viewport()
     page.emulate_media(reduced_motion="reduce")
-    expect(carousel.get_by_role("button", name="播放轮播")).to_have_count(0)
+    expect(intro.locator(".pl-visual")).to_have_css("transform","none")
+    page.goto(url+"#workbench")
+    page.reload()
+    expect(page.get_by_role("heading",name="工作台",exact=True)).to_be_in_viewport()
     for title, channel, filename in [
         ("选出下一个词元之前，模型还能做什么？", "小红书", "小红书/发布文案.txt"),
         ("M87 中心的亮环有多大？", "公众号", "公众号/发布文案.txt"),

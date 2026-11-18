@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowDownToLine, Expand, X } from "lucide-react";
+import { ArrowDownToLine, ArrowUpRight, X } from "lucide-react";
 const kits = [
   {
     id: "ponder",
     title: "选出下一个词元之前，模型还能做什么？",
-    detail: "PonderLM · ICLR 2026 · 编辑示例",
+
     formats: ["小红书", "X", "朋友圈", "公众号"],
     image: (format: string) => format + "/配图.png",
     copy: (format: string) => format + "/发布文案.txt",
@@ -12,7 +12,7 @@ const kits = [
   {
     id: "paper",
     title: "M87 中心的亮环有多大？",
-    detail: "论文宣传 · 四个平台的配图与文案",
+
     formats: ["小红书", "X", "朋友圈", "公众号"],
     image: (f: string) => f + "/配图.png",
     copy: (f: string) => f + "/发布文案.txt",
@@ -20,7 +20,7 @@ const kits = [
   {
     id: "campaign",
     title: "街区咖啡日",
-    detail: "活动宣传 · 三种画幅与邀请文案",
+
     formats: ["竖版海报", "社交方图", "横版封面"],
     image: (f: string) => f + ".png",
     copy: () => "发布文案.txt",
@@ -144,51 +144,44 @@ function KitPreview({ kit, close }: { kit: Kit; close: () => void }) {
     </dialog>
   );
 }
-export function CasePreview({
-  id,
-  close,
-}: {
-  id: "paper" | "campaign";
-  close: () => void;
-}) {
-  return <KitPreview kit={kits.find((k) => k.id === id)!} close={close} />;
-}
 export default function PublishedKits() {
   const [preview, setPreview] = useState<Kit | null>(null);
   return (
-    <section className="ds-gallery ds-kit-section">
-      <div className="ds-gallery-head">
-        <div>
-          <small>可下载案例</small>
-          <h2>配图与文案，一起看</h2>
-        </div>
+    <section
+      className="pl-collection pl-shell"
+      aria-labelledby="pl-collection-title"
+    >
+      <div className="pl-heading">
+        <h2 id="pl-collection-title">作品选集</h2>
       </div>
-      <div className="ds-kits">
+      <div className="pl-cases">
         {kits.map((k) => (
-          <article key={k.id}>
+          <article key={k.id} className="pl-case">
             <button
-              className="ds-kit-pic"
+              className="pl-case-preview"
               onClick={() => setPreview(k)}
               aria-label={"预览" + k.title}
             >
-              <img src={base + k.id + ".webp"} loading="lazy" alt="" />
-              <span>
-                <Expand size={14} /> 预览成品
-              </span>
+              <img src={base + k.id + ".webp"} alt="" loading="lazy" />
+              <h3>
+                {k.id === "ponder"
+                  ? "PonderLM"
+                  : k.id === "paper"
+                    ? "M87 黑洞观测"
+                    : k.title}
+              </h3>
+              <span>{k.id === "campaign" ? "活动海报" : "论文宣传"}</span>
+              <ArrowUpRight aria-hidden="true" />
             </button>
-            <div className="ds-kit-caption">
-              <div>
-                <small>{k.detail}</small>
-                <h3>{k.title}</h3>
-              </div>
-              <a
-                href={base + k.id + ".zip"}
-                download={k.title + "-宣传材料.zip"}
-                aria-label={"下载" + k.title + "示例 ZIP"}
-              >
-                <ArrowDownToLine size={16} /> 示例 ZIP
-              </a>
-            </div>
+            <a
+              className="pl-save"
+              href={base + k.id + ".zip"}
+              download={k.title + "-宣传材料.zip"}
+              aria-label={"下载" + k.title + "示例 ZIP"}
+              title="下载成品 ZIP"
+            >
+              <ArrowDownToLine aria-hidden="true" />
+            </a>
           </article>
         ))}
       </div>
