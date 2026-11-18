@@ -1,6 +1,12 @@
 import { FolderOpen, Layers2 } from "lucide-react";
 import "./campaign.css";
-export function CampaignNav({ active }: { active: "home" | "create" }) {
+export function CampaignNav({
+  active,
+  onPapers,
+}: {
+  onPapers?: () => void;
+  active: "home" | "create" | "papers";
+}) {
   return (
     <header className="cp-nav">
       <div className="cp-shell">
@@ -12,7 +18,13 @@ export function CampaignNav({ active }: { active: "home" | "create" }) {
         </a>
         <nav aria-label="主导航">
           <a href="#home" aria-current={active === "home" ? "page" : undefined}>
-            宣传制作台
+            活动宣传
+          </a>
+          <a
+            href="#papers"
+            aria-current={active === "papers" ? "page" : undefined}
+          >
+            论文传播
           </a>
           <a
             href="#create"
@@ -21,10 +33,21 @@ export function CampaignNav({ active }: { active: "home" | "create" }) {
             设计样张
           </a>
         </nav>
-        <a className="cp-projects" href="?mode=templates#gallery">
-          <FolderOpen size={16} />
-          我的作品
-        </a>
+        {onPapers ? (
+          <button
+            className="cp-projects pr-library-link"
+            title="我的论文"
+            onClick={onPapers}
+          >
+            <FolderOpen size={16} />
+            我的论文
+          </button>
+        ) : (
+          <a className="cp-projects" href="?mode=templates#gallery">
+            <FolderOpen size={16} />
+            我的作品
+          </a>
+        )}
       </div>
     </header>
   );

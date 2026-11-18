@@ -245,3 +245,59 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
     expect(art.locator('[data-layer="time"]')).to_have_text("14:00")
     expect(art.locator('[data-layer="title"]')).to_have_text("山野写生会")
     context.close()
+
+
+def test_paper_pdf_figure_platforms_and_download(studio, tmp_path):
+    browser, url = studio
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.set_content("""<title>Urban shade observations</title><h1>Urban shade observations</h1>
+        <h2>Abstract</h2><p>We compared shaded and exposed paths across four parks.
+        The observed pattern was limited to summer afternoons.</p><h2>Introduction</h2>
+        <div style="page-break-before:always;background:#007b71;width:360px;height:240px">Figure 1</div>""")
+    path = tmp_path / "study.pdf"
+    page.pdf(path=path, print_background=True)
+    page.goto(url)
+    page.get_by_role("link", name="论文传播").click()
+    page.get_by_role("button", name="导入论文 PDF").click()
+    page.get_by_label("选择论文文件").set_input_files(path)
+    dialog = page.get_by_role("dialog")
+    expect(dialog.get_by_label("论文标题")).to_have_value("Urban shade observations")
+    assert "Introduction" not in dialog.get_by_label("摘要或论文原文").input_value()
+    dialog.get_by_role("button", name="生成四套传播物料").click()
+    expect(page.locator(".pr-generic")).to_be_visible()
+    page.get_by_role("button",name="选取论文插图").click()
+    dialog.get_by_label("论文页码").select_option("2")
+    expect(dialog.get_by_label("图片署名或来源")).to_have_value("study · 第 2 页")
+    crop = dialog.locator(".pr-crop")
+    bounds=crop.bounding_box()
+    page.mouse.move(bounds["x"]+bounds["width"]*.08,bounds["y"]+bounds["height"]*.08)
+    page.mouse.down()
+    page.mouse.move(bounds["x"]+bounds["width"]*.50,bounds["y"]+bounds["height"]*.23,steps=5)
+    page.mouse.up()
+    dialog.get_by_role("button",name="将选区用于四张配图").click()
+    expect(page.locator(".pr-userfig")).to_be_visible()
+    page.get_by_role("button",name="编辑",exact=True).click()
+    dialog.get_by_label("发布文案").fill("夏日树荫观察笔记")
+    dialog.get_by_role("button",name="保存文案").click()
+    page.reload()
+    expect(page.locator(".pr-copy")).to_have_text("夏日树荫观察笔记")
+    assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
+    with page.expect_download() as dl:
+        page.get_by_role("button",name="下载整套 ZIP").click()
+    with ZipFile(dl.value.path()) as z:
+        assert z.read("小红书/发布文案.txt").decode()=="夏日树荫观察笔记"
+        assert "study · 第 2 页" in z.read("原文与引文.txt").decode()
+        assert "EHT" not in z.read("原文与引文.txt").decode()
+        assert "夏日树荫观察笔记" not in z.read("朋友圈/发布文案.txt").decode()
+        for channel, size in [("小红书",(1080,1440)),("X",(1600,900)),("朋友圈",(1080,1080)),("公众号",(1800,766))]:
+            with Image.open(z.open(channel+"/配图.png")) as art:
+                assert art.size==size
+                colors = [rgb for _, rgb in art.convert("RGB").resize((100,100)).getcolors(10000)]
+                assert any(g>80 and g-r>60 and b-r>60 for r,g,b in colors)
+    page.get_by_role("button", name="我的论文").click()
+    dialog.get_by_role("button", name="黑洞的阴影，是怎样拍到的？").click()
+    expect(page.locator(".pr-space")).to_be_visible()
+    page.get_by_role("button", name="我的论文").click()
+    dialog.get_by_role("button", name="Urban shade observations").click()
+    expect(page.locator(".pr-copy")).to_have_text("夏日树荫观察笔记")
+    page.close()

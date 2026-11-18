@@ -1,6 +1,7 @@
 import { lazy, Suspense, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 const Campaign = lazy(() => import("./CampaignHome"));
+const Paper = lazy(() => import("./PaperStudio"));
 const Templates = lazy(() => import("./AtlasCreate"));
 const Gallery = lazy(() => import("./DiscoveryHome"));
 const Editor = lazy(() => import("./TemplateStudio"));
@@ -8,6 +9,7 @@ const Assistant = lazy(() => import("./Generator"));
 function renderer() {
   if (new URLSearchParams(location.search).get("mode") === "templates")
     return "editor";
+  if (location.hash === "#papers") return "papers";
   if (location.hash === "#studio") return "ai";
   if (location.hash === "#create") return "templates";
   if (!location.hash || location.hash === "#home") return "campaign";
@@ -35,7 +37,9 @@ function App() {
         </div>
       }
     >
-      {module === "editor" ? (
+      {module === "papers" ? (
+        <Paper />
+      ) : module === "editor" ? (
         <Editor />
       ) : module === "ai" ? (
         <Assistant />
