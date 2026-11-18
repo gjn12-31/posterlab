@@ -121,9 +121,9 @@
 
 .landing-resources .lr-footer-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.65fr) repeat(3, minmax(100px, 0.65fr));
+  grid-template-columns: minmax(175px, 1.4fr) repeat(4, minmax(95px, 0.8fr));
   align-items: start;
-  gap: clamp(20px, 4vw, 76px);
+  gap: clamp(16px, 2.8vw, 52px);
 }
 
 .landing-resources .lr-wordmark {

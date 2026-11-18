@@ -130,6 +130,13 @@ export default function LandingResources() {
             <a href="#campaign">活动宣传</a>
             <a href="#collection">作品选集</a>
           </nav>
+          <nav aria-label="更多设计工具">
+            <h3>创作工具</h3>
+            <a href="#studio">海报设计室</a>
+            <a href="#create">设计样张</a>
+            <a href="#exhibitions">灵感档案</a>
+            <a href="?mode=templates#gallery">我的作品</a>
+          </nav>
           <nav aria-label="关于我们">
             <h3>关于我们</h3>
             <button
