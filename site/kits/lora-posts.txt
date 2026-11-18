@@ -1,0 +1,42 @@
+LoRA 论文宣传文案
+PosterLab 模拟作者发帖 · Kimi-K3.1-Pro 依据 LoRA 论文摘要和引言生成
+论文原文 https://arxiv.org/abs/2106.09685
+
+小红书
+
+切换任务，只换两个小矩阵
+
+我们做 LoRA，最想给同时维护多个下游任务的人看的，是这一步：预训练权重始终冻结，每个任务只留下低秩矩阵 A 和 B；切换任务时替换它们，不必再为每项任务存一份完整模型。
+
+部署时还能把更新合回原权重，不引入额外推理延迟。代码及 RoBERTa、DeBERTa、GPT-2 的实现和模型权重在：
+https://github.com/microsoft/LoRA
+
+原文：https://arxiv.org/abs/2106.09685
+
+X
+
+1/2 On GPT-3 175B, we use LoRA to train 10,000× fewer parameters than full fine-tuning with Adam: freeze the pretrained weights and learn only low-rank update matrices.
+
+2/2 For deployment, keep one shared model and swap small task-specific A/B matrices. Merge the learned update into the weights, so inference has no added latency.
+Code/checkpoints: https://github.com/microsoft/LoRA
+Paper: https://arxiv.org/abs/2106.09685
+
+朋友圈
+
+我们这篇 LoRA，特别想转给同时维护好几个任务模型的朋友：底座可以共享，换任务时只换两块小矩阵，不必每个任务都再存一整套权重。
+
+原文：https://arxiv.org/abs/2106.09685
+
+公众号
+
+两个小矩阵，为什么不拖慢推理？
+
+少训练参数和推理速度，过去像一道二选一：adapter 通过增加网络深度减少需要更新的权重，却会引入额外推理延迟。我们做 LoRA，是希望不再接受这个交换。
+
+做法从一张权重矩阵开始：预训练的 W 始终冻结，只训练低秩矩阵 A、B 来表示它的更新。部署时把 BA 直接加回 W，线上仍是一次普通矩阵计算，不需要多跑一段 adapter，所以相对全量微调模型没有额外延迟。
+
+在 GPT-3 175B 上，秩 r 取 1 或 2 就能奏效，而对应的全秩 d 可高达 12,288。小矩阵不是部署时才做的压缩，而是训练时唯一需要学习的更新。
+
+LoRA: Low-Rank Adaptation of Large Language Models
+Edward J. Hu et al.
+https://arxiv.org/abs/2106.09685

@@ -29,7 +29,7 @@ function renderer() {
   if (
     !location.hash ||
     location.hash.startsWith("#collection/") ||
-    ["#desk", "#workbench", "#collection"].includes(location.hash)
+    ["#desk", "#demo", "#workbench", "#collection", "#faq", "#about"].includes(location.hash)
   )
     return "desk";
   return "gallery";

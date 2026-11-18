@@ -61,7 +61,8 @@ it("a channel rewrite transmits its own voice and long source material as full s
     abstract: measured.repeat(240),
     introduction: "An earlier study discussed a control. ".repeat(90),
   };
-  const author = await adaptChannel(paper, "x", "request-author", "", "author");
+  const oldOpening = "An older summary. ".repeat(28);
+  const author = await adaptChannel(paper, "x", "request-author", "", "author", oldOpening);
   const editor = await adaptChannel(paper, "x", "request-editor", "", "editor");
   expect(author).toContain("We propose");
   expect(editor).toContain("The authors propose");
@@ -70,6 +71,9 @@ it("a channel rewrite transmits its own voice and long source material as full s
     return JSON.parse(init!.body as string);
   });
   expect(bodies.map((d) => d.paper_voice)).toEqual(["author", "editor"]);
+  expect(bodies[0].previous_opening).toBe(oldOpening.slice(0, 240));
+  expect(bodies[0].instruction).not.toContain("An older summary");
+  expect(bodies[1].previous_opening).toBeUndefined();
   for (const body of bodies) {
     expect(body.workflow).toBe("paper");
     expect(body.paper_channel).toBe("x");

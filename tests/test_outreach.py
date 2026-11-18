@@ -237,6 +237,41 @@ def test_respects_research_ownership_and_flags_verbatim_abstract_lead():
     assert publication_issues({'moments':'我们测量了四个路口。'}, {**payload,'voice':'editor'}).keys() == {'moments'}
 
 
+def test_launch_wrappers_and_outline_headings_do_not_hide_summaries():
+    from posterlab.outreach_strategy import publication_issues
+
+    drafts = {
+        'x': ['🎉 New preprint! This paper presents an archive of street shade.'],
+        'red': '夏天树影有什么不同？\n\n新论文来了！本研究探讨了四座公园里的树冠分布。',
+        'wechat': '从路口看树影\n\n研究背景\n树影会变。\n研究方法：比对同一路口的图。',
+        'moments': '新论文来了！想知道你家路口下午哪边更晒，可以先对着这两张图找找方向。',
+    }
+    assert set(publication_issues(drafts, PAPER)) == {'x', 'red', 'wechat'}
+
+
+def test_clipboard_ready_voice_hides_editorial_instructions_and_verbatim_chinese():
+    from posterlab.outreach_strategy import publication_issues
+
+    excerpt = '四座公园的夏季观测覆盖上午和下午的同一路段并记录了每一次观测中行人的路径选择'
+    drafts = {'red': '哪边更晒？\n\n' + excerpt + '。', 'wechat': '哪条路适合步行？\n\n论文给一个有凭据的路线选择判断。'}
+    assert set(publication_issues(drafts, {'evidence': [excerpt]})) == {'red', 'wechat'}
+
+
+def test_targeted_rewrite_can_see_the_shared_opening_but_keeps_shared_scientific_facts():
+    from posterlab.outreach_strategy import publication_issues, revision_messages
+
+    opener = '想和大家分享这张四季树影图，在图上可以找出下午适合步行的那一边'
+    same_fact = '四座公园都在夏季和冬季各采集了同一路段早晨和下午的树冠阴影照片'
+    drafts = {'red': '冬夏怎么看树影\n\n' + opener + '。' + same_fact + '。', 'moments': opener + '。',
+              'wechat': '树影图的两种读法\n\n' + same_fact + '。两次记录先按路口对应，再比方向。'}
+    issues = publication_issues(drafts, PAPER)
+    assert set(issues) == {'moments'}
+    user = json.loads(revision_messages(PAPER, drafts, issues)[1]['content'])
+    assert user['existing_openings']['red'].startswith(opener) and list(user['drafts']) == ['moments']
+    drafts['moments'] = same_fact + '。可以留给下周带同学走这条路的老师。'
+    assert not publication_issues(drafts, PAPER)
+
+
 def test_unverified_resource_links_are_removed_even_when_the_revision_fails(tmp_path):
     actual = 'https://github.com/fieldnotebook/shade'
     fabricated = 'https://example.org/demo'
@@ -265,6 +300,17 @@ def test_number_piling_gets_targeted_but_a_single_conditioned_comparison_is_pres
     assert list(publication_issues(two,payload))==['x']
     single={'x':['Meet the update rule.', 'Against the same baseline, trainable parameters fell 10,000×.']}
     assert not publication_issues(single,payload)
+
+
+def test_thread_dropping_a_measurements_table_behind_a_hook_is_revised():
+    from posterlab.outreach_strategy import publication_issues
+
+    signal = 'In two detectors the frequency rose from 35 to 250 Hz, with peak strain near 1 × 10⁻²¹.'
+    draft = {'x': [signal, 'The matched-filter SNR was 24. The false-alarm rate was below 1 event per 203,000 years.'],
+             'red': '探测器里的一条弧线\n\n频率从35升至250 Hz，峰值应变约为1 × 10⁻²¹。匹配滤波信噪比为24。',
+             'wechat': '环有多大？\n\n在1.3 mm波长处，亮环角直径约42 ± 3微角秒。另一组测量得到41 ± 2微角秒。'}
+    assert set(publication_issues(draft, PAPER)) == {'red', 'x'}
+    assert not publication_issues({'x': [signal]}, PAPER)
 
 
 def test_single_channel_rewrite_keeps_only_resource_url_in_the_supplied_material(tmp_path):

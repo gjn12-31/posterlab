@@ -102,3 +102,23 @@ def test_multibyte_paper_sections_reach_the_normal_paper_handler(tmp_path):
     assert client.post('/api/outreach/paper', json=payload, headers=HEADERS).status_code == 503
     payload['sections']['abstract'] = '数' * 45_001
     assert client.post('/api/outreach/paper', json=payload, headers=HEADERS).status_code == 422
+
+
+def test_channel_rewrite_keeps_old_opening_separate_from_paper_evidence(tmp_path):
+    old = 'We release our code at https://example.org/retired-package'
+    source = 'We observed a bright ring around a darker centre.'
+
+    def writer(request):
+        system, user = json.loads(request.content)['messages']
+        assert 'previous_opening' in system['content']
+        material = json.loads(user['content'])
+        assert material['previous_opening'] == old
+        assert material['instruction'] == source
+        return response({'description': '看环心和亮边的交界。\n\n代码：https://example.org/retired-package'})
+
+    studio = client(tmp_path, writer)
+    request = {**PAYLOAD, 'workflow': 'paper', 'paper_channel': 'moments',
+               'instruction': source, 'previous_opening': old}
+    result = studio.post('/api/assist', json=request, headers=HEADERS)
+    assert result.status_code == 200
+    assert result.json()['fields']['description'] == '看环心和亮边的交界。'

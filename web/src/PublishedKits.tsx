@@ -240,6 +240,7 @@ function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
             </a>
           )}
           <a
+            className="pg-kit-download"
             href={base + kit.id + ".zip"}
             download={kit.title + "-宣传材料.zip"}
             aria-label={"下载" + kit.title + "示例 ZIP"}
@@ -313,7 +314,7 @@ export default function PublishedKits() {
     <section
       ref={section}
       id="collection"
-      className="pg-gallery pl-shell"
+      className="pg-gallery pl-shell home-collection"
       aria-labelledby="pl-collection-title"
     >
       <h2 id="pl-collection-title" tabIndex={-1}>

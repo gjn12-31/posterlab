@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
+  ChevronRight,
   Check,
   Copy,
   PanelsTopLeft,
@@ -12,15 +13,15 @@ import {
 } from "lucide-react";
 import LiveStudioLink from "./LiveStudioLink";
 import { kits, kitBase, useKitFiles } from "./published-kits";
+import "./home-workspace.css";
 
 const paperKit = kits.find((kit) => kit.id === "ligo")!;
 const eventKit = kits.find((kit) => kit.id === "cyanotype")!;
 const chapters = [
   {
     name: "论文宣传",
-    title: "一篇论文，四套图文",
     description:
-      "上传 PDF，一次备齐小红书、X、朋友圈和公众号各自的宣传文案与配图。",
+      "上传论文 PDF，为小红书、X、朋友圈和公众号分别生成宣传文案与配图。",
     primary: "导入论文 PDF",
     path: "#papers/import",
     secondary: "查看平台成稿",
@@ -29,9 +30,8 @@ const chapters = [
   },
   {
     name: "活动宣传",
-    title: "一场活动，整套宣传",
     description:
-      "贴入活动通知，做好竖版海报、方图和横幅，再配上预告、行前提醒和当天邀请。",
+      "粘贴活动通知，制作竖版海报、方图和横幅，配齐预告、行前提醒和当天邀请。",
     primary: "制作活动海报",
     path: "#campaign",
     secondary: "打开发布计划",
@@ -280,7 +280,7 @@ export default function StudioWorkbench() {
   }, []);
   return (
     <section
-      className="pl-work"
+      className="pl-work home-workspace"
       id="workbench"
       aria-labelledby="pl-work-heading"
     >
@@ -296,29 +296,35 @@ export default function StudioWorkbench() {
                 key={item.name}
                 data-active={active === i}
               >
-                <button
-                  className="pl-scene-button"
-                  type="button"
-                  aria-controls="pl-live-preview"
-                  aria-pressed={active === i}
-                  onClick={() => {
-                    followScroll.current = false;
-                    setActive(i);
-                  }}
-                >
-                  <span>
-                    <item.icon size={18} />
-                  </span>
-                  {item.name}
-                </button>
-                <h3>{item.title}</h3>
+                <h3>
+                  <button
+                    className="pl-scene-button"
+                    type="button"
+                    aria-controls="pl-live-preview"
+                    aria-pressed={active === i}
+                    onClick={() => {
+                      followScroll.current = false;
+                      setActive(i);
+                    }}
+                  >
+                    <span className="pl-scene-icon" aria-hidden="true">
+                      <item.icon size={19} />
+                    </span>
+                    {item.name}
+                    <ChevronRight
+                      className="pl-scene-next"
+                      size={19}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </h3>
                 <p>{item.description}</p>
                 <div className="pl-work-actions">
                   <a className="pl-launch" href={item.path}>
                     {item.primary} <ArrowUpRight size={15} />
                   </a>
                   <LiveStudioLink route={item.path} />
-                  <a href={item.deep}>
+                  <a className="pl-work-more" href={item.deep}>
                     {item.secondary} <ArrowRight size={15} />
                   </a>
                 </div>

@@ -494,7 +494,9 @@ function CopyEditor({
     setWorking(true);
     setState("");
     try {
-      setValue(await adaptChannel(paper, channel, key.current, angle, voice));
+      const next = await adaptChannel(paper, channel, key.current, angle, voice, value);
+      setValue(next);
+      key.current = crypto.randomUUID();
       setGeneratedVoice(voice);
       setState("已生成平台草稿，请对照下方原句后保存。");
     } catch (e) {
@@ -578,7 +580,10 @@ function CopyEditor({
           maxLength={18000}
           value={value}
           disabled={working}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value);
+            key.current = crypto.randomUUID();
+          }}
         />
       </label>
       {channel === "x" && (

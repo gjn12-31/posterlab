@@ -17,6 +17,7 @@ async function requestDraft(
   fullSections = false,
   channel?: Channel,
   voice?: PaperVoice,
+  previousOpening?: string,
 ) {
   const evidence = p.evidence.map(
     (e, i) => "[" + String(i + 1) + "] " + e.quote,
@@ -93,6 +94,7 @@ async function requestDraft(
       kind: "edit",
       workflow: "paper",
       ...(channel ? { paper_channel: channel, paper_voice: voice } : {}),
+      ...(previousOpening ? { previous_opening: previousOpening } : {}),
       instruction,
     }),
   });
@@ -126,35 +128,27 @@ export async function adaptEvidence(p: Paper, requestId: string) {
     throw Error("改写结果未逐条对应原句，已保留现有表述。");
   return { headline: data.headline, lines: matches.map((m) => m[2].trim()) };
 }
-const briefs: Record<Channel, string> = {
-  x: "写英文 X 串帖，让第一条独立讲出同行为什么会关心这项研究；下一条给实证，最后可留一条原文阅读线索。2–4 条，以空行分开，不加序号。",
-  red: "从最值得分享的反差、观察或做法切入，首行写自然的中文笔记标题，最多20个字符。第一屏兑现标题。正文分两三个短段，挑一次有依据的具体对照讲透，写清限制，留下可去原文核对的线索。",
-  moments:
-    "写同事之间愿意转发的两三句话。先说一个与读者有关的具体观察或选择，再给分享理由，不虚构个人经历。",
-  wechat:
-    "写一篇公众号短推文，独立标题先给看点，首段让读者想追一个具体问题，后面两到四个短段用证据兑现。可写一到两个具体的小标题，用纯文本。",
-};
 export async function adaptChannel(
   p: Paper,
   c: Channel,
   requestId: string,
   angle = "",
   voice: PaperVoice = channelVoice(p, c) || p.voice || "author",
+  currentCopy = "",
 ) {
   const draft = await requestDraft(
     p,
     requestId,
-    (voice === "author"
-      ? "以研究作者身份向同行发布，可用自然的我们或 we。 "
-      : "以推荐者身份分享，研究归属写清楚，可说明推荐理由。 ") +
-      briefs[c] +
+    "只重写用户选中的发布渠道，使用选定的发布身份。" +
+      (c === "x" ? "每条英文短帖以空行分开，不加序号。" : "") +
       (c === "red" && angle
         ? "\n本次优先" + angle + "；资料不支持时改用方法解释。"
         : "") +
-      " 不推断论文的发表时间，不把已有成果称为最新发现或刚刚发布。可原样引用资料明确给出的本研究代码或演示链接，不猜测地址。论文原文链接由应用附上。把完整可发布文案写入 description 字段，不用 Markdown。",
+      "论文原文链接由应用附上。把完整可发布文案写入 description 字段，不用 Markdown。",
     true,
     c,
     voice,
+    Array.from(currentCopy.trim()).slice(0, 240).join(""),
   );
   const description = publicationVoice(draft.description, voice);
   if (!description) throw Error("助手未返回可用文案，请继续编辑当前草稿。");
