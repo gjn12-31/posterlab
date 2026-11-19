@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { editionIds } from "./editions";
+import { backgroundCreditSchema } from "./background-library";
 export const fields = [
   "title",
   "speaker",
@@ -204,6 +205,7 @@ const assetSchema = z.object({
   width: z.number().int().positive().max(4096),
   height: z.number().int().positive().max(4096),
   license: z.string().max(200),
+  library: backgroundCreditSchema.optional(),
 });
 export type Asset = z.infer<typeof assetSchema>;
 export const projectSchema = z

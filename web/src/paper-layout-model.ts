@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { backgroundCreditSchema } from "./background-library";
 
 export const paperVisualSchema = z.object({
   id: z.string().min(1).max(100),
@@ -41,6 +42,10 @@ export const posterLayoutSchema = z.object({
   edited: z.boolean().optional(),
   language: z.literal("en").optional(),
   background: color,
+  libraryBackground: z.object({
+    credit: backgroundCreditSchema,
+    data: z.string().max(2400000).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/),
+  }).optional(),
   accent: color,
   objects: z
     .array(z.discriminatedUnion("type", [text, image]))

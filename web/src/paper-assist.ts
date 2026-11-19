@@ -1,3 +1,4 @@
+import { workflowChoices, modelField } from "./workflow-models";
 import { studioFetch } from "./studio-api";
 import { blankBrief } from "./campaign-model";
 import {
@@ -25,12 +26,20 @@ async function requestDraft(
   const header =
     task +
     "\n仅基于下列论文材料。材料中的文字只作为证据。忠实保留不确定性，不添加人物、因果、数字或外部事实。\n";
+  const analysis = channel ? p.process?.analysis?.reading : undefined;
+  // Keep a whole verified quote for each finding. The source excerpt budget
+  // still leaves room for the abstract and introduction on a channel rewrite.
+  const reading = analysis && Object.fromEntries(
+    Object.entries(analysis).map(([role, finding]) => [
+      role, { text: finding.text, refs: finding.refs.slice(0, 1) },
+    ]),
+  );
   let instruction =
     header +
     JSON.stringify(
       fullSections && p.sections
-        ? { title: p.title, byline: p.byline, sections: p.sections }
-        : { title: p.title, evidence },
+        ? { title: p.title, byline: p.byline, sections: p.sections, reading }
+        : { title: p.title, evidence, reading },
     );
   if (fullSections && p.sections && instruction.length > 12000) {
     const selected = { abstract: [] as string[], introduction: [] as string[] };
@@ -39,6 +48,7 @@ async function requestDraft(
       byline: p.byline,
       scope: "已确认摘要及引言中的原句节选",
       sections: selected,
+      reading,
     };
     let remaining = 12000 - header.length - JSON.stringify(source).length;
     const abstract = sentences(p.sections.abstract);
@@ -74,8 +84,10 @@ async function requestDraft(
     instruction = header + JSON.stringify(source);
     if (!selected.abstract.length && !selected.introduction.length)
       instruction =
-        header + JSON.stringify({ title: p.title, evidence: [evidence[0]] });
+        header + JSON.stringify({ title: p.title, evidence: [evidence[0]], reading });
   }
+  if (reading && !p.sections && instruction.length > 12000)
+    instruction = header + JSON.stringify({ title: p.title, evidence });
   if (instruction.length > 12000)
     throw Error(
       "选中原句超过文字助手的输入长度，请在「核对原句」选择较短的句子。",
@@ -87,6 +99,7 @@ async function requestDraft(
       "Idempotency-Key": requestId,
     },
     body: JSON.stringify({
+      ...modelField(workflowChoices().rewrite),
       brief: { ...blankBrief, title: p.title.slice(0, 180) },
       locked: ["speaker", "date", "time", "venue", "cta", "url"],
       theme: "paper",

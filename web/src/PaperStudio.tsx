@@ -1,3 +1,4 @@
+import WorkflowModels, { useWorkflowChoices } from "./WorkflowModels";
 import {
   useEffect,
   useMemo,
@@ -31,6 +32,7 @@ import PaperFigure from "./PaperFigure";
 import PaperLayoutEditor from "./PaperLayoutEditor";
 import {changePaperFigure} from "./paper-layout";
 import PaperProcess from "./PaperProcess";
+import WorkroomCases from "./WorkroomCases";
 import { producePaper, preservePaperEdits } from "./paper-production";
 import { RewritePaper, VoicePicker } from "./PaperVoice";
 import Dialog from "./PaperDialog";
@@ -417,7 +419,10 @@ function ImportPaper({
           </label>
         )}
         {ai && useModel && (
-          <VoicePicker value={voice} choose={setVoice} disabled={generating} />
+          <>
+            <VoicePicker value={voice} choose={setVoice} disabled={generating} />
+            <WorkflowModels context="paper" disabled={generating} />
+          </>
         )}
         {STATIC_DEMO && <LiveStudioLink route="#papers/import" />}
         {modelState === "unreachable" && (
@@ -504,6 +509,8 @@ function CopyEditor({
   useEffect(() => {
     if (selectText) field.current?.select();
   }, []);
+  const rewriteModel = useWorkflowChoices().rewrite;
+  useEffect(() => { key.current = crypto.randomUUID(); }, [rewriteModel]);
   async function adapt() {
     setWorking(true);
     setState("");
@@ -549,6 +556,7 @@ function CopyEditor({
     );
   return (
     <Dialog title={"编辑" + platforms[channel].name + "文案"} close={close}>
+      {ai && <WorkflowModels context="rewrite" disabled={working} />}
       {ai && (
         <VoicePicker
           value={voice}
@@ -1260,6 +1268,7 @@ function PaperWorkspace({
         >
           <div className="pr-hero-copy">
             <h1>论文宣传</h1>
+            {ai && <WorkflowModels context="paper" disabled={!!busy} />}
             <p>导入一篇论文，为小红书、X、朋友圈和公众号准备发布稿。</p>
             <div className="pr-actions">
               <button className="pr-import" onClick={() => setModal("file")}>
@@ -1377,6 +1386,7 @@ function PaperWorkspace({
             <PaperProcess
               paper={retryProgress || paper}
               running={!!retryProgress}
+              openCanvas={!busy && !retryProgress ? (platform) => {setChannel(platform); setModal("layout");} : undefined}
               retry={ai && !busy ? resumeProcess : undefined}
             />
           )}
@@ -1441,6 +1451,7 @@ function PaperWorkspace({
             )}
           </div>
         </section>
+        <WorkroomCases kind="paper" />
       </main>
       {(modal === "file" || modal === "paste") && (
         <ImportPaper

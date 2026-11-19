@@ -6,7 +6,6 @@ import hashlib
 from io import BytesIO
 from ipaddress import ip_address
 import json
-import os
 import re
 import socket
 
@@ -30,17 +29,13 @@ ART_DIRECTIONS = {
 
 
 class ArtworkBrief(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     title: str = Field(min_length=1, max_length=180)
     description: str = Field(default='', max_length=1200)
     edition: Edition = 'afterglow'
     art_direction: str = Field(default='', max_length=850)
 
-
-def artwork_model(gateway):
-    if gateway.name != 'Paratera' or not gateway.api_key:
-        return ''
-    return os.getenv('PARATERA_IMAGE_MODEL', 'Doubao-Seedream-4.5').strip()
 
 
 def _prompt(brief):
@@ -106,6 +101,7 @@ def _webp(data):
 
 
 class PaperArtworkBrief(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
     model_config = ConfigDict(extra='forbid', str_strip_whitespace=True)
     title: str = Field(min_length=1, max_length=500)
     abstract: str = Field(min_length=1, max_length=3500)
@@ -122,23 +118,23 @@ def paper_art_direction(brief):
         'Avoid generic stock AI motifs, glowing brains, decorative graphs, interface panels and repetitive pattern wallpaper. '
         'Draw no text, lettering, diagrams, axes, figures, measurement scales, invented experimental results or numbers. '
         'The client separately typesets all words and inserts the original published figure without modification. '
-        'Research source:\n' + json.dumps(brief.model_dump(), ensure_ascii=False)
+        'Research source:\n' + json.dumps(brief.model_dump(exclude={'model'}), ensure_ascii=False)
     )
 
 
 def register_artwork(app, ledger, gateway, transport):
     @app.post('/api/outreach/artwork')
     async def create(brief: ArtworkBrief, request: Request):
-        return await create_image(_prompt(brief), 'campaign', request)
+        return await create_image(_prompt(brief), 'campaign', request, brief.model)
 
     @app.post('/api/outreach/paper-artwork')
     async def paper_artwork(brief: PaperArtworkBrief, request: Request):
-        return await create_image(paper_art_direction(brief), 'paper', request)
+        return await create_image(paper_art_direction(brief), 'paper', request, brief.model)
 
-    async def create_image(prompt, workflow, request):
-        model = artwork_model(gateway)
-        if not model:
+    async def create_image(prompt, workflow, request, selected):
+        if not gateway.artwork_model:
             raise HTTPException(503, '请先配置并行智算云的大模型 API 密钥。')
+        model = gateway.select(selected, 'artwork')
         token = request.headers.get('idempotency-key', '')
         if not re.fullmatch(r'[a-zA-Z0-9_-]{8,100}', token):
             raise HTTPException(400, '缺少有效的请求标识')

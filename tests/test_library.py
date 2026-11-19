@@ -13,7 +13,9 @@ ASSET_HTML=HTML.replace('</main>', '<img data-asset="coffee-ink" src="assets/cof
 def test_unknown_assets_and_multiple_backgrounds_rejected_without_model_call(tmp_path,monkeypatch):
     def handler(req):pytest.fail('Invalid asset selection must not call the provider')
     with TestClient(build(tmp_path,monkeypatch,handler)) as c:
-        assert len(c.get('/api/assets').json()['assets'])==32
+        assets=c.get('/api/assets').json()['assets']
+        assert len([a for a in assets if a['kind']=='background'])==50
+        assert len({a['id'] for a in assets})==len(assets)
         for ids in [['../../secret'],['aurora','paper'],['coffee-ink','coffee-ink']]:
             assert c.post('/api/generations',json={**REQUEST,'asset_ids':ids},headers=HEADERS).status_code==400
             assert c.post('/api/chat',json={'messages':[{'role':'user','content':'生成咖啡海报'}],'asset_ids':ids},headers=HEADERS).status_code==400
@@ -78,3 +80,16 @@ def test_retail_facts_and_organizer_are_validated_independently():
 def test_selected_material_can_repeat_as_a_visual_motif():
     repeated=ASSET_HTML.replace('</main>','<img data-asset="coffee-ink" src="assets/coffee-ink.png"></main>')
     validate_generated(repeated,BRIEF,['coffee-ink'])
+
+
+def test_photographic_background_renders_and_exports_with_its_source(tmp_path,monkeypatch):
+    from posterlab.library import CATALOG,ROOT
+    photo=next(asset for asset in CATALOG.values() if asset['path'].endswith('.webp'))
+    html=ASSET_HTML.replace('coffee-ink.png',Path(photo['path']).name).replace('coffee-ink',photo['id'])
+    with TestClient(build(tmp_path,monkeypatch,lambda request:result(html))) as client:
+        job=client.post('/api/generations',json={**REQUEST,'asset_ids':[photo['id']]},headers=HEADERS).json()
+        package=client.get('/api/generations/'+job['id']+'/package')
+        assert package.status_code==200
+        with ZipFile(io.BytesIO(package.content)) as archive:
+            assert archive.read(photo['path'])==(ROOT/Path(photo['path']).name).read_bytes()
+            assert json.loads(archive.read('assets/SOURCES.json'))[0]['source_url']==photo['source_url']

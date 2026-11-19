@@ -1,3 +1,4 @@
+import { workflowChoices, modelField } from "./workflow-models";
 import { z } from "zod";
 import { studioFetch, STATIC_DEMO } from "./studio-api";
 import { editionIds } from "./editions";
@@ -75,15 +76,16 @@ async function submit(kind: string, payload: unknown, key: string) {
     );
   return data;
 }
-export async function writeCampaign(brief: Brief, key: string) {
-  return campaignSchema.parse(await submit("campaign", { brief }, key));
+export async function writeCampaign(brief: Brief, key: string, model = workflowChoices().campaign) {
+  return campaignSchema.parse(await submit("campaign", { brief, ...modelField(model) }, key));
 }
-export async function writePaper(p: Paper, key: string): Promise<Paper> {
+export async function writePaper(p: Paper, key: string, model = workflowChoices().writing): Promise<Paper> {
   const voice = p.voice || "author";
   const k = kitSchema.parse(
     await submit(
       "paper",
       {
+        ...modelField(model),
         title: p.title,
         voice,
         ...(p.process?.analysis && {reading: p.process.analysis.reading}),

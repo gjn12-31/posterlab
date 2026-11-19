@@ -57,6 +57,12 @@ it("a channel rewrite transmits its own voice and long source material as full s
   const paper = examplePaper();
   const measured =
     "A measured change of 24.65% occurred under this condition. ";
+  const finding = { text: "A verified result.", refs: [{ page: 5, quote: measured.trim() }] };
+  paper.process = {
+    source: "pdf", live: true, stages: {},
+    analysis: { provider: "Paratera", model: "reader", methodFigureId: null, resultTableId: null,
+      reading: { problem: finding, method: finding, result: finding } },
+  };
   paper.sections = {
     abstract: measured.repeat(240),
     introduction: "An earlier study discussed a control. ".repeat(90),
@@ -79,6 +85,7 @@ it("a channel rewrite transmits its own voice and long source material as full s
     expect(body.paper_channel).toBe("x");
     expect(body.instruction.length).toBeLessThanOrEqual(12000);
     const evidence = JSON.parse(body.instruction.split("\n").at(-1));
+    expect(evidence.reading.result).toEqual(finding);
     expect(evidence.sections.abstract.length).toBeGreaterThan(0);
     expect(
       evidence.sections.abstract.every((s: string) => s === measured.trim()),

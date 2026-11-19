@@ -93,7 +93,9 @@ export const paperSchema = z.object({
     })
     .optional(),
   artworkNotice: z.string().max(700).optional(),
+  imageLicense: z.string().max(4000).optional(),
   artworkRetryKey: z.string().max(100).optional(),
+  artworkRetryModel: z.string().max(80).optional(),
   coverLine: z.string().max(150).optional(),
   coverTitleEn: z.string().max(160).optional(),
   coverLineEn: z.string().max(220).optional(),

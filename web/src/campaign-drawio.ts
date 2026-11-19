@@ -1,5 +1,6 @@
 import { drawioBlob, type DrawioElement } from "./drawio";
 import { editionImage } from "./editions";
+import { creditText } from "./background-library";
 import {
   formats,
   labels,
@@ -266,8 +267,10 @@ export async function exportCampaignDrawio(
         }
       }
     }
+    const library = s.heroId ? project.assets[s.heroId]?.library : undefined;
     return drawioBlob({
       name: `${s.brief.title} · ${name}`,
+      sourceCredit: library ? creditText(library) : undefined,
       width,
       height,
       elements,

@@ -30,6 +30,11 @@ export async function studioFetch(
   if (!STATIC_DEMO) return fetch(workspaceUrl("/api" + path), init);
   if (init.method && init.method !== "GET")
     return demoResponse({}, path, init.method);
+  if (path === "/assets") {
+    const catalog = await fetch(import.meta.env.BASE_URL + "library/catalog.json");
+    if (!catalog.ok) return catalog;
+    return Response.json({ assets: await catalog.json() });
+  }
   snapshot ??= fetch(`${import.meta.env.BASE_URL}demo/manifest.json`)
     .then(async (r) => {
       if (!r.ok) throw Error("展示案例加载失败，请刷新页面");

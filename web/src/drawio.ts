@@ -38,6 +38,7 @@ export type DrawioElement = ObjectBounds &
 
 export type DrawioPage = {
   name: string;
+  sourceCredit?: string;
   width: number;
   height: number;
   background?: string;
@@ -195,6 +196,7 @@ export function drawioXml(page: DrawioPage): string {
     '<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="app.diagrams.net" type="device" compressed="false">' +
     '<diagram id="poster" name="' +
     xml(page.name) +
+    (page.sourceCredit ? '" sourceCredit="' + xml(page.sourceCredit) : "") +
     '"><mxGraphModel grid="0" guides="1" page="1" pageScale="1"' +
     ' pageWidth="' +
     width +

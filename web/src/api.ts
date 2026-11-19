@@ -1,3 +1,4 @@
+import { workflowChoices, modelField } from "./workflow-models";
 import { studioFetch } from "./studio-api";
 import { type Project, type Suggestion } from "./model";
 export async function request<T>(path: string, body?: unknown): Promise<T> {
@@ -39,6 +40,7 @@ export type Service = {
 export const status = () => request<Service>("/status");
 export const aiSuggestion = (p: Project, instruction: string, kind = "edit") =>
   request<Suggestion>("/assist", {
+    ...modelField(workflowChoices().assistant),
     brief: p.current.brief,
     locked: p.current.locked,
     theme: p.current.theme,

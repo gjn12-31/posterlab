@@ -1,13 +1,59 @@
-import { useId, useState } from "react";
+import { useId, useState, useMemo } from "react";
 import { channels, platforms, type Channel, type Paper } from "./paper-model";
+import PaperArtworkView from "./PaperArtworkView";
+import { paperLayoutPage } from "./paper-layout";
 import type { Stage } from "./paper-process-model";
+
+function CanvasCard({
+  paper,
+  channel,
+  openCanvas,
+}: {
+  paper: Paper;
+  channel: Channel;
+  openCanvas?: (channel: Channel) => void;
+}) {
+  const layout = paper.posterLayouts?.[channel];
+  const page = useMemo(() => {
+    const ctx = document.createElement("canvas").getContext("2d");
+    return layout && ctx
+      ? paperLayoutPage(paper, channel, layout, ctx)
+      : undefined;
+  }, [paper, channel, layout]);
+  if (!page || !layout) return null;
+  const info = platforms[channel];
+  return (
+    <button
+      type="button"
+      disabled={!openCanvas}
+      aria-label={"编辑" + info.name + "画布"}
+      onClick={() => openCanvas?.(channel)}
+    >
+      <span className="pp-page-preview">
+        <PaperArtworkView
+          className="pp-canvas-sample"
+          label={info.name + "海报预览"}
+          page={page}
+        />
+      </span>
+      <b>
+        {info.name} <span aria-hidden="true">↗</span>
+      </b>
+      <small>
+        {info.width} × {info.height} · {layout.objects.length} 个图层
+      </small>
+    </button>
+  );
+}
 
 export default function PaperStageOutput({
   paper,
   stage,
+  openCanvas,
 }: {
   paper: Paper;
   stage: Stage;
+  openCanvas?: (channel: Channel) => void;
 }) {
   const [channel, setChannel] = useState<Channel>("red");
   const group = useId();
@@ -138,37 +184,14 @@ export default function PaperStageOutput({
       <div className="pp-proof">
         <strong>可编辑画布</strong>
         <div className="pp-canvas-list">
-          {channels.map((c) => {
-            const info = platforms[c],
-              layout = paper.posterLayouts?.[c];
-            if (!layout) return null;
-            return (
-              <div key={c}>
-                <div
-                  className="pp-canvas-sample"
-                  aria-hidden="true"
-                  style={{ aspectRatio: info.width / info.height }}
-                >
-                  {layout.objects.map((o) => (
-                    <i
-                      key={o.id}
-                      data-image={o.type === "image"}
-                      style={{
-                        left: o.x * 100 + "%",
-                        top: o.y * 100 + "%",
-                        width: o.w * 100 + "%",
-                        height: o.h * 100 + "%",
-                      }}
-                    />
-                  ))}
-                </div>
-                <b>{info.name}</b>
-                <small>
-                  {info.width} × {info.height} · {layout.objects.length} 个图层
-                </small>
-              </div>
-            );
-          })}
+          {channels.map((c) => (
+            <CanvasCard
+              key={c}
+              paper={paper}
+              channel={c}
+              openCanvas={openCanvas}
+            />
+          ))}
         </div>
       </div>
     );

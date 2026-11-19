@@ -1,3 +1,4 @@
+import { workflowChoices, modelField } from "./workflow-models";
 import { z } from "zod";
 import type { Format, Project } from "./model";
 import { exportBlob } from "./render";
@@ -18,7 +19,7 @@ const review = z.object({
 });
 export type CampaignReview = z.infer<typeof review>;
 
-export async function reviewCampaign(project: Project, format: Format) {
+export async function reviewCampaign(project: Project, format: Format, model = workflowChoices().campaignReview) {
   // Render the same file as "download", including user text positions, fonts and art.
   const bitmap = await createImageBitmap(
     await exportBlob(project, format, "png"),
@@ -36,6 +37,7 @@ export async function reviewCampaign(project: Project, format: Format) {
       "Idempotency-Key": crypto.randomUUID(),
     },
     body: JSON.stringify({
+      ...modelField(model),
       brief: project.current.brief,
       format,
       jpeg: canvas.toDataURL("image/jpeg", 0.83).split(",")[1],

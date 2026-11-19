@@ -152,7 +152,7 @@
   text-underline-offset: 3px;
 }
 .pr-generic {
-  background: #202339 !important;
+  background: transparent;
 }
 .pr-generic .pr-eyebrow {
   color: #d4d1ff;

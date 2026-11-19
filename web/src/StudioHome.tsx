@@ -89,11 +89,15 @@ export default function StudioHome() {
     }
     function openSection() {
       const [id, entry] = location.hash.slice(1).split("/");
-      if (id === "collection" && entry)
+      if (!id || id === "desk" || id === "home")
+        window.scrollTo({ top: 0, behavior: "instant" });
+      else if (id === "collection" && entry)
         document.getElementById(id)?.scrollIntoView({ behavior: "instant" });
     }
     const id = location.hash.slice(1).split("/")[0];
-    if (id)
+    if (!id || id === "desk" || id === "home")
+      window.scrollTo({ top: 0, behavior: "instant" });
+    else
       targets
         .find((el) => el.id === id)
         ?.scrollIntoView({ behavior: "instant" });

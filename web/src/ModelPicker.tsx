@@ -51,6 +51,9 @@ export function ModelPicker({
                 服务默认
                 {catalog ? ` · ${catalog.defaults[role]}` : " · 正在读取"}
               </option>
+              {value[role] && catalog && !catalog.models.some(m => m.id === value[role] && m.roles.includes(role)) && (
+                <option value={value[role]} disabled>{value[role]} · 暂不可用</option>
+              )}
               {catalog?.models
                 .filter((m) => m.roles.includes(role))
                 .map((m) => (

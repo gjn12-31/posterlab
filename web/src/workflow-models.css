@@ -1,0 +1,44 @@
+.workflow-models {
+  margin: 10px 0;
+  color: inherit;
+  font-size: 14px;
+}
+.workflow-models summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+.workflow-models summary::-webkit-details-marker {
+  display: none;
+}
+.workflow-models summary:focus-visible,
+.workflow-models select:focus-visible {
+  outline: 2px solid #335adc;
+  outline-offset: 3px;
+}
+.workflow-model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  max-width: 780px;
+}
+.workflow-model-grid label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.workflow-model-grid select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.5rem;
+  border: 1px solid #adbac6;
+  border-radius: 6px;
+  background: white;
+  color: #182639;
+}

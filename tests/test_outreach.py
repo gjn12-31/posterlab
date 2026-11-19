@@ -368,3 +368,35 @@ def test_single_channel_rewrite_keeps_only_resource_url_in_the_supplied_material
     with TestClient(app) as c:
         out = c.post('/api/assist', json=ask, headers=HEADERS)
         assert out.is_success and out.json()['fields']['description'] == '看看树冠下的步道。\n代码：' + github
+
+
+def test_long_paper_rewrite_uses_the_same_copy_limit_as_an_initial_kit(tmp_path):
+    article = '这幅树影图怎样读？\n\n' + '我们按时段核对了树影落在道路哪边。' * 84
+    assert 1200 < len(article) < 4000
+    app = create_app(tmp_path, api_key='test', serve_site=False,
+                     transport=httpx.MockTransport(lambda _: completion({'fields': {'description': article}})))
+    req = {'brief': {'title': 'Shade'}, 'theme': 'paper', 'titleScale': 1, 'locked': [], 'instruction': '写成一篇完整稿。'}
+    with TestClient(app) as client:
+        paper = client.post('/api/assist', headers=HEADERS, json={**req, 'workflow': 'paper', 'paper_channel': 'wechat'})
+        assert paper.is_success and paper.json()['fields']['description'] == article
+        event = client.post('/api/assist', headers={'Idempotency-Key':'event-description-length'}, json=req)
+        assert not event.is_success
+
+
+def test_full_research_note_can_explain_separate_measurements_between_paragraphs():
+    from posterlab.outreach_strategy import publication_issues
+    body = ('先在同一台仪器读出频率为24Hz。\n\n为什么换成另一种观察？短窗口会遮住两次出现的间隔。'
+            '\n\n我们在第二轮比较中固定采样条件，信噪比为12。\n\n'
+            '这还不能回答另一个问题，所以我们另算了假阳性，在单独测试中误报率为2%。')
+    assert not publication_issues({'wechat': '一组读数怎样变成两组问题\n\n' + body}, PAPER)
+
+
+def test_author_note_brief_reaches_first_draft_manual_edit_and_editorial_revision():
+    from posterlab.outreach_strategy import build_messages, paper_edit_system, revision_messages
+    drafts = {**PAPER_RESULT, 'red': '一篇旧稿'}
+    prompts = (build_messages('paper', PAPER)[0]['content'], paper_edit_system('red'),
+               revision_messages(PAPER, drafts, {'red': '请重写技术直觉。'})[0]['content'])
+    for prompt in prompts:
+        assert '研究手记型' in prompt and '基准发布型' in prompt
+        assert '完整原创虚构小样' in prompt and '论文作者 / 团队' in prompt
+        assert '没有帖图顺序不要写' in prompt

@@ -1,5 +1,6 @@
 import { workspaceKey } from "./workspace";
-import { checkpoint, type Project } from "./model";
+import { checkpoint, type Asset, type Project } from "./model";
+import { backgroundCreditSchema, type LibraryBackground } from "./background-library";
 import { readAsset } from "./render";
 
 export type ArtworkRequest = {
@@ -116,11 +117,32 @@ export async function applyCampaignArtwork(
   const blob = await (await fetch(dataUrl)).blob();
   const file = new File([blob], "活动主视觉", { type: blob.type });
   const asset = await readAsset(file);
-  const next = checkpoint(project, "生成活动主视觉");
-  next.assets = {
-    ...project.assets,
-    [asset.id]: { ...asset, license: "AI 生成的活动主视觉" },
+  return applyHero(
+    project, { ...asset, license: "AI 生成的活动主视觉" }, blob, "生成活动主视觉",
+  );
+}
+
+export async function applyCampaignLibraryBackground(
+  project: Project,
+  row: LibraryBackground,
+  file: File,
+) {
+  const existing = Object.values(project.assets).find(
+    (asset) => asset.library?.id === row.id,
+  );
+  if (!existing && Object.keys(project.assets).length >= 20)
+    throw Error("当前项目已达到 20 个素材的上限。");
+  const asset = existing ?? {
+    ...(await readAsset(file)),
+    license: row.license,
+    library: backgroundCreditSchema.parse(row),
   };
+  return applyHero(project, asset, file, "使用图库背景");
+}
+
+async function applyHero(project: Project, asset: Asset, blob: Blob, action: string) {
+  const next = checkpoint(project, action);
+  next.assets = { ...project.assets, [asset.id]: asset };
   next.current.heroId = asset.id;
   next.current.campaignVersion = 3;
   next.current.artworkPalette = await samplePrintPalette(blob, asset.id);

@@ -1,3 +1,4 @@
+import WorkflowModels from "./WorkflowModels";
 import { useState } from "react";
 import { Check, Sparkles } from "lucide-react";
 import Dialog from "./PaperDialog";
@@ -94,6 +95,7 @@ export function RewritePaper({
             用已有论文重写文案。生成后逐个平台对比，再选择要采用的新稿。
           </p>
           <VoicePicker value={voice} choose={setVoice} disabled={working} />
+          <WorkflowModels context="writing" disabled={working} />
           {error && (
             <p role="alert" className="pr-error">
               {error}

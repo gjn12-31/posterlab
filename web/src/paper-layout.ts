@@ -1,4 +1,5 @@
 import { englishPaperLayout } from "./paper-layout-english";
+import { creditText } from "./background-library";
 import { campaignLines } from "./campaign-lines";
 import { platforms, type Channel, type Paper } from "./paper-model";
 import type { PosterLayout, PosterObject } from "./paper-layout-model";
@@ -536,6 +537,15 @@ export function paperLayoutPage(
       fill: layout.accent,
     },
   ];
+  if (layout.libraryBackground) {
+    elements.splice(1, 0, {
+      name: "图库背景 · " + layout.libraryBackground.credit.name,
+      layer: "底色",
+      type: "image",
+      x: 0, y: 0, width, height,
+      src: layout.libraryBackground.data,
+    });
+  }
   const sources = layoutSources(p);
   for (const obj of layout.objects) {
     const box = {
@@ -581,6 +591,7 @@ export function paperLayoutPage(
     width,
     height,
     background: layout.background,
+    sourceCredit: layout.libraryBackground ? creditText(layout.libraryBackground.credit) : undefined,
     elements,
   };
 }

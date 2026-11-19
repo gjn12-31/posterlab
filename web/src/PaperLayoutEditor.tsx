@@ -1,3 +1,4 @@
+import PaperArtworkView from "./PaperArtworkView";
 import {
   useEffect,
   useMemo,
@@ -17,6 +18,8 @@ import {
 } from "./paper-layout";
 import { loadFonts } from "./render";
 import { clashbenchSource } from "./clashbench-case";
+import BackgroundLibrary from "./BackgroundLibrary";
+import { backgroundCreditSchema, paperBackdrop } from "./background-library";
 import "./paper-layout-editor.css";
 
 type Bounds = Pick<PosterObject, "x" | "y" | "w" | "h">;
@@ -264,58 +267,7 @@ export default function PaperLayoutEditor({
           onPointerUp={(e) => end(e)}
           onPointerCancel={(e) => end(e, true)}
         >
-          <svg
-            className="ple-art"
-            viewBox={`0 0 ${dims.width} ${dims.height}`}
-            aria-label={paper.headline + " · " + dims.name + "可编辑海报"}
-            role="img"
-          >
-            {page.elements.map((el, i) =>
-              el.type === "rect" ? (
-                <rect
-                  key={i}
-                  x={el.x}
-                  y={el.y}
-                  width={el.width}
-                  height={el.height}
-                  fill={el.fill}
-                />
-              ) : el.type === "image" ? (
-                <image
-                  key={i}
-                  x={el.x}
-                  y={el.y}
-                  width={el.width}
-                  height={el.height}
-                  href={el.src}
-                  preserveAspectRatio="none"
-                />
-              ) : (
-                <text
-                  key={i}
-                  x={el.x}
-                  y={el.y}
-                  fontSize={el.fontSize}
-                  fontWeight={el.bold ? 700 : 400}
-                  fill={el.color}
-                  fontFamily={
-                    'PosterCommon, PosterSans, "PingFang SC", Arial, sans-serif'
-                  }
-                  dominantBaseline="text-before-edge"
-                >
-                  {el.text.split("\n").map((line, n) => (
-                    <tspan
-                      key={n}
-                      x={el.x}
-                      y={el.y + n * el.fontSize * (el.lineHeight || 1.22)}
-                    >
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
-              ),
-            )}
-          </svg>
+          <PaperArtworkView className="ple-art" page={page} label={paper.headline + " · " + dims.name + "可编辑海报"} />
           {objects.map((o) => (
             <div
               key={o.id}
@@ -393,6 +345,15 @@ export default function PaperLayoutEditor({
         )}
       </div>
       <aside className="ple-controls">
+        <BackgroundLibrary
+          scope={"仅更改" + dims.name + "的底纹。论文原图、表格和其他平台的海报保留原样。"}
+          selected={base.libraryBackground?.credit}
+          apply={async (row, file) => {
+            const data = await paperBackdrop(file, dims.width, dims.height, base.background);
+            commit({ ...base, libraryBackground: { credit: backgroundCreditSchema.parse(row), data } });
+          }}
+          clear={async () => commit({ ...base, libraryBackground: undefined })}
+        />
         <label>
           当前图层
           <select

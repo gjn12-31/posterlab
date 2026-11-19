@@ -26,16 +26,32 @@
     <h1>进入 AI 工作台</h1>
     <p>用邀请凭据登录后，可以上传论文、制作活动海报并调用实时模型。首次进入时，浏览器会提示填写用户名和口令。</p>
     <nav aria-label="访问工作台">
-      <a id="studio" class="primary" href="../app/#workbench">使用邀请凭据登录</a>
+      <a id="studio" class="primary" href="../app/#desk">使用邀请凭据登录</a>
+      <a id="destination" hidden></a>
       <a href="/#collection">浏览公开案例</a>
     </nav>
     <aside>需要访问权限？请向提供此链接的项目负责人索取邀请凭据。</aside>
   </main>
   <script>
-    const destination = location.hash;
-    if (/^#(?:papers(?:\/(?:import|story|channels(?:\/(?:x|red|moments|wechat))?))?|campaign(?:\/plan)?|workbench|studio)$/.test(destination)) {
-      document.getElementById("studio").href = "../app/" + destination;
+    const routes = [
+      [/^#papers(?:\/(?:import|story|example\/clashbench|channels(?:\/(?:x|red|moments|wechat))?))?$/, "直接进入论文宣传"],
+      [/^#campaign(?:\/plan)?$/, "直接进入活动宣传"],
+      [/^#studio$/, "直接进入海报设计室"],
+      [/^#workbench$/, "直接选择工作台"],
+    ];
+    const entry = document.getElementById("destination");
+    function showDestination() {
+      const route = routes.find(([pattern]) => pattern.test(location.hash));
+      entry.hidden = !route;
+      if (route) {
+        entry.textContent = route[1];
+        entry.href = "../app/" + location.hash;
+      } else {
+        entry.removeAttribute("href");
+      }
     }
+    showDestination();
+    addEventListener("hashchange", showDestination);
   </script>
 </body>
 </html>

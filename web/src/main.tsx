@@ -21,7 +21,6 @@ function renderer() {
   if (
     location.hash === "#campaign" ||
     location.hash === "#campaign/plan" ||
-    location.hash === "#home" ||
     (!location.hash &&
       new URLSearchParams(location.search).get("view") === "campaign")
   )
@@ -29,7 +28,7 @@ function renderer() {
   if (
     !location.hash ||
     location.hash.startsWith("#collection/") ||
-    ["#desk", "#demo", "#workbench", "#collection", "#faq", "#about"].includes(location.hash)
+    ["#desk", "#home", "#demo", "#workbench", "#collection", "#faq", "#about"].includes(location.hash)
   )
     return "desk";
   return "gallery";

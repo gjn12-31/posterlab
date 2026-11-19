@@ -319,23 +319,6 @@ export default function Generator() {
       ]);
       setService(s);
       setModelCatalog(m);
-      setModelPreferences((previous) => ({
-        chat: m.models.some(
-          (x) => x.id === previous.chat && x.roles.includes("chat"),
-        )
-          ? previous.chat
-          : "",
-        design: m.models.some(
-          (x) => x.id === previous.design && x.roles.includes("design"),
-        )
-          ? previous.design
-          : "",
-        review: m.models.some(
-          (x) => x.id === previous.review && x.roles.includes("review"),
-        )
-          ? previous.review
-          : "",
-      }));
       setStyles(p.styles);
       setJobs(j);
       setAssets(a.assets);

@@ -11,7 +11,8 @@ describe("活动通知", () => {
   it.each(campaigns)("生成$label成品的实际活动信息", (sample) => {
     const b = parseNotice(sample.notice);
     expect(b.title).toBe(sample.notice.split("\n")[0]);
-    expect(b.date).toMatch(/^2026-12-/);
+    const [year,month,day] = sample.notice.split("\n")[1].match(/\d+/g)!;
+    expect(b.date).toBe([year,month.padStart(2,"0"),day.padStart(2,"0")].join("-"));
     expect(b.venue).toBeTruthy();
     expect(b.description).toContain(sample.notice.split("\n")[2].slice(0, -1));
     expect(parseNotice(noticeFromBrief(b))).toEqual(b);

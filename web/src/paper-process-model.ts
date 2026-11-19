@@ -72,6 +72,7 @@ export type ProcessEntry = z.infer<typeof entrySchema>;
 export const paperProcessSchema = z.object({
   source: z.enum(["pdf", "text"]),
   live: z.boolean(),
+  models: z.object({ reading: z.string(), layout: z.string(), writing: z.string(), paperArt: z.string() }).partial().optional(),
   stages: z.partialRecord(z.enum(stages), entrySchema),
   analysis: readingSchema.optional(),
   plan: layoutSchema.optional(),

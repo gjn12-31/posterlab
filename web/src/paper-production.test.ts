@@ -100,6 +100,7 @@ it("creates four editable text-only posters without inventing a figure or table"
 
 it("finishes copy review before image generation, reuses image receipt, and retries only absent channels", async () => {
   const p = ready();
+  p.process!.models = { writing: "chosen-writer", paperArt: "chosen-image" };
   p.headline = "我手写的标题";
   p.edits = { red: "作者手动定稿" };
   const order: string[] = [];
@@ -139,7 +140,9 @@ it("finishes copy review before image generation, reuses image receipt, and retr
   expect(generatePaperArtwork).toHaveBeenLastCalledWith(
     expect.anything(),
     receipt,
+    "chosen-image",
   );
+  expect(writePaper).toHaveBeenLastCalledWith(expect.anything(), expect.any(String), "chosen-writer");
   expect(final.edits).toEqual({
     x: "First launch post",
     red: "作者手动定稿",

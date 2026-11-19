@@ -56,3 +56,15 @@ PDF.js 在浏览器读取前两页，界面默认展示文件及识别状态。�
 账户权限、服务负载和研究领域都会影响结果。论文模型横评基于一篇机器学习论文，另以一篇物理论文验证了选定模型。活动使用两份通知，成图对比使用同题书展。本轮没有跨学科成功率、人工读者转化率或长期成本的统计。并行智算云费用以供应商账单为准。
 
 服务端设置 `POSTERLAB_PROVIDER=paratera` 和 `PARATERA_API_KEY`。可分别通过 `PARATERA_PAPER_MODEL`、`PARATERA_CAMPAIGN_MODEL`、`PARATERA_IMAGE_MODEL`、`PARATERA_DESIGN_MODEL`、`PARATERA_VISION_MODEL` 覆盖各用途的默认值。[平台密钥](https://ai.paratera.com/document/llm/quickStart/apiKeys) · [图像生成接口](https://ai.paratera.com/document/llm/modalAbility/image) · [平台迁移说明](https://ai.paratera.com/document/llm/support/lmsOffline)
+
+## 在工作台选择模型
+
+论文导入和活动宣传页提供「模型设置」。可以分别指定研读、排版、撰稿、改写、主视觉和成图审阅使用的模型。海报设计室在「创作偏好」中分别设置对话、设计与评测。选择按当前浏览器的工作区保存，留在「服务默认」即可沿用服务端配置。
+
+| 并行智算任务 | 可选模型 | 核验依据 |
+| --- | --- | --- |
+| 研读、文案与活动策划 | Kimi-K3.1-Pro、DeepSeek-V4-Pro-0813、DeepSeek-V4.1-Flash-1017 | 三者均在同一论文输入上交付四平台文本，见上文对照。 |
+| 概念配图与活动主视觉 | Doubao-Seedream-4.5、Doubao-Seedream-4.0 | 两者均通过图片生成接口返回 2048 × 2048 像素的活动主视觉。 |
+| 成图审阅 | Qwen3.7-Plus、GLM-4.6V | Qwen 通过实际海报评测。GLM 通过相同图像消息协议的能力抽检，在合成三色图上以 JSON 正确返回蓝、黄、红的从左到右顺序。 |
+
+原创建议中的 Qwen3.7-Plus 可读取上一版成图。纯文本设计模型使用已有源码和修改说明。自定义服务端默认型号按相应任务加入清单。失败会显示上游或校验错误；已支付且仍可下载的论文配图沿用原请求的模型和取图回执，无需重新生成。并行智算接口没有提供实结金额时，工作台保留预算预留记录，实际费用以平台账单为准。

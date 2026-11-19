@@ -1,3 +1,4 @@
+import { workflowChoices, modelField } from "./workflow-models";
 import { studioFetch } from "./studio-api";
 import { readingPayload } from "./paper-reading-payload";
 import { generatePaperArtwork } from "./paper-artwork";
@@ -39,7 +40,16 @@ export async function producePaper(
     live: options.live,
     stages: {},
   };
-  process = { ...process, live: options.live };
+  const selected = workflowChoices();
+  // Keep a run's explicit choices with its checkpoints. A resumed paid image
+  // request must still refer to the model that issued the download receipt.
+  const models = (process.live && process.models) || {
+    reading: selected.reading,
+    layout: selected.layout,
+    writing: selected.writing,
+    paperArt: selected.paperArt,
+  };
+  process = { ...process, live: options.live, models: options.live ? models : undefined };
   function record(stage: Stage, entry: ProcessEntry) {
     process = { ...process, stages: { ...process.stages, [stage]: entry } };
     p = { ...p, process };
@@ -92,6 +102,7 @@ export async function producePaper(
         "reading",
         key,
         readingPayload({
+          ...modelField(models.reading),
           title: p.title,
           byline: p.byline || "",
           sections: p.sections,
@@ -123,6 +134,7 @@ export async function producePaper(
     try {
       const plan = layoutSchema.parse(
         await postStage("layout", key, {
+          ...modelField(models.layout),
           title: p.title,
           reading: analysis.reading,
           methodFigureId: analysis.methodFigureId,
@@ -169,7 +181,7 @@ export async function producePaper(
       "图像服务正在制作背景。原论文图表单独排入。",
       p.artworkRetryKey,
     );
-    const result = await generatePaperArtwork(p, key);
+    const result = await generatePaperArtwork(p, key, models.paperArt || "");
     p = { ...p, ...result };
     if (result.artwork)
       record("art", {
@@ -191,7 +203,7 @@ export async function producePaper(
     if (process.stages.copy?.state === "done") return;
     const key = start("copy", "正在为四个平台分别拟稿，核对邀请语与研究依据。");
     try {
-      const kit = await writePaper(p, key);
+      const kit = await writePaper(p, key, models.writing || "");
       const selected = channels.filter(
         (c) => !!kit.edits[c] && (!p.edits[c] || p.localChannels?.includes(c)),
       );

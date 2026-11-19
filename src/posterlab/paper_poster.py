@@ -40,6 +40,7 @@ class Sections(StrictInput):
 
 
 class ReadingRequest(StrictInput):
+    model: str | None = Field(default=None, max_length=80)
     title: Short
     byline: str = Field(default='', max_length=240)
     sections: Sections | None = None
@@ -81,6 +82,7 @@ class PaperReading(StrictInput):
 
 
 class LayoutRequest(StrictInput):
+    model: str | None = Field(default=None, max_length=80)
     title: Short
     reading: PaperReading
     methodFigureId: CandidateId | None = None
@@ -255,7 +257,7 @@ def register_paper_poster(app, ledger, gateway, transport):
             raise HTTPException(400, '请求标识无效')
         fingerprint = hashlib.sha256(json.dumps(messages, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         key = f'paper-poster-{stage}-{raw_key}'
-        cached = ledger.reserve(key, gateway.identity(model, fingerprint))
+        cached = ledger.reserve(key, gateway.identity(model, fingerprint, legacy_model='step-3.5-flash'))
         if cached is not None:
             return cached
         cost = None
@@ -295,12 +297,12 @@ def register_paper_poster(app, ledger, gateway, transport):
             source['sections'] = {name: value[:6000] for name, value in data.sections.model_dump().items() if value}
         messages = [{'role': 'system', 'content': _READING_SYSTEM},
                     {'role': 'user', 'content': json.dumps(source, ensure_ascii=False)}]
-        return await complete('reading', gateway.defaults['paper'], messages, request,
+        return await complete('reading', gateway.select(data.model, 'paper'), messages, request,
                               lambda raw: _verified_reading(raw, data, passages))
 
     @app.post('/api/outreach/paper-layout')
     async def layout(data: LayoutRequest, request: Request):
         messages = [{'role': 'system', 'content': _LAYOUT_SYSTEM},
-                    {'role': 'user', 'content': data.model_dump_json()}]
-        return await complete('layout', gateway.defaults['paper'], messages, request,
+                    {'role': 'user', 'content': data.model_dump_json(exclude={'model'})}]
+        return await complete('layout', gateway.select(data.model, 'paper'), messages, request,
                               lambda raw: _checked_layout(raw, data))

@@ -10,7 +10,10 @@ import {
   PanelsTopLeft,
   FileStack,
   Images,
+  Pause,
+  Play,
 } from "lucide-react";
+import { useDemoPlayback } from "./useDemoPlayback";
 import LiveStudioLink from "./LiveStudioLink";
 import { kits, kitBase, useKitFiles } from "./published-kits";
 import "./home-workspace.css";
@@ -48,7 +51,7 @@ const shapes = [
 
 function Sample({
   event,
-  index,
+  index: initial,
   select,
   ready,
 }: {
@@ -59,6 +62,13 @@ function Sample({
 }) {
   const kit = event ? eventKit : paperKit;
   const { files, error, retry } = useKitFiles(kit, ready);
+  const playback = useDemoPlayback(
+    kit.formats.length,
+    6200,
+    initial,
+    files.length > 0,
+  );
+  const index = playback.index;
   const current = files[index];
   const [notice, setNotice] = useState("");
   const sequence = useRef(0);
@@ -72,6 +82,7 @@ function Sample({
   }, [index]);
   async function copy() {
     if (!current) return;
+    playback.select(index);
     const seq = ++sequence.current;
     let answer = "已复制全文";
     try {
@@ -91,18 +102,33 @@ function Sample({
   return (
     <div
       className={"pl-sample pl-output pl-output-" + (event ? "event" : "paper")}
+      ref={playback.viewport}
+      data-playing={playback.running}
     >
       <div className="pl-output-head">
         <strong>
           {event ? <Images size={17} /> : <PanelsTopLeft size={17} />}{" "}
           {event ? "活动海报" : "平台成稿"}
         </strong>
-        <span>{kit.label}</span>
+        <span className="pl-demo-controls">
+          {kit.label}
+          <button
+            type="button"
+            onClick={playback.toggle}
+            aria-label={playback.playing ? "暂停工作台演示" : "播放工作台演示"}
+          >
+            {playback.playing ? <Pause size={14} /> : <Play size={14} />}
+          </button>
+        </span>
       </div>
       <div className="pl-output-stage">
         <div className="pl-output-art" data-channel={channel}>
           {current ? (
-            <img src={current.url} alt={kit.label + " · " + channel + "成品"} />
+            <img
+              key={channel}
+              src={current.url}
+              alt={kit.label + " · " + channel + "成品"}
+            />
           ) : (
             <img
               className="pl-cover-thumb"
@@ -123,7 +149,10 @@ function Sample({
                 type="button"
                 key={label}
                 aria-pressed={index === i}
-                onClick={() => select(i)}
+                onClick={() => {
+                  playback.select(i);
+                  select(i);
+                }}
               >
                 {event ? shapes[i].name : label}
               </button>
@@ -141,6 +170,8 @@ function Sample({
             <div
               className="pl-output-copy"
               tabIndex={0}
+              onFocus={() => playback.select(index)}
+              onPointerDown={() => playback.select(index)}
               aria-label={channels[index] + "示例全文"}
             >
               {hasTitle && leading && <h4>{leading}</h4>}
@@ -319,6 +350,28 @@ export default function StudioWorkbench() {
                   </button>
                 </h3>
                 <p>{item.description}</p>
+                <div className="pl-work-filmstrip" aria-hidden="true">
+                  {(i === 0
+                    ? [
+                        "kits/clashbench-red",
+                        "kits/clashbench-x",
+                        "kits/clashbench-wechat",
+                      ]
+                    : [
+                        "showcase/gallery-cyanotype",
+                        "showcase/bookfair-square",
+                        "showcase/coffee-square",
+                      ]
+                  ).map((image, n) => (
+                    <img
+                      key={image}
+                      src={import.meta.env.BASE_URL + image + ".webp"}
+                      alt=""
+                      loading="lazy"
+                      style={{ rotate: (n - 1) * 5 + "deg" }}
+                    />
+                  ))}
+                </div>
                 <div className="pl-work-actions">
                   <a className="pl-launch" href={item.path}>
                     {item.primary} <ArrowUpRight size={15} />

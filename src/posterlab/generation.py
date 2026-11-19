@@ -126,7 +126,7 @@ def render_document(html,width,height,output:Path,font_root:Path):
     style=soup.new_tag('style');style.string=FONT_CSS;soup.head.append(style)
     document=str(soup)
     fonts={'https://poster.local/fonts/regular.woff2':font_root/'PosterSans-Regular.woff2','https://poster.local/fonts/bold.woff2':font_root/'PosterSans-Bold.woff2','https://poster.local/fonts/serif.woff2':font_root/'PosterSerif-Regular.woff2','https://poster.local/fonts/display.woff2':font_root/'PosterDisplay-Regular.woff2'}
-    assets={'https://poster.local/'+a['path']:LIBRARY_ROOT/(a['id']+'.png') for a in CATALOG.values()}
+    assets={'https://poster.local/'+a['path']:LIBRARY_ROOT/Path(a['path']).name for a in CATALOG.values()}
     blocked=[]
     csp="default-src 'none'; style-src 'unsafe-inline'; font-src 'self'; img-src 'self'; script-src 'none'; connect-src 'none'; base-uri 'none'; form-action 'none'"
     with sync_playwright() as pw:
@@ -136,7 +136,7 @@ def render_document(html,width,height,output:Path,font_root:Path):
             def route(r):
                 if r.request.url=='https://poster.local/poster.html':r.fulfill(body=document,content_type='text/html',headers={'Content-Security-Policy':csp})
                 elif r.request.url in fonts:r.fulfill(path=fonts[r.request.url],content_type='font/woff2')
-                elif r.request.url in assets:r.fulfill(path=assets[r.request.url],content_type='image/png')
+                elif r.request.url in assets:r.fulfill(path=assets[r.request.url])
                 else:blocked.append(r.request.url);r.abort()
             context.route('**/*',route)
             page=context.new_page();page.set_default_timeout(20000)
@@ -337,8 +337,12 @@ def register_generation(app,ledger,gateway,transport=None,renderer=render_docume
                 z.write(root/'web/public/fonts'/f'Poster{face}-Regular.woff2',f'fonts/{name}.woff2')
                 z.write(root/'web/public/fonts'/f'Poster{face}-LICENSE.txt',f'fonts/{face}-LICENSE.txt')
             z.write(root/'web/public/fonts/SOURCE.txt','fonts/SOURCE.txt')
-            for asset in select_assets(item.get('asset_ids',[])):z.write(LIBRARY_ROOT/(asset['id']+'.png'),asset['path'])
-            if item.get('asset_ids'):z.write(LIBRARY_ROOT/'LICENSE.txt','assets/LICENSE.txt')
+            materials=select_assets(item.get('asset_ids',[]))
+            for asset in materials:
+                z.write(LIBRARY_ROOT/Path(asset['path']).name,asset['path'])
+            if materials:
+                z.write(LIBRARY_ROOT/'LICENSE.txt','assets/LICENSE.txt')
+                z.writestr('assets/SOURCES.json',json.dumps(materials,ensure_ascii=False,indent=2))
             z.writestr('generation.json',json.dumps(store.public(item),ensure_ascii=False,indent=2))
             if (folder/'design-request.json').exists():z.write(folder/'design-request.json','design-request.json')
             for request_file in sorted(folder.glob('attempt-*-request.json')):

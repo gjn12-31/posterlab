@@ -5,7 +5,7 @@ import os
 from urllib.parse import urlsplit
 
 from .design_policy import estimate_cost, model_options
-from .model_catalog import MODELS, resolve_model
+from .model_catalog import MODELS, PARATERA_MODELS, resolve_model
 
 
 @dataclass(frozen=True)
@@ -15,6 +15,7 @@ class StudioGateway:
     api_key: str = field(repr=False)
     defaults: dict[str, str]
     models: list[dict]
+    artwork_model: str = ''
 
     @classmethod
     def configured(cls, api_key=None):
@@ -40,16 +41,22 @@ class StudioGateway:
                     'campaign': os.getenv('PARATERA_CAMPAIGN_MODEL') or 'DeepSeek-V4-Pro-0813',
                     'design': os.getenv('PARATERA_DESIGN_MODEL') or 'DeepSeek-V4-Pro-0813',
                     'review': os.getenv('PARATERA_VISION_MODEL') or 'Qwen3.7-Plus'}
-        roles = {}
-        for role in ('chat', 'design', 'review'):
-            roles.setdefault(defaults[role], []).append(role)
-        models = [{'id': model, 'name': model, 'roles': capabilities,
-                   'description': '支持成图视觉校对' if 'review' in capabilities else '文本与版式创作'}
-                  for model, capabilities in roles.items()]
-        return cls('Paratera', base, api_key if api_key is not None else os.getenv('PARATERA_API_KEY', ''), defaults, models)
+        catalog = {model: {'id': model, 'name': model, 'roles': list(roles), 'description': description}
+                   for model, description, roles in PARATERA_MODELS}
+        image_model = os.getenv('PARATERA_IMAGE_MODEL', 'Doubao-Seedream-4.5').strip()
+        for role, model in {**defaults, 'artwork': image_model}.items():
+            if not model:
+                continue
+            entry = catalog.setdefault(model, {'id': model, 'name': model, 'roles': [], 'description': '服务端配置模型'})
+            if role not in entry['roles']:
+                entry['roles'].append(role)
+        models = list(catalog.values())
+        key = api_key if api_key is not None else os.getenv('PARATERA_API_KEY', '')
+        return cls('Paratera', base, key, defaults, models, image_model if key else '')
 
     def select(self, selected, role):
-        return resolve_model(selected, self.defaults[role], role, self.models)
+        default = self.artwork_model if role == 'artwork' else self.defaults[role]
+        return resolve_model(selected, default, role, self.models)
 
     def sees_images(self, model):
         return any(m['id'] == model and 'review' in m['roles'] for m in self.models)
@@ -57,9 +64,9 @@ class StudioGateway:
     def cost(self, model, usage):
         return estimate_cost(model, usage) if self.name == 'StepFun' else None
 
-    def identity(self, model, fingerprint):
+    def identity(self, model, fingerprint, *, legacy_model=None):
         # Existing StepFun records use the original fingerprints in local ledgers.
-        if self.name == 'StepFun':
+        if self.name == 'StepFun' and (legacy_model is None or model == legacy_model):
             return fingerprint
         return hashlib.sha256(f'{self.name}:{self.base_url}:{model}:{fingerprint}'.encode()).hexdigest()
 

@@ -48,6 +48,7 @@ class PaperSections(BaseModel):
 
 
 class PaperRequest(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
     model_config = ConfigDict(extra='forbid')
     title: str = Field(min_length=1, max_length=500)
     byline: str = Field(default='', max_length=240)
@@ -75,6 +76,7 @@ class PaperRequest(BaseModel):
 
 
 class CampaignRequest(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
     model_config = ConfigDict(extra='forbid')
     brief: Brief
 
@@ -151,7 +153,7 @@ def register_outreach(app, ledger, gateway, transport):
         fingerprint = hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode()).hexdigest()
         key = 'publication-review-' + token
         try:
-            cached = ledger.reserve(key, gateway.identity(model, fingerprint))
+            cached = ledger.reserve(key, gateway.identity(model, fingerprint, legacy_model='step-3.5-flash'))
         except HTTPException:
             # Budget/concurrency limits never discard the completed first call.
             return
@@ -206,17 +208,17 @@ def register_outreach(app, ledger, gateway, transport):
             ledger.finish(key, 'invalid', cost)
 
     async def generate(kind, data, request):
-        model = gateway.defaults[kind]
+        model = gateway.select(data.model, kind)
         if not gateway.api_key:
             raise HTTPException(503, f'{gateway.name} 尚未配置，可选择本地排版。')
         token = request.headers.get('idempotency-key', '')
         if not 8 <= len(token) <= 100 or not all(c.isalnum() or c in '-_' for c in token):
             raise HTTPException(400, '请求标识无效')
         token = 'outreach-' + kind + '-' + token
-        payload = data.model_dump()
+        payload = data.model_dump(exclude={'model'})
         messages = build_messages(kind, payload)
         fingerprint = hashlib.sha256(json.dumps(messages, ensure_ascii=False).encode()).hexdigest()
-        cached = ledger.reserve(token, gateway.identity(model, fingerprint))
+        cached = ledger.reserve(token, gateway.identity(model, fingerprint, legacy_model='step-3.5-flash'))
         if cached is not None:
             return cached
         cost = None

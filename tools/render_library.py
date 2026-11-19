@@ -7,6 +7,8 @@ root=Path(__file__).resolve().parents[1]/'web/public/library'
 with sync_playwright() as pw:
     browser=pw.chromium.launch()
     for item in json.loads((root/'catalog.json').read_text()):
+        if not item['path'].endswith('.png'):
+            continue
         width,height=(256,256) if item['kind']=='icon' else (1080,1440)
         page=browser.new_page(viewport={'width':width,'height':height},java_script_enabled=False)
         svg=(root/(item['id']+'.svg')).read_text()

@@ -260,7 +260,7 @@ export function CreativeTools(p: {
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option value="all">全部素材</option>
-                <option value="background">原创背景</option>
+                <option value="background">背景图库</option>
                 <option value="icon">图标</option>
               </select>
             </div>
@@ -308,14 +308,14 @@ export function CreativeTools(p: {
                         }
                       }}
                     >
-                      <img src={workspaceUrl(a.preview)} alt={a.name} loading="lazy" />
+                      <img src={import.meta.env.BASE_URL+a.preview.replace(/^\/+/,"")} alt={a.name} loading="lazy" />
                       <span>
                         {p.selected.includes(a.id) ? <Check size={16} /> : "+"}
                       </span>
                     </button>
                     <b>{a.name}</b>
-                    <a href={workspaceUrl(a.license_url)} target="_blank" rel="noreferrer">
-                      {a.source} · 授权 ↗
+                    <a href={a.source_url || (a.license_url.startsWith("/") ? import.meta.env.BASE_URL + a.license_url.slice(1) : a.license_url)} target="_blank" rel="noreferrer">
+                      {a.name} · {a.license} ↗
                     </a>
                   </div>
                 ))}
@@ -328,24 +328,7 @@ export function CreativeTools(p: {
               </button>
             </div>
             <p className="tool-footnote">
-              24 款双色 Lucide 图标（ISC / MIT）与 8
-              张原创背景（CC0）。源文件包附带授权说明。
-              <a
-                href="https://lucide.dev/icons/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                浏览 Lucide ↗
-              </a>{" "}
-              ·{" "}
-              <a
-                href="https://heropatterns.com/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                发现 Hero Patterns（CC BY 4.0，需署名）↗
-              </a>
-              。外部网站仅作灵感参考，未自动导入其素材。
+              {p.assets.filter(a=>a.kind==="background").length} 张背景可用于海报。每张图的作者、原始来源与许可随源码包导出。
             </p>
           </>
         )}

@@ -125,7 +125,7 @@ function KitPreview({
     </dialog>
   );
 }
-function Proof({ kit, ready }: { kit: Kit; ready: boolean }) {
+export function PublishedKitProof({ kit, ready }: { kit: Kit; ready: boolean }) {
   const [index, select] = useState(0);
   const [open, setOpen] = useState(false);
   const [opening, setOpening] = useState(false);
@@ -374,7 +374,7 @@ export default function PublishedKits() {
           </button>
         ))}
       </div>
-      <Proof key={kits[selected].id} kit={kits[selected]} ready={ready} />
+      <PublishedKitProof key={kits[selected].id} kit={kits[selected]} ready={ready} />
     </section>
   );
 }

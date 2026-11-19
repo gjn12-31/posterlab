@@ -17,6 +17,7 @@ from .server import Brief
 
 
 class PrintProof(BaseModel):
+    model: str | None = Field(default=None, max_length=80)
     model_config = ConfigDict(extra='forbid')
     brief: Brief
     format: Literal['portrait', 'square', 'landscape']
@@ -41,15 +42,15 @@ class PrintProof(BaseModel):
 def register_campaign_review(app, ledger, gateway, transport):
     @app.post('/api/outreach/campaign-review')
     async def review(proof: PrintProof, request: Request):
-        model = gateway.defaults['review']
+        model = gateway.select(proof.model, 'review')
         if not gateway.api_key or not gateway.sees_images(model):
             raise HTTPException(503, '视觉模型尚未连接。')
         key = request.headers.get('idempotency-key', '')
         if not re.fullmatch(r'[a-zA-Z0-9_-]{8,100}', key):
             raise HTTPException(400, '缺少有效的请求标识')
         key = 'campaign-review-' + key
-        fingerprint = hashlib.sha256(proof.model_dump_json().encode()).hexdigest()
-        cached = ledger.reserve(key, gateway.identity(model, fingerprint))
+        fingerprint = hashlib.sha256(proof.model_dump_json(exclude={'model'}).encode()).hexdigest()
+        cached = ledger.reserve(key, gateway.identity(model, fingerprint, legacy_model='step-5-preview'))
         if cached is not None:
             return cached
         context = {'活动事实': proof.brief.model_dump(), '画幅': proof.format, '评分维度': RUBRIC}

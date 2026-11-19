@@ -250,7 +250,13 @@ export function renderCover(project: Project, format: Format) {
     content += `<g data-layer="${xml(key)}" transform="translate(${left} ${top})"><rect width="${width}" height="${height}" fill="transparent"/><text fill="${xml(settings.color ?? color)}" font-family="${family}" font-size="${px}" font-style="${italic ? "italic" : "normal"}" font-weight="${weight}">${runs}</text></g>`;
     return height / h;
   }
-  if (s.layout === "campaign") campaignText(s, format, textLayer, issues);
+  if (s.layout === "campaign") {
+    const library = s.heroId ? project.assets[s.heroId]?.library : undefined;
+    const creditLine = library
+      ? [s.creditLine, library.source + " · " + library.license].filter(Boolean).join(" / ")
+      : s.creditLine;
+    campaignText({ ...s, creditLine }, format, textLayer, issues);
+  }
   else {
     const x = margin / w;
     textLayer(

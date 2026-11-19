@@ -1,4 +1,5 @@
 import { releaseCalendar, releasePlan } from "./campaign-plan";
+import { creditText } from "./background-library";
 import { invitation } from "./campaign-model";
 import { renderCover } from "./cover";
 import { escapeXml, wrap } from "./poster-text";
@@ -404,6 +405,8 @@ export async function exportPack(
   }
   if (updateCopy) zip.file("改期通知.txt", updateCopy);
   zip.file("project.posterlab.json", JSON.stringify(p, null, 2));
+  const library = p.current.heroId ? p.assets[p.current.heroId]?.library : undefined;
+  if (library) zip.file("背景图来源.txt", creditText(library));
   if (p.current.layout === "campaign") {
     const entries = releasePlan(p);
     const schedule = entries.map((entry, index) => {

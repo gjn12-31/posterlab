@@ -1,3 +1,4 @@
+import WorkflowModels from "./WorkflowModels";
 import React, {
   useEffect,
   useState,
@@ -1242,6 +1243,7 @@ function App() {
               </div>
               {rightTab === "assistant" ? (
                 <div className="assistant-content">
+                  {service?.ai && <WorkflowModels context="assistant" disabled={!!busy} />}
                   <div className="assistant-identity">
                     <span>
                       <Sparkles size={22} />

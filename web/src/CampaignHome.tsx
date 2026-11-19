@@ -1,3 +1,5 @@
+import WorkflowModels, { useWorkflowChoices } from "./WorkflowModels";
+import { modelField } from "./workflow-models";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownToLine,
@@ -45,6 +47,7 @@ import { editions, type Edition } from "./editions";
 import {
   formats,
   briefSchema,
+  checkpoint,
   labels,
   type Project,
   type Brief,
@@ -63,6 +66,7 @@ import { writeCampaign } from "./outreach";
 import { STATIC_DEMO, studioFetch } from "./studio-api";
 import {
   applyCampaignArtwork,
+  applyCampaignLibraryBackground,
   clearArtworkRequest,
   prepareArtworkRequest,
   type ArtworkRequest,
@@ -71,6 +75,10 @@ import LiveStudioLink from "./LiveStudioLink";
 import { CampaignNav } from "./CampaignNav";
 import { reviewCampaign, type CampaignReview } from "./campaign-review";
 import "./publicity-workroom.css";
+import WorkroomCases from "./WorkroomCases";
+import NoticeExamples from "./NoticeExamples";
+import BackgroundLibrary from "./BackgroundLibrary";
+import type { LibraryBackground } from "./background-library";
 
 const channels: {
   id: Format;
@@ -245,11 +253,12 @@ export default function CampaignHome() {
       throw error;
     }
   }
+  const chosenModels = useWorkflowChoices();
   function writeInvitation(brief: Brief) {
     return withStep(
       "copy",
-      model,
-      () => writeCampaign(brief, crypto.randomUUID()),
+      chosenModels.campaign || model,
+      () => writeCampaign(brief, crypto.randomUUID(), chosenModels.campaign),
       (plan) =>
         [plan.invitation, plan.art_direction || plan.reason]
           .filter(Boolean)
@@ -391,16 +400,19 @@ export default function CampaignHome() {
     }),
     [project, fontRev],
   );
+  const libraryCredit = project.current.heroId
+    ? project.assets[project.current.heroId]?.library
+    : undefined;
   const [reviews, setReviews] = useState<Record<string, CampaignReview>>({});
-  const reviewKey = `${project.id}/${project.updated}/${selected}`;
+  const reviewKey = `${project.id}/${project.updated}/${selected}/${chosenModels.campaignReview || visionModel}`;
   const currentReview = reviews[reviewKey];
   function inspectProof() {
     run("review", async () => {
       selectProjectTrace(project.id, project.current.brief.title);
       const result = await withStep(
         "review",
-        visionModel,
-        () => reviewCampaign(project, selected),
+        chosenModels.campaignReview || visionModel,
+        () => reviewCampaign(project, selected, chosenModels.campaignReview),
         (reply) => formats[selected].name + " · " + reply.summary,
       );
       setReviews((previous) => ({ ...previous, [reviewKey]: result }));
@@ -558,7 +570,7 @@ export default function CampaignHome() {
           setDraft(next);
         }
         recordStep("layout", "done", "本机排版", layoutDetail);
-        if (useModel && artworkModel) {
+        if (useModel && artworkModel && !(same && libraryCredit)) {
           setBusy("generate-art");
           try {
             await paintArtwork(generated, !copyError);
@@ -575,7 +587,7 @@ export default function CampaignHome() {
         }
         if (copyError) {
           throw Error(
-            "活动主视觉和三张海报已生成。请在「发布文案」核对现有版本或单独生成邀请文案。" +
+            "三张海报已就绪。请在「发布文案」核对现有版本或单独生成邀请文案。" +
               copyError,
           );
         }
@@ -597,6 +609,37 @@ export default function CampaignHome() {
       say("主视觉已应用到三种画幅");
     });
   }
+  async function changeLibraryBackground(choice?: { row: LibraryBackground; file: File }) {
+    if (busyRef.current || projectPending) throw Error("正在准备项目，请稍后再试。");
+    busyRef.current = true;
+    setBusy("library");
+    try {
+      const brief = dirty && choice ? parseNotice(draft.raw) : draft.brief;
+      const same = brief.title === draft.brief.title;
+      const nextDraft: Draft = same
+        ? { ...draft, brief }
+        : { brief, raw: draft.raw, applied: draft.raw, edition: chooseEdition(draft.raw), workingId: crypto.randomUUID() };
+      if (dirty && choice) nextDraft.applied = draft.raw;
+      if (same && hasChanges(draft.brief, brief)) nextDraft.previous = schedule(draft.brief);
+      const base = same ? project
+        : campaignProject(nextDraft.edition, brief, undefined, undefined, nextDraft.workingId);
+      const next = choice
+        ? await applyCampaignLibraryBackground(base, choice.row, choice.file)
+        : checkpoint(base, "移除图库背景");
+      next.current.brief = brief;
+      if (!choice) {
+        delete next.current.heroId;
+        delete next.current.artworkPalette;
+      }
+      const saved = await saveCampaignProject(next, same ? project.updated : undefined);
+      setLinked(saved);
+      setDraft({ ...nextDraft, workingId: saved.id, projectId: saved.id });
+      say(choice ? "图库背景已应用到三种画幅" : "已恢复版式默认背景");
+    } finally {
+      busyRef.current = false;
+      setBusy("");
+    }
+  }
   function generateCopy() {
     if (!model || dirty || projectPending) return;
     run("copy", async () => {
@@ -611,6 +654,7 @@ export default function CampaignHome() {
       throw Error("项目中已有 20 个素材，请在编辑器中整理后重试。");
     const snapshot = base.current;
     const body = JSON.stringify({
+      ...modelField(chosenModels.campaignArt),
       title: snapshot.brief.title,
       description: snapshot.brief.description,
       edition: snapshot.edition,
@@ -625,7 +669,7 @@ export default function CampaignHome() {
     artworkRequest.current = request;
     const image = await withStep(
       "artwork",
-      artworkModel,
+      chosenModels.campaignArt || artworkModel,
       async () => {
         const response = await studioFetch("/outreach/artwork", {
           method: "POST",
@@ -690,7 +734,7 @@ export default function CampaignHome() {
       if (next.edition !== snap.edition) {
         snap.edition = next.edition;
         snap.theme = editions[next.edition].theme;
-        if (!keepArtwork) delete snap.heroId;
+        if (!keepArtwork && !(snap.heroId && linked.assets[snap.heroId]?.library)) delete snap.heroId;
       }
       const saved = await saveCampaignProject(
         { ...linked, current: snap },
@@ -856,6 +900,7 @@ export default function CampaignHome() {
       <main className="cp-shell">
         <header className="wx-campaign-title">
           <h1>活动宣传</h1>
+          {model && <WorkflowModels context="campaign" disabled={!!busy} />}
           <p>
             把活动通知做成海报、朋友圈配图和活动页封面，配好从预告到当天的发布文案。
           </p>
@@ -949,19 +994,10 @@ export default function CampaignHome() {
                 </button>
               </div>
             </form>
-            <div className="cp-samples" aria-label="活动示例">
-              <span>试用示例</span>
-              {campaigns.map((c) => (
-                <button
-                  key={c.edition}
-                  aria-pressed={draft.raw === c.notice}
-                  disabled={!!busy}
-                  onClick={() => generate(c.notice, c.edition)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
+            <NoticeExamples busy={!!busy} choose={(text) => {
+              setDraft((previous) => ({...previous, raw: text})); setError("");
+              requestAnimationFrame(() => textarea.current?.focus());
+            }} />
             {!modal && <CampaignSteps title={traceTitle} steps={trace} />}
             {error && !modal && (
               <p className="cp-error" role="alert">
@@ -976,6 +1012,13 @@ export default function CampaignHome() {
                 {dirty ? "上次生成的预览" : "成品预览"}
               </span>
               <div className="wx-board-actions">
+                <BackgroundLibrary
+                  selected={libraryCredit}
+                  disabled={!!busy || projectPending}
+                  scope="同一张背景用于竖版海报、社交方图和横版封面。"
+                  apply={(row, file) => changeLibraryBackground({ row, file })}
+                  clear={() => changeLibraryBackground()}
+                />
                 {artworkModel && (
                   <button
                     type="button"
@@ -999,6 +1042,7 @@ export default function CampaignHome() {
                 </button>
               </div>
             </div>
+            {libraryCredit && <p className="bl-current">图库 · {libraryCredit.name} · {libraryCredit.source} · {libraryCredit.license}</p>}
             <div
               className={
                 "cp-spread" + (proofFormat === "all" ? "" : " wx-proof-single")
@@ -1229,6 +1273,7 @@ export default function CampaignHome() {
             </div>
           </div>
         </section>
+        <WorkroomCases kind="campaign" />
       </main>
     );
   }
@@ -1387,6 +1432,7 @@ export default function CampaignHome() {
           <CampaignSteps title={traceTitle} steps={trace} />
           {visionModel && (
             <section className="cp-art-review" aria-label="AI 审片">
+              <WorkflowModels context="review" disabled={!!busy} />
               {currentReview ? (
                 <>
                   <strong>审片意见 · {formats[selected].name}</strong>

@@ -1,4 +1,5 @@
 import { releaseCalendar, releasePlan } from "./campaign-plan";
+import { creditText } from "./background-library";
 import { formats, type Format, type Project } from "./model";
 import { exportBlob } from "./render";
 
@@ -79,6 +80,8 @@ export async function exportSelection(
   const { default: JSZip } = await import("jszip");
   const zip = new JSZip();
   for (const file of files) zip.file(file.filename, await read(file));
+  const library = project.current.heroId ? project.assets[project.current.heroId]?.library : undefined;
+  if (library && files.some(file => "format" in file)) zip.file("背景图来源.txt", creditText(library));
   return {
     blob: await zip.generateAsync({ type: "blob" }),
     filename: name + "-渠道发布包.zip",

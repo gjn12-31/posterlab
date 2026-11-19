@@ -267,7 +267,7 @@ def test_campaign_reschedule_export_and_continue_editing(studio):
     expect(page.locator(".cp-spread .cp-sheet")).to_have_count(1)
     expect(page.locator(".cp-spread .cp-square")).to_be_visible()
     views.get_by_role("button", name="全套").click()
-    page.get_by_label("活动通知").fill(
+    page.get_by_role("textbox", name=re.compile("^活动通知")).fill(
         "山野植物观察日\n2026年12月5日 09:30，地点：望山公园。\n带上速写本，观察冬日植物。"
     )
     page.get_by_role("button", name="生成并预览").click()
@@ -664,14 +664,11 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     expect(intro).to_contain_text("论文")
     expect(intro).to_contain_text("活动")
     expect(intro.get_by_role("link",name="导入论文 PDF")).to_have_count(0)
-    wall = intro.get_by_role("group", name="宣传作品海报墙")
-    wall.get_by_role("button", name="暂停海报浮动").click()
-    expect(wall.locator(".wall-mount img").first).to_have_css("animation-play-state", "paused")
-    wall.get_by_role("button", name="欣赏海报：ClashBench · 共享资源冲突评测").click()
-    lightbox = page.get_by_role("dialog")
-    page.keyboard.press("ArrowRight")
-    expect(lightbox.get_by_role("heading", name="秋夜设计书展")).to_be_visible()
-    lightbox.get_by_role("link", name="查看宣传套装").click()
+    wall = intro.get_by_role("region", name="宣传案例轮播")
+    wall.get_by_role("button", name="暂停案例轮播").click()
+    wall.get_by_role("button", name="展示秋夜设计书展").click()
+    expect(wall.get_by_role("button", name="展示秋夜设计书展")).to_have_attribute("aria-pressed", "true")
+    wall.get_by_role("link", name="查看完整案例：秋夜设计书展").click()
     expect(page).to_have_url(re.compile(r"#collection/bookfair$"))
     expect(page.locator("#collection").get_by_role("button",name="秋夜设计书展",exact=True)).to_have_attribute("aria-pressed","true")
     page.goto(url)
@@ -680,20 +677,22 @@ def test_home_previews_show_files_from_downloaded_kits(studio):
     expect(paper).not_to_be_in_viewport()
     intro.get_by_role("link", name="看生成演示").click()
     demo = page.locator("#demo")
-    slider = demo.get_by_role("slider", name="对照原稿和发布成品")
-    expect(slider).to_be_in_viewport()
+    expect(demo.get_by_role("group", name="选择演示步骤")).to_be_in_viewport()
     demo.get_by_role("button", name="活动案例").click()
-    slider.focus()
-    page.keyboard.press("Home")
-    expect(slider).to_have_value("0")
+    demo.get_by_role("button", name="设计主视觉").click()
     expect(demo.get_by_role("img", name="秋夜设计书展宣传海报")).to_be_visible()
-    page.keyboard.press("End")
-    expect(slider).to_have_value("100")
+    expect(demo.get_by_role("button", name="播放流程演示")).to_be_visible()
+    demo.get_by_role("button", name="三画幅出图").click()
+    expect(demo.get_by_role("img", name="横版封面实际发布成品")).to_be_visible()
+    demo.get_by_role("button", name="从头回放演示").click()
+    expect(demo.get_by_role("heading", name="导入通知")).to_be_visible()
+    expect(demo.get_by_role("button", name="暂停流程演示")).to_be_visible()
     page.get_by_role("banner").get_by_role("link", name="进入工作台").click()
     expect(paper).to_be_in_viewport()
     expect(page.get_by_role("link",name="制作活动海报")).to_be_in_viewport()
     page.emulate_media(reduced_motion="reduce")
-    expect(intro.locator(".pl-visual")).to_have_css("transform","none")
+    expect(wall.get_by_role("button",name="播放案例轮播")).to_be_visible()
+    expect(wall.locator(".wall-reel-card").first).to_have_css("transition-duration","0s")
     page.get_by_role("navigation", name="首页导航").get_by_role("link", name="常见问题").click()
     expect(page.locator("#faq").get_by_role("heading").first).to_be_in_viewport()
     footer = page.get_by_role("contentinfo")
@@ -1398,3 +1397,100 @@ def test_invited_workspaces_keep_private_drafts_images_and_reviews_separate(stud
     assert page.evaluate('JSON.parse(localStorage.getItem("posterlab.chat.draft"))') == 'owner secret'
     assert not unscoped and not errors
     context.close()
+
+
+def test_selected_models_reach_paper_campaign_and_vision_requests(studio, monkeypatch):
+    """Exercise the selectors through the same four-stage paper and campaign forms users see."""
+    import base64
+    from io import BytesIO
+    from posterlab.gateway import StudioGateway
+
+    monkeypatch.setenv('POSTERLAB_PROVIDER', 'paratera')
+    gateway = StudioGateway.configured('fixture')
+    browser, url = studio
+    page = browser.new_page(viewport={'width':1440, 'height':960})
+    page.set_default_timeout(10000)
+    page.route('**/api/models', lambda r: r.fulfill(json={'models':gateway.models, 'defaults':{**gateway.defaults, 'artwork':gateway.artwork_model}}))
+    page.route('**/api/status', lambda r: r.fulfill(json={'ai':True, 'model':gateway.defaults['chat'], 'campaign_model':gateway.defaults['campaign'], 'artwork_model':gateway.artwork_model, 'vision_model':gateway.defaults['review']}))
+    output = BytesIO()
+    Image.new('RGB',(80,80),'teal').save(output, 'WEBP')
+    image = 'data:image/webp;base64,' + base64.b64encode(output.getvalue()).decode()
+    choices = {}
+    def reply(route):
+        name = route.request.url.rsplit('/',1)[-1]
+        body = route.request.post_data_json
+        choices[name] = body.get('model')
+        if name == 'paper-reading': data = research_reading_fixture(body)
+        elif name == 'paper-layout': data = research_layout_fixture()
+        elif name.endswith('artwork'): data = {'data_url':image}
+        elif name == 'paper': data = {'headline':'海边实测','x':['At the shore.'],'red':'海边\n\n看清这个潮位。','moments':'看看潮位','wechat':'海边潮位','evidence_ids':{}}
+        elif name == 'campaign': data = {'edition':'course','reason':'观察海岸','invitation':'一起来看潮。','tag':'海岸'}
+        elif name == 'campaign-review': data = {'summary':'画面层级清楚。','priorities':[{'name':'留白','evidence':'主标题靠近边界','suggestion':'增加留白'}]*2}
+        elif name == 'assist': data = {'fields':{'description':'来看看这次岸边的观测结果。'},'reason':'邀请同行阅读','source':'paratera'}
+        else: raise AssertionError(name)
+        route.fulfill(json={**data, 'provider':'Paratera', 'model':choices[name]})
+    page.route('**/api/outreach/*',reply)
+    page.route('**/api/assist',reply)
+    flash, pro, illustration, vision = 'DeepSeek-V4.1-Flash-1017','DeepSeek-V4-Pro-0813','Doubao-Seedream-4.0','GLM-4.6V'
+    page.goto(url+'#papers/import')
+    dialog = page.get_by_role('dialog')
+    dialog.get_by_role('button', name='手动填写标题和摘要').click()
+    dialog.get_by_label('论文标题').fill('Tide gauges')
+    dialog.get_by_label('摘要或论文原文').fill('Four tide gauges recorded similar heights.')
+    dialog.locator('.workflow-models summary').click()
+    for label,model in [('论文研读',flash),('海报版式',pro),('四平台文案',flash),('单平台改写',pro),('论文概念配图',illustration)]:
+        dialog.get_by_label(label,exact=True).select_option(model)
+    dialog.get_by_role('button',name='生成四套宣传材料').click()
+    expect(dialog).to_be_hidden()
+    page.get_by_role('button',name='编辑',exact=True).click()
+    dialog.get_by_role('button',name='按小红书风格改写').click()
+    expect(dialog.get_by_label('发布文案')).to_have_value(re.compile('岸边的观测'))
+    assert choices == {'paper-reading':flash, 'paper-layout':pro, 'paper':flash, 'paper-artwork':illustration,'assist':pro}
+    page.goto(url+'#campaign')
+    page.locator('.wx-campaign-title .workflow-models summary').click()
+    for label,model in [('活动策划与邀请',flash),('活动主视觉',illustration),('成图审阅',vision)]:
+        page.get_by_label(label,exact=True).select_option(model)
+    page.get_by_role('textbox',name=re.compile('^活动通知')).fill('潮水观察日\n2026年12月5日 09:30，地点：海岸公园。\n一起观潮。')
+    page.get_by_role('button',name='生成宣传套装').click()
+    dialog.get_by_role('button',name='AI 审片',exact=True).click()
+    expect(dialog).to_contain_text('画面层级清楚。')
+    assert choices['campaign'] == flash and choices['artwork'] == illustration and choices['campaign-review'] == vision
+    page.reload()
+    page.locator('.wx-campaign-title .workflow-models summary').click()
+    expect(page.get_by_label('活动主视觉',exact=True)).to_have_value(illustration)
+    page.close()
+
+
+def test_paper_library_background_preserves_source_figures_and_channel_scope(studio, tmp_path):
+    browser, url = studio
+    page = browser.new_page()
+    page.goto(url + '#papers/example/clashbench')
+    editor = page.get_by_role('region', name='论文海报排版编辑器')
+    expect(editor).to_be_visible()
+    images = editor.locator('.ple-art image')
+    image_sources = "nodes => nodes.map(node => node.getAttribute('href'))"
+    originals = images.evaluate_all(image_sources)
+    assert originals
+
+    editor.get_by_role('button', name='背景图库').click()
+    picker = page.get_by_role('dialog', name='背景图库')
+    catalog = json.loads((SITE / 'library/catalog.json').read_text())
+    work = next(row for row in catalog if row['kind'] == 'background' and row.get('source_title'))
+    picker.get_by_role('searchbox').fill(work['name'])
+    picker.get_by_role('button', name=work['name'], exact=True).click()
+    expect(picker.get_by_role('link', name='作品来源')).to_have_attribute('href', work['source_url'])
+    picker.get_by_role('button', name='使用这个背景').click()
+    expect(picker).to_have_count(0)
+    assert images.evaluate_all(image_sources)[1:] == originals
+    page.get_by_role('dialog').get_by_role('button', name='关闭', exact=True).click()
+
+    with page.expect_download() as download:
+        page.get_by_role('button', name='下载整套 ZIP').click()
+    dest = tmp_path / 'paper.zip'
+    download.value.save_as(dest)
+    with ZipFile(dest) as package:
+        credited = [name for name in package.namelist() if name.endswith('背景图来源.txt')]
+        assert credited == ['小红书/背景图来源.txt']
+        credit = package.read(credited[0]).decode('utf-8')
+        assert all(work[key] in credit for key in ('source_title', 'source', 'source_url', 'license', 'license_url'))
+    page.close()

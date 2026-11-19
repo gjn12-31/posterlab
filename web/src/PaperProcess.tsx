@@ -2,17 +2,19 @@ import { useState } from "react";
 import { Check, ChevronDown, CircleAlert, LoaderCircle } from "lucide-react";
 import PaperStageOutput from "./PaperStageOutput";
 import { stageLabels, stages, type Stage } from "./paper-process-model";
-import type { Paper } from "./paper-model";
+import type { Channel, Paper } from "./paper-model";
 import "./paper-process.css";
 
 export default function PaperProcess({
   paper,
   running = false,
   retry,
+  openCanvas,
 }: {
   paper: Paper;
   running?: boolean;
   retry?: () => void;
+  openCanvas?: (channel: Channel) => void;
 }) {
   const [expanded, setExpanded] = useState(running);
   const [inspected, setInspected] = useState<Stage>();
@@ -100,7 +102,7 @@ export default function PaperProcess({
               );
             })}
           </ol>
-          <PaperStageOutput paper={paper} stage={inspectedStage} />
+          <PaperStageOutput paper={paper} stage={inspectedStage} openCanvas={openCanvas} />
           {analysis && (
             <details className="pp-reading">
               <summary>查看研究结论与逐条出处</summary>

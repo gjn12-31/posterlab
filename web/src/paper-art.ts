@@ -5,6 +5,7 @@ import { PaperCanvas } from "./paper-canvas";
 import type { DrawioPage } from "./drawio";
 import { articleFragment, noteParts, postParts } from "./paper-publication";
 import { loadFonts } from "./render";
+import { creditText } from "./background-library";
 import {
   channels,
   channelCopy,
@@ -342,6 +343,8 @@ export async function paperPack(p: Paper, selected?: Channel) {
   for (const c of selected ? [selected] : channels) {
     const folder = zip.folder(platforms[c].name)!;
     const copy = channelCopy(p, c);
+    const library = p.posterLayouts?.[c]?.libraryBackground?.credit;
+    if (library) folder.file("背景图来源.txt", creditText(library));
     folder.file("配图.png", await paperPng(p, c));
     if (p.posterLayouts?.[c])
       folder.file("可编辑海报.drawio", await (await paperDrawio(p, c)).text());
@@ -389,5 +392,6 @@ export async function paperPack(p: Paper, selected?: Channel) {
         .join("\n"),
     );
   }
+  if (p.imageLicense) zip.file("图像授权与署名.txt", p.imageLicense);
   return zip.generateAsync({ type: "blob" });
 }

@@ -297,7 +297,10 @@
   color: white;
 }
 .pl-home .home-collection .pg-actions > .pg-edit:hover,
-.pl-home .home-collection .pg-actions:not(:has(.pg-edit)) .pg-kit-download:hover,
+.pl-home
+  .home-collection
+  .pg-actions:not(:has(.pg-edit))
+  .pg-kit-download:hover,
 .pl-home .home-collection .pg-dialog a.pg-download:hover {
   background: #1b47c5;
   border-color: #1b47c5;
@@ -365,5 +368,74 @@
   .pl-home .home-collection .pg-art {
     border-right: 0;
     border-bottom: 1px solid var(--ws-line);
+  }
+}
+
+.home-workspace .pl-output-head .pl-demo-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.pl-demo-controls button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #3c506e;
+  border: 1px solid #cdd9e9;
+  border-radius: 50%;
+  background: #fff;
+}
+.pl-output-art img:not(.pl-cover-thumb) {
+  animation: work-sample-in 600ms cubic-bezier(0.16, 0.75, 0.22, 1) both;
+}
+.pl-work-filmstrip {
+  margin: 12px 0 15px;
+  height: 55px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 13px;
+  overflow: hidden;
+  border-radius: 7px;
+  background: linear-gradient(100deg, #e9eef9, #edf4fc 55%, #e6edfb);
+}
+.pl-work-filmstrip img {
+  height: 61px;
+  width: 66px;
+  object-fit: contain;
+  transform: translateY(7px);
+  filter: drop-shadow(0 4px 4px #18233b35);
+  transition: transform 640ms cubic-bezier(0.18, 0.78, 0.2, 1);
+}
+.pl-chapter[data-active="true"] .pl-work-filmstrip img:first-child {
+  transform: translate(-4px, 1px);
+}
+.pl-chapter[data-active="true"] .pl-work-filmstrip img:nth-child(2) {
+  transform: translateY(-2px);
+}
+.pl-chapter[data-active="true"] .pl-work-filmstrip img:last-child {
+  transform: translate(4px, 1px);
+}
+.pl-chapter-1 .pl-work-filmstrip {
+  background: linear-gradient(110deg, #dce9f4, #e6edee, #ecf2ef);
+}
+@keyframes work-sample-in {
+  from {
+    opacity: 0.3;
+    transform: translateY(5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-output-art img:not(.pl-cover-thumb) {
+    animation: none;
+  }
+  .pl-work-filmstrip img {
+    transition: none;
   }
 }
