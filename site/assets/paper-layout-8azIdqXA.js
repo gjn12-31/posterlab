@@ -1,0 +1,1 @@
+export{o as paperLayoutPage,s as renderPaperLayout}from"./PaperStudio-DHUI-7Cr.js";

@@ -905,9 +905,21 @@ def test_generated_campaign_artwork_applies_to_every_proof_and_survives_failure(
 
     page.route("**/api/outreach/artwork", artwork)
     page.goto(url + "#campaign")
+    # Capture the first committed proof, before a later passive effect could
+    # repair a missing link and mask what an immediate refresh would lose.
+    page.evaluate("""() => {
+        const observer = new MutationObserver(() => {
+            if (document.querySelectorAll('.cp-spread svg image[href^="data:image/"]').length !== 3) return;
+            const draft = JSON.parse(localStorage.getItem('posterlab.campaign.v1') || '{}');
+            window.projectAtFirstProof = draft.projectId || null;
+            observer.disconnect();
+        });
+        observer.observe(document.body, {subtree:true, childList:true, attributes:true});
+    }""")
     page.get_by_role("button", name="生成主视觉", exact=True).click()
     chosen = page.locator('.cp-spread svg image[href^="data:image/"]')
     expect(chosen).to_have_count(3)
+    assert page.evaluate("window.projectAtFirstProof")
     assert requests[0].headers["idempotency-key"] and requests[0].post_data_json["title"]
     page.reload()
     expect(chosen).to_have_count(3)

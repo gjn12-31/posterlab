@@ -1,6 +1,6 @@
 import WorkflowModels, { useWorkflowChoices } from "./WorkflowModels";
 import { modelField } from "./workflow-models";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDownToLine,
   ArrowRight,
@@ -456,7 +456,8 @@ export default function CampaignHome() {
       live = false;
     };
   }, [draft.brief.title, draft.brief.venue]);
-  useEffect(() => {
+  // A reload as soon as the finished proofs appear must find their saved project.
+  useLayoutEffect(() => {
     try {
       localStorage.setItem(draftKey, JSON.stringify(draft));
     } catch {

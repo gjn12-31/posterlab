@@ -400,15 +400,5 @@
   }
 }
 
-@media (max-width: 360px) {
-  #publicity-studio.pr-page .cp-nav .cp-shell {
-    width: 96%;
-    gap: 6px;
-  }
-  #publicity-studio.pr-page .cp-nav nav {
-    gap: 7px;
-  }
-}
-
 .pub-art-credit { display: block; margin: 0 0 .7rem; color: #534a70; line-height: 1.4; }
 .pub-media-tools { flex-wrap: wrap; }
