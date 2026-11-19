@@ -664,10 +664,13 @@
 @media (max-width: 360px) {
   #publicity-studio .cp-nav.pl-toolnav .cp-shell {
     width: 96%;
-    gap: 6px;
+    gap: 4px;
   }
   #publicity-studio .cp-nav.pl-toolnav nav {
-    gap: 7px;
+    gap: 2px;
+  }
+  #publicity-studio .cp-nav.pl-toolnav nav a {
+    padding-inline: 2px;
   }
 }
 @media (forced-colors: active) {
@@ -683,6 +686,9 @@
 #publicity-studio .pl-toolnav nav a {
   border-radius: 8px; padding: 8px 13px; min-height: 36px;
   transition: background-color .16s, color .16s, transform .16s;
+}
+@media (max-width: 600px) {
+  #publicity-studio .pl-toolnav nav a { padding-inline: 4px; }
 }
 #publicity-studio .pl-toolnav nav a:hover { background: #f1f4fa; }
 #publicity-studio .pl-toolnav nav a[aria-current="page"] { color: #214bc1; background: #e8efff; }
